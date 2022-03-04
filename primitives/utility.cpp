@@ -1,0 +1,192 @@
+#include "utility.hpp"
+#include <ostream>
+#include "../parse_helpers.hpp"
+
+Square square_from_str(std::string_view sv) {
+    if (sv.size() < 2)
+        return SQ_NONE;
+    int file = to_lower(sv[0]) - 'a',
+        rank = sv[1] - '1';
+    if (file >= 0 && file < 8 && rank >= 0 && rank < 8)
+        return Square(file + rank * 8);
+    return SQ_NONE;
+}
+
+Color color_from_str(std::string_view sv) {
+    if (sv.size() < 5)
+        return COLOR_NONE;
+    sv = sv.substr(0, 5);
+    if (istr_equal(sv, "white"))
+        return WHITE;
+    else if (istr_equal(sv, "black"))
+        return BLACK;
+
+    return COLOR_NONE;
+}
+
+Piece piece_from_str(std::string_view sv) {
+    if (sv.empty())
+        return NO_PIECE;
+    Color c = is_upper(sv[0]) ? WHITE : BLACK;
+    switch (to_lower(sv[0])) {
+    case 'p':
+        return make_piece(c, PAWN);
+    case 'n':
+        return make_piece(c, KNIGHT);
+    case 'b':
+        return make_piece(c, BISHOP);
+    case 'r':
+        return make_piece(c, ROOK);
+    case 'q':
+        return make_piece(c, QUEEN);
+    case 'k':
+        return make_piece(c, KING);
+    default:
+        return NO_PIECE;
+    };
+
+}
+
+PieceType ptype_from_str(std::string_view sv) {
+    Piece p = piece_from_str(sv);
+    return p != NO_PIECE ? type_of(p) : NO_PIECE_TYPE;
+}
+
+CastlingRights castling_from_str(std::string_view sv) {
+    auto has = [sv](char ch) { 
+        return sv.find(ch) != std::string_view::npos; 
+    };
+
+    CastlingRights cr = NO_CASTLING;
+    if (has('K'))
+        cr = CastlingRights(cr | WHITE_KINGSIDE);
+    if (has('Q'))
+        cr = CastlingRights(cr | WHITE_QUEENSIDE);
+    if (has('k'))
+        cr = CastlingRights(cr | BLACK_KINGSIDE);
+    if (has('q'))
+        cr = CastlingRights(cr | BLACK_QUEENSIDE);
+
+    return cr;
+}
+
+Move move_from_str(std::string_view sv) {
+    if (sv.size() < 4)
+        return MOVE_NONE;
+    Square from = square_from_str(sv),
+           to = square_from_str(sv.substr(2));
+
+    PieceType prom = NO_PIECE_TYPE;
+    switch (sv.size() >= 5 ? to_lower(sv[4]) : 0) {
+    case 'n': prom = KNIGHT; break;
+    case 'b': prom = BISHOP; break;
+    case 'r': prom = ROOK; break;
+    case 'q': prom = QUEEN; break;
+    default: break;
+    };
+
+    if (from == SQ_NONE || to == SQ_NONE || from == to)
+        return MOVE_NONE;
+
+    return prom == NO_PIECE_TYPE ? make_move(from, to)
+        : make<PROMOTION>(from, to, prom);
+}
+
+
+std::ostream& operator<<(std::ostream& os, Square s) {
+    if (!is_ok(s)) {
+        os << "SQ_NONE";
+        return os;
+    }
+
+    char file_ch = file_of(s) + 'a',
+         rank_ch = rank_of(s) + '1';
+
+    os << file_ch << rank_ch;
+    return os;
+}
+
+std::ostream& operator<<(std::ostream& os, Color c) {
+    switch (c) {
+    case WHITE: os << "white"; break;
+    case BLACK: os << "black"; break;
+    default: os << "COLOR_NONE"; break;
+    };
+
+    return os;
+}
+
+static const char* PIECE_NAMES[] = {
+    "pawn", "knight", "bishop", "rook", "queen", "king"
+};
+
+std::ostream& operator<<(std::ostream& os, PieceType pt) {
+    if (pt == NO_PIECE_TYPE) {
+        os << "NO_PIECE_TYPE";
+        return os;
+    }
+
+    os << PIECE_NAMES[pt];
+    return os;
+}
+
+std::ostream& operator<<(std::ostream& os, Piece p) {
+    if (p == NO_PIECE) {
+        os << "NO_PIECE";
+        return os;
+    }
+
+    os << (color_of(p) == WHITE ? "w" : "b") << type_of(p);
+    return os;
+}
+
+std::ostream& operator<<(std::ostream& os, CastlingRights cr) {
+    if (cr == NO_CASTLING) {
+        os << "NO_CASTLING";
+        return os;
+    }
+
+    if (cr & WHITE_KINGSIDE)
+        os << 'K';
+    if (cr & WHITE_QUEENSIDE)
+        os << 'Q';
+    if (cr & BLACK_KINGSIDE)
+        os << 'k';
+    if (cr & BLACK_QUEENSIDE)
+        os << 'q';
+
+    return os;
+}
+
+std::ostream& operator<<(std::ostream& os, Move m) {
+    if (m == MOVE_NONE) {
+        os << "MOVE_NONE";
+        return os;
+    }
+
+    os << from_sq(m) << to_sq(m);
+    if (type_of(m) == PROMOTION) {
+        const char proms[] = { 'k', 'b', 'r', 'q' };
+        os << proms[prom_type(m) - KNIGHT];
+    }
+
+    return os;
+}
+
+std::ostream& operator<<(std::ostream &os, BBPretty bbp) {
+    Bitboard bb = bbp.bb;
+    os << "+---+---+---+---+---+---+---+---+\n";
+    for (int r = RANK_8; r >= RANK_1; --r) {
+        os << "| ";
+        for (int f = FILE_A; f <= FILE_H; ++f) {
+            bool occupied = bb & square_bb(make_square(File(f), Rank(r)));
+            os << (occupied ? "X | " : "  | ");
+        }
+        os << char('1' + r) << '\n';
+        os << "+---+---+---+---+---+---+---+---+\n";
+    }
+
+    os << "  a   b   c   d   e   f   g   h\n";
+
+    return os;
+}
