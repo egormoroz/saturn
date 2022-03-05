@@ -1,6 +1,7 @@
 #include "utility.hpp"
 #include <ostream>
 #include "../parse_helpers.hpp"
+#include "../board/board.hpp"
 
 Square square_from_str(std::string_view sv) {
     if (sv.size() < 2)
@@ -92,6 +93,24 @@ Move move_from_str(std::string_view sv) {
         : make<PROMOTION>(from, to, prom);
 }
 
+Move move_from_str(const Board &b, std::string_view sv) {
+    Move m = move_from_str(sv);
+    if (m == MOVE_NONE)
+        return m;
+
+    Square from = from_sq(m), to = to_sq(m);
+    File ff = file_of(from), ft = file_of(to);
+    if (b.king_square(b.side_to_move()) == from 
+        && ff == FILE_E && (ft == FILE_A || ft == FILE_H))
+    {
+        m = make<CASTLING>(from, to);
+    }
+
+    if (b.en_passant() == to)
+        m = make<EN_PASSANT>(from, to);
+        
+    return b.is_valid_move(m) ? m : MOVE_NONE;
+}
 
 std::ostream& operator<<(std::ostream& os, Square s) {
     if (!is_ok(s)) {

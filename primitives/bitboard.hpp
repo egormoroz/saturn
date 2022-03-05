@@ -102,7 +102,8 @@ constexpr Bitboard QUEENSIDE_BB[COLOR_NB] = {
 
 /*---------------Bitboard operations-----------------*/
 
-inline Bitboard lsb_bb(Bitboard bb) {
+//least significant square
+inline Bitboard lss_bb(Bitboard bb) {
     assert(bb);
     return bb & -bb;
 }

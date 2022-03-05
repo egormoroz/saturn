@@ -6,7 +6,7 @@
 
 /*
  * FILE: board_moves.cpp
- * Here goes all the stuff to do with moves and the board
+ * Here goes all the stuff to do with (un)doing moves
  * */
 
 constexpr File rook_start(bool queenside) {

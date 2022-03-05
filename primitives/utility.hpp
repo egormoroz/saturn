@@ -10,13 +10,19 @@ struct BBPretty {
     Bitboard bb;
 };
 
+class Board;
+
 Square square_from_str(std::string_view sv);
 Color color_from_str(std::string_view sv);
 Piece piece_from_str(std::string_view sv);
 PieceType ptype_from_str(std::string_view sv);
 CastlingRights castling_from_str(std::string_view sv);
+
 //extracts only from/to squares and promotion type
 Move move_from_str(std::string_view sv);
+
+//extracts move and tests if it is valid
+Move move_from_str(const Board &b, std::string_view sv);
 
 
 std::ostream& operator<<(std::ostream& os, Square s);
