@@ -66,8 +66,9 @@ Board Board::do_move(Move m) const {
         } else if (from_bb & (RANK_2_BB | RANK_7_BB) 
                 && to_bb & (RANK_4_BB | RANK_5_BB)) 
         {
-            //cool bit tricks! do they work though...
-            Bitboard ep_bb = ((from_bb & RANK_2_BB) | (to_bb & RANK_5_BB)) << 8;
+            Bitboard ep_bb = from_bb & RANK_2_BB;
+            ep_bb |= to_bb & RANK_5_BB;
+            ep_bb <<= 8;
             result.en_passant_ = pop_lsb(ep_bb);
             result.checkers_ |= pawn_attacks_bb(them, ksq) & to_bb;
         } else {
@@ -103,13 +104,138 @@ Board Board::do_move(Move m) const {
     return result;
 }
 
-bool Board::is_valid_move(Move m) const {
-    assert(false);
-    return false;
+Board Board::do_null_move() const {
+    assert(!checkers_);
+
+    Board result = *this;
+    result.side_to_move_ = ~side_to_move_;
+    result.en_passant_ = SQ_NONE;
+    result.update_pin_info();
+
+    result.key_ ^= ZOBRIST.side
+        ^ (ZOBRIST.enpassant[file_of(en_passant_)] 
+                * (en_passant_ != SQ_NONE));
+
+    return result;
 }
 
-bool Board::gives_check(Move m) const {
-    assert(false);
-    return false;
+/*
+ * TODO: test me!
+ * So far I've only checked that this function is correct
+ * for legal moves. But what about illegal?
+ * */
+bool Board::is_valid_move(Move m) const {
+    Color us = side_to_move_, them = ~us;
+    
+    Square from = from_sq(m), to = to_sq(m);
+    Bitboard from_bb = square_bb(from), to_bb = square_bb(to);
+
+    Piece moved = piece_on(from), captured = piece_on(to);
+    
+    if (from == to || moved == NO_PIECE || color_of(moved) != us)
+        return false;
+    if (captured != NO_PIECE && (color_of(captured) != them
+            || type_of(captured) == KING))
+        return false;
+
+    /* We know that we move our piece and if any capture 
+     * takes place, it was the opponent's piece that gets captured.
+     * Now we only need to make sure that 
+     * 1) this kind of piece can make that move
+     * (i.e. the move is pseudo legal)
+     * 2) the move doesn't leave the king in check
+     * (i.e. the move is legal)
+     * */
+
+    //ocupied board after the moves takes place
+    //If the move is a capture, then don't touch
+    //the destination square (as it is already occupied)
+    Bitboard occupied = combined_ ^ from_bb 
+        ^ (to_bb * (captured == NO_PIECE));
+    Bitboard enemies = pieces(them) 
+        ^ (to_bb * (captured != NO_PIECE));
+    Bitboard dsts = 0;
+    Square ksq = king_square(us);
+
+    PieceType pt = type_of(moved);
+    if (pt == PAWN) {
+        Bitboard my_r3 = relative_rank_bb(us, RANK_3),
+                 my_r8 = relative_rank_bb(us, RANK_8);
+        switch (type_of(m)) {
+        case NORMAL:
+        case PROMOTION:
+        {
+            dsts = pawn_pushes_bb(us, from) & ~pieces();
+            Bitboard bb = (my_r3 & pieces()) & ~square_bb(from);
+            bb = (bb << 8) | (bb >> 8);
+            dsts &= ~bb; //handle long pushes
+            dsts |= pawn_attacks_bb(us, from) & pieces(them);
+
+            if (type_of(m) == PROMOTION)
+                dsts &= my_r8;
+            break;
+        }
+        case EN_PASSANT:
+        {
+            if (en_passant() != SQ_NONE)
+                dsts = square_bb(en_passant());
+            Bitboard cap_bb = square_bb(make_square(
+                        file_of(to), rank_of(from)));
+            occupied ^= cap_bb;
+            enemies ^= cap_bb;
+            break;
+        }
+        default:
+            return false;
+        };
+    } else if (pt == KNIGHT) {
+        dsts = attacks_bb<KNIGHT>(from) & ~pieces(us);
+    } else if (pt == KING) {
+        ksq = to;
+        switch (type_of(m)) {
+        case NORMAL:
+            dsts = attacks_bb<KING>(from) & ~pieces(us);
+            break;
+        case CASTLING:
+        {
+            if (checkers_ || relative_rank(us, to) != RANK_1)
+                return false;
+
+            Square rk_from, rk_to;
+            Rank rank = rank_of(to);
+            File file = file_of(to);
+            bool can_kingside = kingside_rights(us) & castling_,
+                 can_queenside = queenside_rights(us) & castling_;
+            if (file == FILE_G && can_kingside) {
+                rk_from = make_square(FILE_H, rank);
+                rk_to = make_square(FILE_F, rank);
+                if (attackers_to(them, sq_shift<EAST>(from),
+                        combined_)) return false;
+            } else if (file == FILE_C && can_queenside) {
+                rk_from = make_square(FILE_A, rank);
+                rk_to = make_square(FILE_D, rank);
+                if (attackers_to(them, sq_shift<WEST>(from), 
+                        combined_)) return false;
+            } else {
+                return false;
+            }
+
+            occupied ^= square_bb(rk_from) ^ square_bb(rk_to);
+            dsts |= to_bb;
+            break;
+        }
+        default:
+            return false;
+        };
+    } else { //sliders
+        dsts = attacks_bb(pt, from, combined_) & ~pieces(us);
+    }
+
+    //Check if the move is pseudo legal
+    if (!(dsts & to_bb))
+        return false;
+
+    //Finally let's see if the move leaves our king in check
+    return !(attackers_to(them, ksq, occupied) & enemies);
 }
 

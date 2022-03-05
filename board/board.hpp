@@ -30,7 +30,6 @@ public:
      * 2. Checking moves from various move ordering structures
      * */
     bool is_valid_move(Move m) const;
-    bool gives_check(Move m) const;
 
     void update_pin_info();
 

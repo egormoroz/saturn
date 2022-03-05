@@ -246,8 +246,8 @@ constexpr int mate_in(int ply) { return VALUE_MATE - ply; }
 constexpr int mated_in(int ply) { return -VALUE_MATE + ply; }
 
 constexpr int MAX_DEPTH = 64;
-constexpr int MAX_MOVES = 256;
-constexpr int MAX_PLIES = 32;
+constexpr int MAX_MOVES = 224;
+constexpr int MAX_PLIES = 129;
 
 /*----------End of various values definitions--------*/
 
@@ -270,7 +270,7 @@ constexpr Square sq_shift(Square sq) {
     case WEST:
         return Square(sq - 1);
     case EAST:
-        return Sq(sq + 1);
+        return Square(sq + 1);
     case NORTH_WEST:
         return Square(sq + 7);
     case NORTH_EAST:

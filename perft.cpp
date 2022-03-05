@@ -23,7 +23,7 @@ constexpr PerftResult PERFT_RESULTS[] = {
 
 constexpr int N = std::size(PERFT_RESULTS);
 
-}
+} //namespace
 
 uint64_t perft(const Board &b, int depth) {
     ExtMove begin[MAX_MOVES], *end;
@@ -49,7 +49,8 @@ int perft_test_positions() {
         threads.emplace_back([&results, i]() {
             PerftResult pr = PERFT_RESULTS[i];
             Board b;
-            assert(b.load_fen(pr.fen));
+            if (!b.load_fen(pr.fen))
+                return;
             results[i] = perft(b, pr.depth);
         });
     }

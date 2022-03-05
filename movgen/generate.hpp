@@ -6,10 +6,10 @@
 #include <array>
 
 struct ExtMove {
-    Move move;
-    int value;
+    uint16_t move;
+    uint16_t value;
 
-    operator Move() const { return move; }
+    operator Move() const { return Move(move); }
     void operator=(Move m) { move = m; }
 
     operator float() const = delete;
