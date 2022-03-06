@@ -65,7 +65,7 @@ int SearchContext::search_root(const Board &b, int alpha,
 
 template<NodeType N>
 int SearchContext::search(const Board &b, int alpha, int beta, 
-        int depth, int ply)
+        int depth, int ply, bool do_null)
 {
     if (stop())
         return 0;
@@ -100,8 +100,27 @@ int SearchContext::search(const Board &b, int alpha, int beta,
                 return beta;
             if (tte.bound8 == BOUND_ALPHA && tte.score16 <= alpha)
                 return alpha;
+
+            do_null = do_null && !tte.avoid_null;
         }
     }
+
+
+    bool has_big_pieces = b.pieces(b.side_to_move())
+        & ~b.pieces(PAWN, KING);
+    bool avoid_null = false;
+    if (do_null && N == NO_PV && depth > 2 && !b.checkers()
+            && has_big_pieces)
+    {
+        int R = depth > 6 ? 3 : 2;
+        int score = -search<NO_PV>(b.do_null_move(),
+                -beta, -beta + 1, depth - 1 - R, ply, false);
+        if (score >= beta)
+            return beta;
+
+        avoid_null = true;
+    }
+
 
     Move prev = hist_.last_move();
     MovePicker mp(b, ttm, ply, prev, killers_, 
@@ -151,7 +170,7 @@ int SearchContext::search(const Board &b, int alpha, int beta,
 
                 if (!stop_) {
                     g_tt.store(TTEntry(b.key(), beta, BOUND_BETA, 
-                                depth, best_move, false));
+                                depth, best_move, avoid_null));
                 }
                 return beta;
             }
@@ -171,7 +190,7 @@ int SearchContext::search(const Board &b, int alpha, int beta,
 
     if (!stop_) {
         g_tt.store(TTEntry(b.key(), alpha, bound, depth, 
-                    best_move, false));
+                    best_move, avoid_null));
     }
 
     return alpha;

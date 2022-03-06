@@ -75,6 +75,9 @@ void SearchContext::iterative_deepening() {
         if (stop()) break;
 
         info_pv(depth);
+
+        if (abs(score) > VALUE_MATE - 100)
+            break;
     }
 
     TTEntry tte;

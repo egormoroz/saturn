@@ -34,7 +34,7 @@ private:
             int depth);
     template<NodeType N>
     int search(const Board &b, int alpha, int beta,
-            int depth, int ply);
+            int depth, int ply, bool do_null = true);
 
     int quiesce(int alpha, int beta, const Board &b);
 
