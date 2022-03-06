@@ -32,9 +32,13 @@ namespace {
                 fen += s + ' ';
         } else if (s == "startpos") {
             fen = STARTING_FEN;
+            is >> s; //consume "moves"
         } else {
             return;
         }
+
+        if (!b.load_fen(fen))
+            return;
 
         while (is >> s) {
             Move m = move_from_str(b, s);
@@ -51,7 +55,6 @@ namespace {
         cmd::Go go;
         go.max_depth = MAX_DEPTH;
         go.max_nodes = INT32_MAX;
-        go.start = Clock::now();
         go.move_time = INT32_MAX;
 
         while (is >> token) {
@@ -61,6 +64,7 @@ namespace {
             else if (token == "binc") is >> go.increment[BLACK];
             else if (token == "movetime") is >> go.move_time;
             else if (token == "infinite") go.infinite = true;
+            else if (token == "depth") is >> go.max_depth;
         }
 
         listener.accept(go);
@@ -80,7 +84,7 @@ void main_loop(Listener &listener) {
             s = "quit";
 
         is.str(s);
-        cmd.clear();
+        is.clear();
         is >> cmd;
 
         if (cmd == "isready") sync_cout << "readyok" << sync_endl;

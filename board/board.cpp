@@ -3,6 +3,7 @@
 #include "../zobrist.hpp"
 #include "../movgen/attack.hpp"
 #include "../primitives/utility.hpp"
+#include "../core/eval.hpp"
 
 /*
  * FILE: board.cpp
@@ -153,7 +154,7 @@ std::ostream& operator<<(std::ostream& os, const Board &b) {
 
     os << "\nSide to move: " << b.side_to_move();
     os << "\nCastling rights: " << b.castling();
-    os << "\nStatic evaluation: " << /*eval(b)*/0 << "\n";
+    os << "\nStatic evaluation: " << eval(b) << "\n";
 
     auto flags = os.flags();
     os << "Key: " << std::hex << b.key() << "\n";

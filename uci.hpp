@@ -4,7 +4,6 @@
 #include <variant>
 #include <iosfwd>
 #include "board/board.hpp"
-#include "timer.hpp"
 
 #define sync_cout std::cout << IO_LOCK
 #define sync_endl std::endl << IO_UNLOCK
@@ -34,8 +33,6 @@ struct Go {
     int max_depth{}, max_nodes{}, move_time{};
     
     bool infinite{};
-
-    TimePoint start{};
 };
 
 struct Stop {};
