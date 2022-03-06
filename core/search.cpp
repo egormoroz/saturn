@@ -44,14 +44,9 @@ void SearchContext::iterative_deepening() {
     Board b = root_; //make a copy
 
     Move pv[MAX_PLIES];
-
-    int score = 0;
     std::ostringstream os;
-    for (int depth = 1; depth <= max_depth_; ++depth) {
-        score = search(b, -VALUE_INFINITE, VALUE_INFINITE, depth);
-        if (stop())
-            break;
-
+    int score = 0, alpha = -VALUE_INFINITE, beta = VALUE_INFINITE;
+    auto info_pv = [&](int depth) {
         os.str("");
         int elapsed = timer_.elapsed_millis();
         float ordering = fhf / float(fh);
@@ -64,6 +59,22 @@ void SearchContext::iterative_deepening() {
         for (int i = 0; i < n; ++i)
             os << pv[i] << ' ';
         sync_cout << os.str() << sync_endl;
+    };
+
+    score = search_root(b, alpha, beta, 1);
+    info_pv(1);
+
+    constexpr int WINDOW = PAWN_VALUE / 4;
+    for (int depth = 2; depth <= max_depth_; ++depth) {
+        alpha = score - WINDOW; beta = score + WINDOW;
+        score = search_root(b, alpha, beta, depth);
+        if (score <= alpha || score >= beta)
+            score = search_root(b, -VALUE_INFINITE, 
+                    VALUE_INFINITE, depth);
+
+        if (stop()) break;
+
+        info_pv(depth);
     }
 
     TTEntry tte;

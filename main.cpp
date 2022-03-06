@@ -47,7 +47,7 @@ int main() {
             break;
         } else if (token == "s") {
             search.set_board(b);
-            search.run(MAX_DEPTH, 5000, false);
+            search.run(MAX_DEPTH, 10000, false);
             search.wait_for_search();
         } else if((m = move_from_str(b, token)) != MOVE_NONE) {
             if (b.piece_on(to_sq(m)) != NO_PIECE) {

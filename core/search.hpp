@@ -8,6 +8,11 @@
 #include <condition_variable>
 #include <thread>
 
+enum NodeType {
+    IS_PV,
+    NO_PV,
+};
+
 class SearchContext : public UCI::Listener {
 public:
     SearchContext();
@@ -25,8 +30,12 @@ private:
     void reset();
     void iterative_deepening();
 
-    int search(const Board &b, int alpha, int beta, 
-            int depth, int ply = 0);
+    int search_root(const Board &b, int alpha, int beta,
+            int depth);
+    template<NodeType N>
+    int search(const Board &b, int alpha, int beta,
+            int depth, int ply);
+
     int quiesce(int alpha, int beta, const Board &b);
 
     //does the move and some bookkeeping
