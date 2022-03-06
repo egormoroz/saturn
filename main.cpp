@@ -9,12 +9,13 @@
 #include "core/search.hpp"
 
 using namespace std;
-constexpr std::string_view STARTING_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+//constexpr std::string_view STARTING_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+constexpr string_view STARTING_FEN = "3k4/8/8/8/6N1/5p2/5K2/1r2N3 b - - 12 50";
 
 int main() {
     init_zobrist();
     init_attack_tables();
-    g_tt.init(128);
+    g_tt.init(256);
 
     std::vector<Board> history;
     history.reserve(MAX_MOVES);

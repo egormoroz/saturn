@@ -127,6 +127,7 @@ Square Board::en_passant() const { return en_passant_; }
 CastlingRights Board::castling() const { return castling_; }
 
 uint64_t Board::key() const { return key_; }
+int Board::fifty_rule() const { return fifty_; }
 
 namespace {
     constexpr char PIECE_CHAR[PIECE_NB] = {

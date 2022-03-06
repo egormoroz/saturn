@@ -4,6 +4,7 @@
 #include <variant>
 #include <iosfwd>
 #include "board/board.hpp"
+#include "history.hpp"
 
 #define sync_cout std::cout << IO_LOCK
 #define sync_endl std::endl << IO_UNLOCK
@@ -21,6 +22,7 @@ namespace cmd {
 
 struct Position { 
     Board board; 
+    History hist;
 };
 
 struct Go {

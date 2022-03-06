@@ -6,7 +6,6 @@
 #include <sstream>
 #include "../tt.hpp"
 #include "../primitives/utility.hpp"
-#include "../movgen/generate.hpp"
 
 SearchContext::SearchContext() {
     reset();
@@ -47,16 +46,17 @@ void SearchContext::iterative_deepening() {
     int score = 0;
     std::ostringstream os;
     for (int depth = 1; depth <= max_depth_; ++depth) {
-        score = search(-VALUE_INFINITE, VALUE_INFINITE, depth, b);
+        score = search(b, -VALUE_INFINITE, VALUE_INFINITE, depth);
         if (stop())
             break;
 
         os.str("");
         int elapsed = timer_.elapsed_millis();
         os << "info score cp " << score << " depth " << depth 
-           << " nodes " << nodes_ << " time " << elapsed << " pv ";
+           << " nodes " << nodes_ << " time " << elapsed
+           << " tt_hits " << tt_hits_ << " pv ";
 
-        int n = g_tt.extract_pv(b, pv);
+        int n = g_tt.extract_pv(b, pv, depth);
         for (int i = 0; i < n; ++i)
             os << pv[i] << ' ';
         sync_cout << os.str() << sync_endl;
@@ -71,6 +71,7 @@ void SearchContext::set_board(const Board &b) {
     stop_ = true;
     std::lock_guard<std::mutex> lock(mtx_);
     root_ = b;
+    hist_.ply = 0;
 }
 
 
@@ -81,7 +82,10 @@ void SearchContext::accept(const UCI::Command &cmd) {
     std::visit([this](auto &&v) {
         using T = std::decay_t<decltype(v)>;
         if constexpr (std::is_same_v<T, Position>) {
-            set_board(v.board);
+            stop_ = true;
+            std::lock_guard<std::mutex> lock(mtx_);
+            root_ = v.board;
+            hist_ = v.hist;
         } else if constexpr (std::is_same_v<T, Go>) {
 
             reset();
@@ -112,52 +116,23 @@ void SearchContext::reset() {
     infinite_ = false;
     max_depth_ = 0;
     nodes_ = 0;
+    tt_hits_ = 0;
 }
 
-int SearchContext::search(int alpha, int beta, 
-        int depth, const Board &b) 
-{
-    ++nodes_;
-    if (depth == 0)
-        return eval(b);
-    if (stop())
-        return 0;
+Board SearchContext::do_move(const Board &b, Move m) {
+    hist_.push(b.key(), m);
+    return b.do_move(m);
+}
 
-    Bound bound = BOUND_ALPHA;
-    Move best_move = MOVE_NONE;
-
-    ExtMove begin[MAX_MOVES], *end;
-    end = generate<LEGAL>(b, begin);
-
-    for (auto *it = begin; it != end; ++it) {
-        Move m = *it;
-        int score = -search(-beta, -alpha, depth - 1, 
-                b.do_move(m));
-
-        if (score > alpha) {
-            if (score >= beta) {
-                g_tt.store(TTEntry(b.key(), beta, BOUND_BETA, 
-                            depth, best_move, false));
-                return beta;
-            }
-
-            alpha = score;
-            best_move = m;
-            bound = BOUND_EXACT;
-        }
-    }
-
-    g_tt.store(TTEntry(b.key(), alpha, bound, depth, 
-                best_move, false));
-    return alpha;
+void SearchContext::undo_move() {
+    hist_.pop();
 }
 
 bool SearchContext::stop() {
-    if (nodes_ & 8191) {
+    if (nodes_ & 8191)
         if (stop_ || (!infinite_ && timer_.out_of_time()))
-            return true;
-    }
-    return false;
+            stop_ = true;
+    return stop_;
 }
 
 SearchContext::~SearchContext() {

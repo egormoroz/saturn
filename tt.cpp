@@ -37,8 +37,12 @@ ProbeResult TranspositionTable::probe(uint64_t key,
 
 void TranspositionTable::store(TTEntry entry) {
     TTEntry &e = entries_[entry.key % size_];
-    if (entry.move16 == MOVE_NONE)
-        entry.move16 = e.move16;
+    if (e.bound8 == BOUND_EXACT && entry.bound8 != BOUND_EXACT)
+        return;
+
+    /* if (entry.move16 == MOVE_NONE) */
+    /*     entry.move16 = e.move16; */
+
     if (entry.bound8 == BOUND_EXACT
         || (e.key ^ e.data) != entry.data
         || e.depth8 >= entry.depth8)
@@ -58,15 +62,16 @@ TranspositionTable::~TranspositionTable() {
     }
 }
 
-int TranspositionTable::extract_pv(Board b, Move *pv) {
+int TranspositionTable::extract_pv(Board b, Move *pv, int len) {
     int n = 0;
     TTEntry tte;
-    while (probe(b.key(), tte) == HASH_HIT && n++ < MAX_MOVES) {
+    while (probe(b.key(), tte) == HASH_HIT && n < len) {
         Move m = Move(tte.move16);
         if (!b.is_valid_move(m))
             break;
         b = b.do_move(m);
         *pv++ = m;
+        ++n;
     }
     return n;
 }

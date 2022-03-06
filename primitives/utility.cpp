@@ -101,7 +101,7 @@ Move move_from_str(const Board &b, std::string_view sv) {
     Square from = from_sq(m), to = to_sq(m);
     File ff = file_of(from), ft = file_of(to);
     if (b.king_square(b.side_to_move()) == from 
-        && ff == FILE_E && (ft == FILE_A || ft == FILE_H))
+        && ff == FILE_E && (ft == FILE_C || ft == FILE_G))
     {
         m = make<CASTLING>(from, to);
     }
@@ -185,7 +185,7 @@ std::ostream& operator<<(std::ostream& os, Move m) {
 
     os << from_sq(m) << to_sq(m);
     if (type_of(m) == PROMOTION) {
-        const char proms[] = { 'k', 'b', 'r', 'q' };
+        const char proms[] = { 'n', 'b', 'r', 'q' };
         os << proms[prom_type(m) - KNIGHT];
     }
 

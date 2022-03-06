@@ -46,7 +46,7 @@ public:
     ProbeResult probe(uint64_t key, TTEntry &e) const;
     void store(TTEntry entry);
 
-    int extract_pv(Board b, Move *pv);
+    int extract_pv(Board b, Move *pv, int len);
 
     void prefetch(uint64_t key) const;
 

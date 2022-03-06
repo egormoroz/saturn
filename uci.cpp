@@ -22,7 +22,9 @@ using namespace UCI;
 
 namespace {
     void position(Listener &listener, istringstream &is) {
-        Board b;
+        cmd::Position pos;
+        Board &b = pos.board;
+        History &hist = pos.hist;
 
         string s, fen;
         is >> s;
@@ -44,10 +46,11 @@ namespace {
             Move m = move_from_str(b, s);
             if (m == MOVE_NONE)
                 break;
+            hist.push(b.key(), m);
             b = b.do_move(m);
         }
 
-        listener.accept(cmd::Position{ b });
+        listener.accept(pos);
     }
 
     void go(Listener &listener, istringstream &is) {

@@ -22,12 +22,21 @@ public:
 
 private:
     void reset();
-    int search(int alpha, int beta, int depth, const Board &b);
     void iterative_deepening();
+
+    int search(const Board &b, int alpha, int beta, 
+            int depth, int ply = 0);
+    int quiesce(int alpha, int beta, const Board &b);
+
+    //does the move and some bookkeeping
+    Board do_move(const Board &b, Move m);
+    //again, for bookkeeping purposes
+    void undo_move();
 
     bool stop();
 
     Board root_;
+    History hist_;
 
     Timer timer_;
     int max_depth_{};
@@ -37,6 +46,7 @@ private:
     bool done_{true};
     std::atomic_bool quitting_{false};
 
+    int tt_hits_{};
     int nodes_{};
 
     std::thread worker_;

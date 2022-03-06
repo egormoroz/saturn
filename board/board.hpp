@@ -5,10 +5,7 @@
 #include "../primitives/bitboard.hpp"
 #include <string_view>
 #include <iosfwd>
-/*
- * Contains 200 bytes of actual position data
- * and a big state stack w/ moves and such
- * */
+
 class Board {
 public:
     Board() = default;
@@ -71,6 +68,9 @@ public:
 
     uint64_t key() const;
 
+    //returns number of moves since last capture/pawn move
+    int fifty_rule() const;
+
 private:
     Bitboard pieces_[PIECE_TYPE_NB];
     Bitboard combined_;
@@ -87,6 +87,7 @@ private:
 
     Color side_to_move_;
     Square en_passant_;
+    int fifty_;
 };
 
 std::ostream& operator<<(std::ostream& os, const Board &b);

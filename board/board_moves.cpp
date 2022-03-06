@@ -93,6 +93,10 @@ Board Board::do_move(Move m) const {
 
     result.side_to_move_ = them;
 
+    result.fifty_++;
+    if (type_of(moved) == PAWN || captured != NO_PIECE)
+        result.fifty_ = 0;
+
     result.key_ ^= ZOBRIST.side
         ^ ZOBRIST.castling[castling_]
         ^ ZOBRIST.castling[result.castling_]
