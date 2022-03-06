@@ -11,7 +11,6 @@
  * as some methods not worth creating a separate file
  * */
 
-
 void Board::update_pin_info() {
     //could be cheaper, because we look up sliders 3(!) times
     Color us = side_to_move_, them = ~us;

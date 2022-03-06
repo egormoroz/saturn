@@ -2,7 +2,7 @@
 #include <cassert>
 #include "../movgen/attack.hpp"
 
-bool Board::nonneg_see(Move m) const {
+bool Board::ok_capture(Move m) const {
     assert(is_ok(m));
     assert(type_of(m) == NORMAL);
 

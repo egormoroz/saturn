@@ -3,6 +3,7 @@
 
 #include "../timer.hpp"
 #include "../uci.hpp"
+#include "../movepicker.hpp"
 #include <mutex>
 #include <condition_variable>
 #include <thread>
@@ -38,6 +39,10 @@ private:
     Board root_;
     History hist_;
 
+    Killers killers_;
+    CounterMoves counters_;
+    HistoryHeuristic history_;
+
     Timer timer_;
     int max_depth_{};
     bool infinite_{};
@@ -48,6 +53,7 @@ private:
 
     int tt_hits_{};
     int nodes_{};
+    int fh{}, fhf{};
 
     std::thread worker_;
     std::mutex mtx_;

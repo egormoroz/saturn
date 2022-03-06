@@ -4,8 +4,10 @@
 #include <thread>
 #include <iostream>
 #include <sstream>
+#include <algorithm>
 #include "../tt.hpp"
 #include "../primitives/utility.hpp"
+#include <cstring>
 
 SearchContext::SearchContext() {
     reset();
@@ -52,9 +54,11 @@ void SearchContext::iterative_deepening() {
 
         os.str("");
         int elapsed = timer_.elapsed_millis();
-        os << "info score cp " << score << " depth " << depth 
+        float ordering = fhf / float(fh);
+        os << "info score " << Score{score} << " depth " << depth 
            << " nodes " << nodes_ << " time " << elapsed
-           << " tt_hits " << tt_hits_ << " pv ";
+           << " tt_hits " << tt_hits_ << " ordering: " << ordering
+           << " pv ";
 
         int n = g_tt.extract_pv(b, pv, depth);
         for (int i = 0; i < n; ++i)
@@ -117,6 +121,12 @@ void SearchContext::reset() {
     max_depth_ = 0;
     nodes_ = 0;
     tt_hits_ = 0;
+    fhf = 0;
+    fh = 0;
+
+    memset(killers_.data(), 0, sizeof(killers_));
+    memset(counters_.data(), 0, sizeof(counters_));
+    memset(history_.data(), 0, sizeof(history_));
 }
 
 Board SearchContext::do_move(const Board &b, Move m) {

@@ -28,8 +28,9 @@ public:
      * */
     bool is_valid_move(Move m) const;
 
-    // Checks if the see value of the move is >= 0
-    bool nonneg_see(Move m) const;
+    bool ok_capture(Move m) const;
+
+    bool is_capture(Move m) const;
 
     void update_pin_info();
 

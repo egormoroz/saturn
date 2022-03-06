@@ -60,9 +60,10 @@ ExtMove* pawn_legals(const Board &b, ExtMove *moves) {
     while (pawns) {
         Square from = pop_lsb(pawns);
 
-        Bitboard dsts = 0;
+        Bitboard dsts = pawn_pushes_bb(us, from) & ~b.pieces();
+        if (!(T & QUIET))
+            dsts &= my_r8;
         if (T & QUIET) {
-            dsts |= pawn_pushes_bb(us, from) & ~b.pieces();
             Bitboard bb = (my_r3 & b.pieces()) & ~square_bb(from);
             bb = (bb << 8) | (bb >> 8);
             dsts &= ~bb;
@@ -70,6 +71,7 @@ ExtMove* pawn_legals(const Board &b, ExtMove *moves) {
 
         if (T & CAPTURES)
             dsts |= pawn_attacks_bb(us, from) & b.pieces(them);
+
         if (IN_CHECK)
             dsts &= check_mask;
 

@@ -10,6 +10,10 @@ struct BBPretty {
     Bitboard bb;
 };
 
+struct Score {
+    int value;
+};
+
 class Board;
 
 Square square_from_str(std::string_view sv);
@@ -32,6 +36,7 @@ std::ostream& operator<<(std::ostream& os, Piece p);
 std::ostream& operator<<(std::ostream& os, CastlingRights cr);
 std::ostream& operator<<(std::ostream& os, Move m);
 std::ostream& operator<<(std::ostream& os, BBPretty b);
+std::ostream& operator<<(std::ostream& os, Score s);
 
 
 #endif

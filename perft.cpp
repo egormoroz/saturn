@@ -3,6 +3,7 @@
 #include "board/board.hpp"
 #include <vector>
 #include <thread>
+#include "movepicker.hpp"
 
 namespace {
 
@@ -21,14 +22,17 @@ constexpr PerftResult PERFT_RESULTS[] = {
     { "r4rk1/1pp1qppp/p1np1n2/2b1p1B1/2B1P1b1/P1NP1N2/1PP1QPPP/R4RK1 w - - 0 10 ", 5, 164'075'551 },
 };
 
-constexpr int N = std::size(PERFT_RESULTS);
+constexpr int N = static_cast<int>(std::size(PERFT_RESULTS));
 
 } //namespace
 
 uint64_t perft(const Board &b, int depth) {
     ExtMove begin[MAX_MOVES], *end;
-    end = generate<LEGAL>(b, begin);
+    end = generate<CAPTURES>(b, begin);
+    end = generate<QUIET>(b, end);
 
+    if (depth == 0)
+        return 1;
     if (depth == 1)
         return end - begin;
 

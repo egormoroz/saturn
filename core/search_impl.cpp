@@ -2,10 +2,12 @@
 #include "../tt.hpp"
 #include "../movgen/generate.hpp"
 #include "eval.hpp"
+#include "../movepicker.hpp"
 
 int SearchContext::search(const Board &b, 
         int alpha, int beta, int depth, int ply) 
 {
+
     if (stop())
         return 0;
 
@@ -14,16 +16,24 @@ int SearchContext::search(const Board &b,
 
     if (depth == 0)
         return quiesce(alpha, beta, b);
-    ++nodes_;
 
     if (hist_.is_repetition(b.key(), b.fifty_rule()))
         return 0;
 
+    ++nodes_;
     if (ply >= MAX_PLIES)
         return eval(b);
 
+    //mate distance pruning
+    alpha = std::max(alpha, mated_in(ply + 1));
+    beta = std::min(beta, mate_in(ply));
+    if (alpha >= beta)
+        return alpha;
+
     TTEntry tte;
+    Move ttm = MOVE_NONE;
     if (g_tt.probe(b.key(), tte) == HASH_HIT) {
+        ttm = Move(tte.move16);
         if (tte.depth8 >= depth) {
             tt_hits_++;
             if (tte.bound8 == BOUND_EXACT)
@@ -35,25 +45,40 @@ int SearchContext::search(const Board &b,
         }
     }
 
-    ExtMove begin[MAX_MOVES], *end;
-    end = generate<LEGAL>(b, begin);
-    if (begin == end) {
-        if (b.checkers())
-            return mated_in(ply);
-        return 0;
-    }
+    Move prev = hist_.last_move();
+    MovePicker mp(b, ttm, ply, prev, killers_, 
+            counters_, history_);
 
     Bound bound = BOUND_ALPHA;
     Move best_move = MOVE_NONE;
     Board bb;
-    for (auto *it = begin; it != end; ++it) {
-        Move m = *it;
+    int moves_processed = 0;
+    for (Move m = mp.next(); m != MOVE_NONE; m = mp.next(), 
+            ++moves_processed) 
+    {
         bb = do_move(b, m);
         int score = -search(bb, -beta, -alpha, depth - 1, ply + 1);
         undo_move();        
 
         if (score > alpha) {
             if (score >= beta) {
+                ++fh;
+                fhf += moves_processed == 0;
+
+                if ((type_of(m) == NORMAL || type_of(m) == CASTLING)
+                        && !b.is_capture(m)) 
+                {
+                    if (killers_[0][ply] != m) {
+                        killers_[1][ply] = killers_[0][ply];
+                        killers_[0][ply] = m;
+                    }
+
+                    if (prev != MOVE_NONE)
+                        counters_[from_sq(prev)][to_sq(prev)] = m;
+                    history_[b.side_to_move()][from_sq(m)][to_sq(m)]
+                        = depth * depth;
+                }
+
                 if (!stop_) {
                     g_tt.store(TTEntry(b.key(), beta, BOUND_BETA, 
                                 depth, best_move, false));
@@ -65,6 +90,12 @@ int SearchContext::search(const Board &b,
             best_move = m;
             bound = BOUND_EXACT;
         }
+    }
+
+    if (!moves_processed) {
+        if (b.checkers())
+            return mated_in(ply);
+        return 0;
     }
 
     if (!stop_) {

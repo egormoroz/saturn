@@ -1,6 +1,8 @@
 #ifndef PRIMITIVE_BITBOARD_HPP
 #define PRIMITIVE_BITBOARD_HPP
 
+#pragma warning(disable:4146)
+
 #include <cstdint>
 #include "common.hpp"
 #include <cassert>

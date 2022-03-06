@@ -1,6 +1,6 @@
 #include "search.hpp"
-#include "../movgen/generate.hpp"
 #include "eval.hpp"
+#include "../movepicker.hpp"
 
 int SearchContext::quiesce(int alpha, int beta, 
         const Board &b) 
@@ -15,11 +15,13 @@ int SearchContext::quiesce(int alpha, int beta,
     if (stop())
         return 0;
 
-    ExtMove begin[MAX_MOVES], 
-            *end = generate<CAPTURES>(b, begin);
+    MovePicker mp(b);
     Board bb;
-    for (auto it = begin; it != end; ++it) {
-        bb = b.do_move(*it);
+    for (Move m = mp.qnext(); m != MOVE_NONE; m = mp.qnext()) {
+        if (type_of(m) == NORMAL && !b.ok_capture(m))
+            continue;
+
+        bb = b.do_move(m);
         int score = -quiesce(-beta, -alpha, bb);
         if (score > alpha) {
             if (score >= beta)

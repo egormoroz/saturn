@@ -5,6 +5,7 @@
 #include "../zobrist.hpp"
 
 bool Board::load_fen(std::string_view fen) {
+    trim_front(fen);
     memset(this, 0, sizeof(Board));
 
     for (int r = RANK_8; r >= RANK_1; --r) {

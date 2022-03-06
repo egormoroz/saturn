@@ -209,3 +209,18 @@ std::ostream& operator<<(std::ostream &os, BBPretty bbp) {
 
     return os;
 }
+
+std::ostream& operator<<(std::ostream& os, Score s) {
+    int x = s.value;
+    if (abs(x) > VALUE_MATE - 100) {
+        int moves = (VALUE_MATE - abs(x) + 1) 
+            * (x > 0 ? 1 : -1);
+        moves /= 2;
+        os << "mate " << moves;
+    } else {
+        os << "cp " << x;
+    }
+
+    return os;
+}
+
