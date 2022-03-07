@@ -210,7 +210,9 @@ int SearchContext::search(const Board &b, int alpha, int beta,
     Board bb;
     int moves_processed = 0,
         local_best = -VALUE_INFINITE,
-        score = -VALUE_INFINITE;
+        score = -VALUE_INFINITE,
+        new_depth = depth - 1,
+        reduction_depth = 0;
 
     auto failed_high = [&](Move m, bool is_quiet) {
         fhf += moves_processed == 0;
@@ -239,6 +241,8 @@ int SearchContext::search(const Board &b, int alpha, int beta,
     {
         bb = b.do_move(m);
         bool is_quiet = b.is_quiet(m);
+        reduction_depth = 0;
+        new_depth = depth - 1;
 
         if (f_prune && !bb.checkers() && is_quiet)
             continue;
@@ -256,10 +260,22 @@ int SearchContext::search(const Board &b, int alpha, int beta,
                 return alpha;
         }
 
+        //Late move reduction
+        if (N == NO_PV && new_depth > 3 && moves_processed > 3
+            && !b.checkers() && !bb.checkers() && is_quiet
+            && killers_[0][ply] != m && killers_[1][ply] != m)
+        {
+            reduction_depth = 1;
+            if (moves_processed > 8)
+                reduction_depth = 2;
+            new_depth -= reduction_depth;
+        }
+
+research:
         if (moves_processed == 0) {
             hist_.push(b.key(), m);
             score = -search<N>(bb, -beta, -alpha, 
-                    depth - 1, ply + 1);
+                    new_depth, ply + 1);
             hist_.pop();
         } else {
             uint32_t move_hash = abdada::move_hash(b.key(), m);
@@ -272,13 +288,19 @@ int SearchContext::search(const Board &b, int alpha, int beta,
             hist_.push(b.key(), m);
             abdada::starting_search(move_hash, depth);
             score = -search<NO_PV>(bb, -alpha - 1, -alpha,
-                    depth - 1, ply + 1);
+                    new_depth, ply + 1);
             abdada::finished_search(move_hash, depth);
 
             if (score > alpha && score < beta)
                 score = -search<IS_PV>(bb, -beta, -alpha,
-                        depth - 1, ply + 1);
+                        new_depth, ply + 1);
             hist_.pop();
+        }
+
+        if (reduction_depth && score > alpha) {
+            new_depth += reduction_depth;
+            reduction_depth = 0;
+            goto research;
         }
 
         if (score > local_best) {

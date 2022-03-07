@@ -21,9 +21,11 @@ SearchReport::SearchReport(uint32_t nodes, uint32_t tt_hits,
 std::ostream& operator<<(std::ostream &os, 
         const SearchReport &rep) 
 {
+    int nps = 1000 * rep.nodes / (rep.time + 1);
     os << "info score " << Score{rep.score} << " depth " 
        << int(rep.depth) << " nodes " << rep.nodes 
-       << " time " << rep.time << " tt_hits " << rep.tt_hits
+       << " time " << rep.time << " nps " << nps
+       << " tt_hits " << rep.tt_hits
        << " ordering: " << rep.ordering
        << " pv ";
 
