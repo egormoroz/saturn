@@ -1,6 +1,7 @@
 #include "engine.hpp"
 #include <iostream>
 #include "../primitives/utility.hpp"
+#include "../uci.hpp"
 
 Engine::Engine(int threads) {
     for (int i = 0; i < threads; ++i) {
@@ -9,38 +10,45 @@ Engine::Engine(int threads) {
     }
 }
 
-void Engine::accept(int idx, const SearchReport &report) {
-    sync_cout << "thread " << idx << ": " << report << sync_endl;
-    nodes_ += report.nodes();
-}
-
-void Engine::on_search_finished(int idx, Move best_move) {
-    sync_cout << "thread " << idx << ": " 
-        << best_move << sync_endl;
-}
-
-void Engine::start(const Board &b, int max_depth, int max_time) {
-    nodes_.store(0, std::memory_order_relaxed);
-    for (auto &s: searches_) {
-        s.wait_for_completion();
-        s.set_board(b);
+void Engine::accept(int, const SearchReport &new_rep) {
+    std::lock_guard<std::mutex> lock(mtx_);
+    int nodes = report_.nodes + new_rep.nodes;
+    if (new_rep.depth > report_.depth) {
+        report_ = new_rep;
+        report_.nodes = nodes;
+        sync_cout << report_ << sync_endl;
     }
-
-    for (auto &s: searches_)
-        s.run(max_depth, max_time, max_time < 0);
+    report_.nodes = nodes;
 }
 
-void Engine::abort_search() {
+void Engine::on_search_finished(int) {
+    std::lock_guard<std::mutex> lock(mtx_);
+    --working_;
+    if (!working_) {
+        assert(report_.pv_len);
+        sync_cout << "bestmove " << report_.pv[0] << sync_endl;
+    }
+}
+
+void Engine::start(const Board &b, const History *hist,
+        int max_depth, int max_time) 
+{
     for (auto &s: searches_)
-        s.abort_search();
+        s.wait_for_completion();
+
+    working_ = searches_.size();
+    report_ = SearchReport();
+    for (auto &s: searches_)
+        s.run(b, hist, max_depth, max_time, max_time < 0);
+}
+
+void Engine::stop_search() {
+    for (auto &s: searches_)
+        s.stop_searching();
 }
 
 void Engine::wait_for_completion() {
     for (auto &s: searches_)
         s.wait_for_completion();
-}
-
-int Engine::total_nodes() const {
-    return nodes_.load(std::memory_order_relaxed);
 }
 

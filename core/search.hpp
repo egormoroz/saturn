@@ -14,35 +14,22 @@ enum NodeType {
     NO_PV,
 };
 
-class SearchReport {
-    friend class SearchContext;
-public:
+struct SearchReport {
+    SearchReport() = default;
+
     SearchReport(uint32_t nodes, uint32_t tt_hits, 
             float ordering, int16_t score, 
             uint16_t time, uint8_t depth);
 
-    Move pv_move(int idx) const;
-    int pv_len() const;
-    Move best_move() const;
+    Move pv[MAX_PLIES];
+    uint32_t nodes{};
+    uint32_t tt_hits{};
+    float ordering{};
 
-    uint32_t nodes() const;
-    uint32_t tt_hits() const;
-    float ordering() const;
-
-    int score() const;
-    int time() const;
-    int depth() const;
-
-private:
-    Move pv_[MAX_PLIES];
-    uint32_t nodes_;
-    uint32_t tt_hits_;
-    float ordering_;
-
-    int16_t score_;
-    uint16_t time_;
-    uint8_t depth_;
-    uint8_t pv_len_;
+    int16_t score{};
+    uint16_t time{};
+    uint8_t depth{};
+    uint8_t pv_len{};
 };
 
 std::ostream& operator<<(std::ostream &os, 
@@ -50,24 +37,19 @@ std::ostream& operator<<(std::ostream &os,
 
 struct SearchListener {
     virtual void accept(int idx, const SearchReport &report) = 0;
-    virtual void on_search_finished(int idx, Move best_move) = 0;
+    virtual void on_search_finished(int idx) = 0;
 
     virtual ~SearchListener() = default;
 };
 
-/*
- * TODO: get rid of UCI Listener
- * */
-class SearchContext : public UCI::Listener {
+class SearchContext {
 public:
     explicit SearchContext(int id = 0);
 
-    void run(int max_depth, int max_millis, bool infinite);
-    void abort_search();
-
-    void set_board(const Board &b);
-    virtual void accept(const UCI::Command &cmd) override;
-
+    //hist can be nullptr
+    void run(const Board &root, const History *hist,
+            int max_depth, int max_millis, bool infinite);
+    void stop_searching();
     void wait_for_completion();
 
     void add_listener(SearchListener *listener);

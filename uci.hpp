@@ -16,41 +16,11 @@ enum SyncCout {
 
 std::ostream& operator<<(std::ostream&, SyncCout sc);
 
+class Engine;
 
 namespace UCI {
-namespace cmd {
 
-struct Position { 
-    Board board; 
-    History hist;
-};
-
-struct Go {
-    //in milliseconds
-    int time_left[COLOR_NB]{};
-
-    //in milliseconds
-    int increment[COLOR_NB]{};
-
-    int max_depth{}, max_nodes{}, move_time{};
-    
-    bool infinite{};
-};
-
-struct Stop {};
-struct Quit {};
-
-} //namespace cmd
-
-using Command = std::variant<cmd::Position, cmd::Go,
-      cmd::Stop, cmd::Quit>;
-
-struct Listener {
-    virtual void accept(const Command &cmd) = 0;
-    virtual ~Listener() = default;
-};
-
-void main_loop(Listener &listener);
+void main_loop(Engine &eng);
 
 } //namespace UCI
 

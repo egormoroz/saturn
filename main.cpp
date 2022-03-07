@@ -16,16 +16,6 @@
 using namespace std;
 constexpr std::string_view STARTING_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
-struct MyListener : public SearchListener {
-    virtual void accept(int, const SearchReport &report) final {
-        sync_cout << report << sync_endl;
-    }
-
-    virtual void on_search_finished(int, Move best_move) final {
-        sync_cout << "bestmove " << best_move << sync_endl;
-    }
-};
-
 int main() {
     init_zobrist();
     init_attack_tables();
@@ -42,20 +32,16 @@ int main() {
     history.back().validate();
 
     string token;
-    MyListener listener;
-    /* SearchContext search; */
-    /* search.add_listener(&listener); */
-
     Engine eng;
     
     while (true) {
         Board &b = history.back();
-        cout << b << endl;
-
         cin >> token;
         Move m;
-        if (token == "uci") {
-            /* UCI::main_loop(search); */
+        if (token == "d") {
+            cout << b << endl;
+        } else if (token == "uci") {
+            UCI::main_loop(eng);
             break;
         } else if (token == "u") {
             if (history.size() > 1)
@@ -63,10 +49,8 @@ int main() {
         } else if (token == "q") {
             break;
         } else if (token == "s") {
-            eng.start(b, MAX_DEPTH, -1);
+            eng.start(b, nullptr, MAX_DEPTH, 5000);
             eng.wait_for_completion();
-            int n = eng.total_nodes() / 10'000;
-            cout << "nps: " << n << "k" << endl;
         } else if((m = move_from_str(b, token)) != MOVE_NONE) {
             if (b.piece_on(to_sq(m)) != NO_PIECE) {
                 cout << "Ok capture: " << boolalpha 
