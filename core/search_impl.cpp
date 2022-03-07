@@ -5,7 +5,15 @@
 #include "../movepicker.hpp"
 #include "defer.hpp"
 
+namespace {
+
 constexpr int CUTOFF_CHECK_DEPTH = 4;
+
+constexpr bool DO_LMR = true;
+constexpr bool DO_IID = true;
+constexpr bool DO_REV_FUT = true;
+
+}
 
 
 int SearchContext::search_root(const Board &b, int alpha, 
@@ -16,8 +24,19 @@ int SearchContext::search_root(const Board &b, int alpha,
 
     TTEntry tte;
     Move ttm = MOVE_NONE;
-    if (g_tt.probe(b.key(), tte) == HASH_HIT)
+    if (g_tt.probe(b.key(), tte) == HASH_HIT) {
         ttm = Move(tte.move16);
+        if (!b.is_valid_move(ttm))
+            ttm = MOVE_NONE;
+    }
+
+    //internal iterative deepening
+    if (DO_IID && ttm == MOVE_NONE && depth > 7) {
+        search<IS_PV>(b, alpha, beta, depth / 2, 0);
+        if (g_tt.probe(b.key(), tte) == HASH_HIT
+                && !b.is_valid_move((ttm = Move(tte.move16))))
+            ttm = MOVE_NONE;
+    }
 
     MovePicker mp(b, ttm, 0, MOVE_NONE, killers_, 
             counters_, history_);
@@ -156,6 +175,8 @@ int SearchContext::search(const Board &b, int alpha, int beta,
     if (alpha >= beta)
         return alpha;
 
+    int stat_eval = eval(b);
+
     TTEntry tte;
     Move ttm = MOVE_NONE;
     if (g_tt.probe(b.key(), tte) == HASH_HIT) {
@@ -171,6 +192,30 @@ int SearchContext::search(const Board &b, int alpha, int beta,
 
             do_null = do_null && !tte.avoid_null;
         }
+
+        if ((tte.bound8 == BOUND_ALPHA && tte.score16 >= stat_eval)
+                || (tte.bound8 == BOUND_BETA && tte.score16 <= stat_eval))
+            stat_eval = tte.score16;
+
+        if (!b.is_valid_move(ttm))
+            ttm = MOVE_NONE;
+    }
+
+    //internal iterative deepening
+    if (DO_IID && ttm == MOVE_NONE && depth > 7) {
+        search<IS_PV>(b, alpha, beta, depth / 2, ply);
+        if (g_tt.probe(b.key(), tte) == HASH_HIT
+                && !b.is_valid_move((ttm = Move(tte.move16))))
+            ttm = MOVE_NONE;
+    }
+
+    //Eval pruning / Static null move 
+    if (DO_REV_FUT && depth < 3 && N == NO_PV && !b.checkers()
+            && abs(beta - 1) > -VALUE_INFINITE + 100)
+    {
+        int eval_margin = 120 * depth;
+        if (stat_eval - eval_margin >= beta)
+            return stat_eval - eval_margin;
     }
 
 
@@ -193,7 +238,7 @@ int SearchContext::search(const Board &b, int alpha, int beta,
     constexpr int FUT_MARGIN[4] = {0, 200, 300, 400};
     if (depth <= 3 && N == NO_PV && !b.checkers()
             && abs(alpha) < VALUE_MATE - 100 
-            && eval(b, alpha, beta) + FUT_MARGIN[depth] <= alpha)
+            && stat_eval + FUT_MARGIN[depth] <= alpha)
         f_prune = true;
 
 
@@ -261,7 +306,7 @@ int SearchContext::search(const Board &b, int alpha, int beta,
         }
 
         //Late move reduction
-        if (N == NO_PV && new_depth > 3 && moves_processed > 3
+        if (DO_LMR && N == NO_PV && new_depth > 3 && moves_processed > 3
             && !b.checkers() && !bb.checkers() && is_quiet
             && killers_[0][ply] != m && killers_[1][ply] != m)
         {

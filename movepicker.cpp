@@ -17,7 +17,7 @@ MovePicker::MovePicker(const Board &b, Move ttm, int ply,
     : b_(b), ttm_(ttm), ply_(ply), prev_(prev), killers_(&killers), 
       counters_(&counters), history_(&history)
 {
-    stage_ = b.is_valid_move(ttm) ? Stage::HASH 
+    stage_ = ttm != MOVE_NONE ? Stage::HASH 
         : INIT_CAPTURES;
     excluded_[0] = MOVE_NONE;
     excluded_[1] = MOVE_NONE;

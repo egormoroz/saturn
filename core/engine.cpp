@@ -13,7 +13,7 @@ Engine::Engine(int threads) {
 void Engine::accept(int, const SearchReport &new_rep) {
     std::lock_guard<std::mutex> lock(mtx_);
     int nodes = report_.nodes + new_rep.nodes;
-    if (new_rep.depth > report_.depth) {
+    if (new_rep.depth > report_.depth && new_rep.pv_len) {
         report_ = new_rep;
         report_.nodes = nodes;
         sync_cout << report_ << sync_endl;

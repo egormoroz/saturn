@@ -81,7 +81,7 @@ namespace {
 namespace UCI {
 
 void main_loop(Engine &e) {
-    sync_cout << "id name gm_bit\n" << "id author asdf\n"
+    sync_cout << "id name gm_bit[IID/RFP/LMR]\n" << "id author asdf\n"
         << "uciok" << sync_endl;
 
     Board b;
