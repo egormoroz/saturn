@@ -66,6 +66,11 @@ enum PieceType : uint8_t {
     PIECE_TYPE_NB,
 };
 
+constexpr PieceType ALL_PTYPES[6] {
+    PAWN, KNIGHT, BISHOP, 
+    ROOK, QUEEN, KING,
+};
+
 enum Piece : uint8_t {
     NO_PIECE,
     W_PAWN = PAWN, W_KNIGHT, W_BISHOP, W_ROOK, W_QUEEN, W_KING,

@@ -80,9 +80,7 @@ void SearchContext::iterative_deepening() {
             break;
     }
 
-    TTEntry tte;
-    if (g_tt.probe(b.key(), tte) == HASH_HIT)
-        sync_cout << "bestmove " << Move(tte.move16) << sync_endl;
+    sync_cout << "bestmove " << pv[0] << sync_endl;
 }
 
 void SearchContext::set_board(const Board &b) {
@@ -105,12 +103,11 @@ void SearchContext::accept(const UCI::Command &cmd) {
             root_ = v.board;
             hist_ = v.hist;
         } else if constexpr (std::is_same_v<T, Go>) {
-
-            reset();
             Color us = root_.side_to_move();
             int millis_left = v.time_left[us],
                 inc = v.increment[us];
             int max_millis = millis_left / 55 + inc - 200;
+            max_millis = std::max(max_millis, v.move_time);
 
             run(v.max_depth, max_millis, v.infinite);
         } else if constexpr (std::is_same_v<T, Stop>) {

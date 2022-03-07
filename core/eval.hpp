@@ -6,9 +6,7 @@
 
 class Board;
 
-bool is_endgame(const Board &b);
-
-int count_material(const Board &b, Bitboard mask, Color side);
+void init_ps_tables();
 
 int eval(const Board &b);
 

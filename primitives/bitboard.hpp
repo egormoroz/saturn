@@ -99,6 +99,18 @@ constexpr Bitboard QUEENSIDE_BB[COLOR_NB] = {
     0b10001ull, 0b10001ull << 56,
 };
 
+
+constexpr Bitboard KINGSIDE_MASK[COLOR_NB] {
+    1ull << SQ_F1 | 1ull << SQ_G1,
+    1ull << SQ_F8 | 1ull << SQ_G8,
+};
+
+constexpr Bitboard QUEENSIDE_MASK[COLOR_NB] {
+    1ull << SQ_B1 | 1ull << SQ_C1 | 1ull << SQ_D1,
+    1ull << SQ_B8 | 1ull << SQ_C8 | 1ull << SQ_D8,
+};
+
+
 /*----------End of basic bitboard defitions----------*/
 
 

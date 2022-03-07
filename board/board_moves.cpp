@@ -75,7 +75,7 @@ Board Board::do_move(Move m) const {
             assert(type_of(m) == NORMAL);
             result.checkers_ |= pawn_attacks_bb(them, ksq) & to_bb;
         }
-    } else if (type_of(m) == CASTLING) {
+    } else if (type_of(m) == CASTLING/* && type_of(moved) == KING*/) {
         Rank rank = rank_of(to);
         bool queenside = file_of(to) == FILE_C;
         Square rk_from = make_square(rook_start(queenside), rank),
@@ -204,18 +204,20 @@ bool Board::is_valid_move(Move m) const {
         {
             if (checkers_ || relative_rank(us, to) != RANK_1)
                 return false;
+            Bitboard kingside = KINGSIDE_MASK[us] & pieces(),
+                queenside = QUEENSIDE_MASK[us] & pieces();
 
             Square rk_from, rk_to;
             Rank rank = rank_of(to);
             File file = file_of(to);
             bool can_kingside = kingside_rights(us) & castling_,
                  can_queenside = queenside_rights(us) & castling_;
-            if (file == FILE_G && can_kingside) {
+            if (file == FILE_G && can_kingside &&!kingside) {
                 rk_from = make_square(FILE_H, rank);
                 rk_to = make_square(FILE_F, rank);
                 if (attackers_to(them, sq_shift<EAST>(from),
                         combined_)) return false;
-            } else if (file == FILE_C && can_queenside) {
+            } else if (file == FILE_C && can_queenside && !queenside) {
                 rk_from = make_square(FILE_A, rank);
                 rk_to = make_square(FILE_D, rank);
                 if (attackers_to(them, sq_shift<WEST>(from), 
@@ -233,6 +235,8 @@ bool Board::is_valid_move(Move m) const {
         };
     } else { //sliders
         dsts = attacks_bb(pt, from, combined_) & ~pieces(us);
+        if (type_of(m) != NORMAL)
+            return false;
     }
 
     //Check if the move is pseudo legal

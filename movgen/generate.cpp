@@ -223,16 +223,6 @@ bool legal_king_move(const Board &b, Square to) {
 }
 
 
-static Bitboard KINGSIDE_CASTLE_SQUARES[COLOR_NB] {
-    1ull << SQ_F1 | 1ull << SQ_G1,
-    1ull << SQ_F8 | 1ull << SQ_G8,
-};
-
-static Bitboard QUEENSIDE_CASTLE_SQUARES[COLOR_NB] {
-    1ull << SQ_B1 | 1ull << SQ_C1 | 1ull << SQ_D1,
-    1ull << SQ_B8 | 1ull << SQ_C8 | 1ull << SQ_D8,
-};
-
 template<GenType T, bool IN_CHECK>
 ExtMove* king_legals(const Board &b, ExtMove *moves) {
     Color us = b.side_to_move(), them = ~us;
@@ -257,8 +247,8 @@ ExtMove* king_legals(const Board &b, ExtMove *moves) {
         return moves;
 
     CastlingRights cr = b.castling();
-    Bitboard kingside_mask = KINGSIDE_CASTLE_SQUARES[us];
-    Bitboard queenside_mask = QUEENSIDE_CASTLE_SQUARES[us];
+    Bitboard kingside_mask = KINGSIDE_MASK[us];
+    Bitboard queenside_mask = QUEENSIDE_MASK[us];
 
     if (cr & kingside_rights(us) && !(b.pieces() & kingside_mask)) {
         Square middle = Square(from + 1), right = Square(from + 2);

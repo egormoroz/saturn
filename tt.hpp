@@ -38,8 +38,12 @@ enum ProbeResult {
 };
 
 class TranspositionTable {
+    struct Bucket {
+        static constexpr int N = 4;
+        TTEntry entries[4];
+    };
 public:
-    TranspositionTable();
+    TranspositionTable() = default;
 
     void init(size_t mbs);
 
@@ -53,8 +57,8 @@ public:
     ~TranspositionTable();
 
 private:
-    TTEntry* entries_;
-    size_t size_;
+    Bucket* buckets_{};
+    size_t size_{};
 };
 
 extern TranspositionTable g_tt;

@@ -58,7 +58,7 @@ namespace {
         cmd::Go go;
         go.max_depth = MAX_DEPTH;
         go.max_nodes = INT32_MAX;
-        go.move_time = INT32_MAX;
+        go.move_time = 0;
 
         while (is >> token) {
             if (token == "wtime") is >> go.time_left[WHITE];

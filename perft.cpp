@@ -38,6 +38,8 @@ uint64_t perft(const Board &b, int depth) {
 
     uint64_t n = 0;
     for (auto it = begin; it != end; ++it) {
+        if (!b.is_valid_move(*it))
+            return 0;
         n += perft(b.do_move(*it), depth - 1);
     }
 

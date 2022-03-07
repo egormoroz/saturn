@@ -10,6 +10,7 @@
 #include "core/search.hpp"
 #include "perft.hpp"
 #include "movgen/generate.hpp"
+#include "core/eval.hpp"
 
 using namespace std;
 constexpr std::string_view STARTING_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
@@ -17,6 +18,7 @@ constexpr std::string_view STARTING_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RN
 int main() {
     init_zobrist();
     init_attack_tables();
+    init_ps_tables();
     g_tt.init(128);
 
     std::vector<Board> history;
@@ -47,7 +49,7 @@ int main() {
             break;
         } else if (token == "s") {
             search.set_board(b);
-            search.run(MAX_DEPTH, 10000, false);
+            search.run(MAX_DEPTH, 5000, false);
             search.wait_for_search();
         } else if((m = move_from_str(b, token)) != MOVE_NONE) {
             if (b.piece_on(to_sq(m)) != NO_PIECE) {

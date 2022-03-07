@@ -129,7 +129,8 @@ int SearchContext::search(const Board &b, int alpha, int beta,
     Bound bound = BOUND_ALPHA;
     Move best_move = MOVE_NONE;
     Board bb;
-    int moves_processed = 0;
+    int moves_processed = 0,
+        local_best = -VALUE_INFINITE;
     bool raised_alpha = false;
     for (Move m = mp.next(); m != MOVE_NONE; m = mp.next(), 
             ++moves_processed) 
@@ -149,10 +150,17 @@ int SearchContext::search(const Board &b, int alpha, int beta,
 
         undo_move();        
 
+        //massive boost, no idea why I haven't been doing
+        //this before...
+        if (score > local_best) {
+            local_best = score;
+            best_move = m;
+        }
+
         if (score > alpha) {
             if (score >= beta) {
-                ++fh;
                 fhf += moves_processed == 0;
+                ++fh;
 
                 if ((type_of(m) == NORMAL || type_of(m) == CASTLING)
                         && !b.is_capture(m)) 
