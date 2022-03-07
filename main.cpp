@@ -63,11 +63,10 @@ int main() {
         } else if (token == "q") {
             break;
         } else if (token == "s") {
-            /* search.set_board(b); */
-            /* search.run(MAX_DEPTH, 5000, false); */
-            /* search.wait_for_completion(); */
-            eng.start(b, MAX_DEPTH, 5000);
+            eng.start(b, MAX_DEPTH, -1);
             eng.wait_for_completion();
+            int n = eng.total_nodes() / 10'000;
+            cout << "nps: " << n << "k" << endl;
         } else if((m = move_from_str(b, token)) != MOVE_NONE) {
             if (b.piece_on(to_sq(m)) != NO_PIECE) {
                 cout << "Ok capture: " << boolalpha 

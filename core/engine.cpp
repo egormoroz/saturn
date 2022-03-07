@@ -11,6 +11,7 @@ Engine::Engine(int threads) {
 
 void Engine::accept(int idx, const SearchReport &report) {
     sync_cout << "thread " << idx << ": " << report << sync_endl;
+    nodes_ += report.nodes();
 }
 
 void Engine::on_search_finished(int idx, Move best_move) {
@@ -19,6 +20,7 @@ void Engine::on_search_finished(int idx, Move best_move) {
 }
 
 void Engine::start(const Board &b, int max_depth, int max_time) {
+    nodes_.store(0, std::memory_order_relaxed);
     for (auto &s: searches_) {
         s.wait_for_completion();
         s.set_board(b);
@@ -36,5 +38,9 @@ void Engine::abort_search() {
 void Engine::wait_for_completion() {
     for (auto &s: searches_)
         s.wait_for_completion();
+}
+
+int Engine::total_nodes() const {
+    return nodes_.load(std::memory_order_relaxed);
 }
 

@@ -6,7 +6,7 @@
 
 class Engine : public SearchListener {
 public:
-    Engine(int threads = 8);
+    Engine(int threads = std::thread::hardware_concurrency());
 
     virtual void accept(int idx, const SearchReport &report) final;
     virtual void on_search_finished(int idx, Move best_move) final;
@@ -16,11 +16,14 @@ public:
     void abort_search();
     void wait_for_completion();
 
+    int total_nodes() const;
+
     //SearchContext desctructor cleans everything up for us
     ~Engine() = default;
 
 private:
     std::list<SearchContext> searches_;
+    std::atomic_int nodes_{};
 };
 
 #endif

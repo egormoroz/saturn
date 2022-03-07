@@ -5,6 +5,8 @@
 #include "../movepicker.hpp"
 #include "defer.hpp"
 
+constexpr int CUTOFF_CHECK_DEPTH = 4;
+
 
 int SearchContext::search_root(const Board &b, int alpha, 
         int beta, int depth)
@@ -20,19 +22,84 @@ int SearchContext::search_root(const Board &b, int alpha,
     MovePicker mp(b, ttm, 0, MOVE_NONE, killers_, 
             counters_, history_);
 
+    //maybe not MAX_MOVES??
+    Move deferred_move[MAX_MOVES];
+    int deferred_moves = 0;
+
     Bound bound = BOUND_ALPHA;
     Move best_move = MOVE_NONE;
     Board bb;
-    int moves_processed = 0;
+    int moves_processed = 0, score = alpha;
     for (Move m = mp.next(); m != MOVE_NONE; 
             m = mp.next(), ++moves_processed)
     {
+        if (deferred_moves && depth >= CUTOFF_CHECK_DEPTH
+            && g_tt.probe(b.key(), tte) == HASH_HIT
+            && tte.depth8 >= depth) 
+        {
+            if (tte.bound8 == BOUND_BETA && tte.score16 >= beta)
+                return beta;
+            //Do we really need to check these?
+            if (tte.bound8 == BOUND_EXACT)
+                return tte.score16;
+            if (tte.bound8 == BOUND_ALPHA && tte.score16 <= alpha)
+                return alpha;
+        }
+
+        if (!moves_processed) {
+            bb = b.do_move(m);
+            hist_.push(b.key(), m);
+            score = -search<IS_PV>(bb, -beta, -alpha, 
+                    depth - 1, 1);
+            hist_.pop();
+        } else {
+            uint32_t move_hash = abdada::move_hash(b.key(), m);
+
+            if (abdada::defer_move(move_hash, depth)) {
+                deferred_move[deferred_moves++] = m;
+                continue;
+            }
+
+            bb = b.do_move(m);
+            hist_.push(b.key(), m);
+            abdada::starting_search(move_hash, depth);
+            score = -search<NO_PV>(bb, -alpha - 1, 
+                    -alpha, depth - 1, 1);
+            abdada::finished_search(move_hash, depth);
+
+            if (score > alpha && score < beta)
+                score = -search<IS_PV>(bb, -beta, -alpha, 
+                        depth - 1, 1);
+            hist_.pop();
+
+        }
+
+        if (score > alpha) {
+            if (score >= beta) {
+                if (!stop_) {
+                    g_tt.store(TTEntry(b.key(), beta, BOUND_BETA, 
+                                depth, best_move, false));
+                }
+                return beta;
+            }
+
+            alpha = score;
+            best_move = m;
+            bound = BOUND_EXACT;
+        }
+    }
+
+    for (int i = 0; i < deferred_moves; ++i) {
+        Move m = deferred_move[i];
         bb = b.do_move(m);
         hist_.push(b.key(), m);
-        int score = alpha;
-        if (!moves_processed || -search<NO_PV>(bb, -alpha - 1, 
-                    -alpha, depth - 1, 1) > alpha) 
-            score = -search<IS_PV>(bb, -beta, -alpha, depth - 1, 1);
+
+        score = -search<NO_PV>(bb, -alpha - 1, -alpha,
+                depth - 1, 1);
+        if (score > alpha && score < beta)
+            score = -search<IS_PV>(bb, -beta, -alpha,
+                    depth - 1, 1);
+
         hist_.pop();
 
         if (score > alpha) {
@@ -175,6 +242,19 @@ int SearchContext::search(const Board &b, int alpha, int beta,
 
         if (f_prune && !bb.checkers() && is_quiet)
             continue;
+
+        if (deferred_moves && depth >= CUTOFF_CHECK_DEPTH
+            && g_tt.probe(b.key(), tte) == HASH_HIT
+            && tte.depth8 >= depth) 
+        {
+            if (tte.bound8 == BOUND_BETA && tte.score16 >= beta)
+                return beta;
+            //Do we really need to check these?
+            if (tte.bound8 == BOUND_EXACT)
+                return tte.score16;
+            if (tte.bound8 == BOUND_ALPHA && tte.score16 <= alpha)
+                return alpha;
+        }
 
         if (moves_processed == 0) {
             hist_.push(b.key(), m);
