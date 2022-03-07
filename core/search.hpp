@@ -32,16 +32,12 @@ private:
 
     int search_root(const Board &b, int alpha, int beta,
             int depth);
+
     template<NodeType N>
     int search(const Board &b, int alpha, int beta,
             int depth, int ply, bool do_null = true);
 
     int quiesce(int alpha, int beta, const Board &b);
-
-    //does the move and some bookkeeping
-    Board do_move(const Board &b, Move m);
-    //again, for bookkeeping purposes
-    void undo_move();
 
     bool stop();
 

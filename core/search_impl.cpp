@@ -26,12 +26,13 @@ int SearchContext::search_root(const Board &b, int alpha,
     for (Move m = mp.next(); m != MOVE_NONE; 
             m = mp.next(), ++moves_processed)
     {
-        bb = do_move(b, m);
+        bb = b.do_move(m);
+        hist_.push(b.key(), m);
         int score = alpha;
         if (!moves_processed || -search<NO_PV>(bb, -alpha - 1, 
                     -alpha, depth - 1, 1) > alpha) 
             score = -search<IS_PV>(bb, -beta, -alpha, depth - 1, 1);
-        undo_move();
+        hist_.pop();
 
         if (score > alpha) {
             if (score >= beta) {
@@ -121,6 +122,12 @@ int SearchContext::search(const Board &b, int alpha, int beta,
         avoid_null = true;
     }
 
+    bool f_prune = false;
+    constexpr int FUT_MARGIN[4] = {0, 200, 300, 400};
+    if (depth <= 3 && N == NO_PV && !b.checkers()
+            && abs(alpha) < VALUE_MATE - 100 
+            && eval(b) + FUT_MARGIN[depth] <= alpha)
+        f_prune = true;
 
     Move prev = hist_.last_move();
     MovePicker mp(b, ttm, ply, prev, killers_, 
@@ -135,8 +142,13 @@ int SearchContext::search(const Board &b, int alpha, int beta,
     for (Move m = mp.next(); m != MOVE_NONE; m = mp.next(), 
             ++moves_processed) 
     {
-        bb = do_move(b, m);
+        bb = b.do_move(m);
+        bool is_quiet = b.is_quiet(m);
 
+        if (f_prune && !bb.checkers() && is_quiet)
+            continue;
+
+        hist_.push(b.key(), m);
         int score = alpha;
         if (!raised_alpha) {
             score = -search<N>(bb, -beta, -alpha, 
@@ -147,8 +159,7 @@ int SearchContext::search(const Board &b, int alpha, int beta,
             score = -search<IS_PV>(bb, -beta, -alpha, 
                     depth - 1, ply + 1);
         }
-
-        undo_move();        
+        hist_.pop();
 
         //massive boost, no idea why I haven't been doing
         //this before...
@@ -162,9 +173,7 @@ int SearchContext::search(const Board &b, int alpha, int beta,
                 fhf += moves_processed == 0;
                 ++fh;
 
-                if ((type_of(m) == NORMAL || type_of(m) == CASTLING)
-                        && !b.is_capture(m)) 
-                {
+                if (is_quiet) {
                     if (killers_[0][ply] != m) {
                         killers_[1][ply] = killers_[0][ply];
                         killers_[0][ply] = m;

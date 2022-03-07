@@ -247,7 +247,10 @@ bool Board::is_valid_move(Move m) const {
     return !(attackers_to(them, ksq, occupied) & enemies);
 }
 
-bool Board::is_capture(Move m) const {
-    return square_bb(to_sq(m)) & pieces(~side_to_move_);
+bool Board::is_quiet(Move m) const {
+    MoveType mt = type_of(m);
+    return (mt == NORMAL && !(square_bb(to_sq(m)) 
+        & pieces())) || mt == CASTLING;
 }
+
 

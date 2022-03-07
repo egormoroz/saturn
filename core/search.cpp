@@ -140,15 +140,6 @@ void SearchContext::reset() {
     memset(history_.data(), 0, sizeof(history_));
 }
 
-Board SearchContext::do_move(const Board &b, Move m) {
-    hist_.push(b.key(), m);
-    return b.do_move(m);
-}
-
-void SearchContext::undo_move() {
-    hist_.pop();
-}
-
 bool SearchContext::stop() {
     if (nodes_ & 8191)
         if (stop_ || (!infinite_ && timer_.out_of_time()))

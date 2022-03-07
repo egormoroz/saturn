@@ -7,10 +7,6 @@
 
 namespace {
 
-constexpr int mg_value[PIECE_TYPE_NB] = { 0, 82, 337, 365, 477, 1025,  0};
-constexpr int eg_value[PIECE_TYPE_NB] = { 0, 94, 281, 297, 512,  936,  0};
-
-
 constexpr int mg_pawn_table[64] = {
       0,   0,   0,   0,   0,   0,  0,   0,
      98, 134,  61,  95,  68, 126, 34, -11,
@@ -203,5 +199,13 @@ int eval(const Board &b) {
     if (mg_phase > 24) mg_phase = 24;
     int eg_phase = 24 - mg_phase;
     return (mg_score * mg_phase + eg_score * eg_phase) / 24;
+}
+
+int count_material(const Board &b, Color c) {
+    int material = 0;
+    for (PieceType pt: ALL_PTYPES)
+        material += mg_value[pt] * popcnt(b.pieces(c, pt));
+
+    return material;
 }
 

@@ -30,7 +30,7 @@ public:
 
     bool ok_capture(Move m) const;
 
-    bool is_capture(Move m) const;
+    bool is_quiet(Move m) const;
 
     void update_pin_info();
 
@@ -85,9 +85,9 @@ private:
 
     uint64_t key_;
     CastlingRights castling_;
-
     Color side_to_move_;
     Square en_passant_;
+
     int fifty_;
 };
 

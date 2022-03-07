@@ -18,6 +18,15 @@ int SearchContext::quiesce(int alpha, int beta,
     MovePicker mp(b);
     Board bb;
     for (Move m = mp.qnext(); m != MOVE_NONE; m = mp.qnext()) {
+        int cap_value = mg_value[type_of(b.piece_on(to_sq(m)))];
+        cap_value += (type_of(m) == EN_PASSANT) * mg_value[PAWN];
+
+        Color them = ~b.side_to_move();
+        if (stand_pat + cap_value + 200 < alpha 
+            && type_of(m) != PROMOTION 
+            && count_material(b, them) - cap_value >= ENDGAME_MAT)
+            continue;
+
         if (type_of(m) == NORMAL && !b.ok_capture(m))
             continue;
 
