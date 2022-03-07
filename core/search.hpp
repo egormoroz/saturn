@@ -7,22 +7,70 @@
 #include <mutex>
 #include <condition_variable>
 #include <thread>
+#include <vector>
 
 enum NodeType {
     IS_PV,
     NO_PV,
 };
 
+class SearchReport {
+    friend class SearchContext;
+public:
+    SearchReport(uint32_t nodes, uint32_t tt_hits, 
+            float ordering, int16_t score, 
+            uint16_t time, uint8_t depth);
+
+    Move pv_move(int idx) const;
+    int pv_len() const;
+    Move best_move() const;
+
+    uint32_t nodes() const;
+    uint32_t tt_hits() const;
+    float ordering() const;
+
+    int score() const;
+    int time() const;
+    int depth() const;
+
+private:
+    Move pv_[MAX_PLIES];
+    uint32_t nodes_;
+    uint32_t tt_hits_;
+    float ordering_;
+
+    int16_t score_;
+    uint16_t time_;
+    uint8_t depth_;
+    uint8_t pv_len_;
+};
+
+std::ostream& operator<<(std::ostream &os, 
+        const SearchReport &rep);
+
+struct SearchListener {
+    virtual void accept(int idx, const SearchReport &report) = 0;
+    virtual void on_search_finished(int idx, Move best_move) = 0;
+
+    virtual ~SearchListener() = default;
+};
+
+/*
+ * TODO: get rid of UCI Listener
+ * */
 class SearchContext : public UCI::Listener {
 public:
-    SearchContext();
+    explicit SearchContext(int id = 0);
 
     void run(int max_depth, int max_millis, bool infinite);
+    void abort_search();
 
     void set_board(const Board &b);
     virtual void accept(const UCI::Command &cmd) override;
 
-    void wait_for_search();
+    void wait_for_completion();
+
+    void add_listener(SearchListener *listener);
 
     ~SearchContext();
 
@@ -40,6 +88,10 @@ private:
     int quiesce(int alpha, int beta, const Board &b);
 
     bool stop();
+
+    //shared_ptr?
+    std::vector<SearchListener*> listeners_;
+    int id_;
 
     Board root_;
     History hist_;

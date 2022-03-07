@@ -10,6 +10,7 @@ using TimePoint = std::chrono::time_point<Clock>;
 class Timer {
 public:
     Timer() = default;
+
     Timer(TimePoint start, int dur_ms)
         : start_(start), 
           end_(start + std::chrono::milliseconds(dur_ms)),

@@ -3,6 +3,7 @@
 #include "../movgen/generate.hpp"
 #include "eval.hpp"
 #include "../movepicker.hpp"
+#include "defer.hpp"
 
 
 int SearchContext::search_root(const Board &b, int alpha, 
@@ -63,7 +64,6 @@ int SearchContext::search_root(const Board &b, int alpha,
     return alpha;
 }
 
-
 template<NodeType N>
 int SearchContext::search(const Board &b, int alpha, int beta, 
         int depth, int ply, bool do_null)
@@ -82,7 +82,7 @@ int SearchContext::search(const Board &b, int alpha, int beta,
 
     ++nodes_;
     if (ply >= MAX_PLIES)
-        return eval(b);
+        return eval(b, alpha, beta);
 
     alpha = std::max(alpha, mated_in(ply));
     beta = std::min(beta, mate_in(ply + 1));
@@ -126,19 +126,47 @@ int SearchContext::search(const Board &b, int alpha, int beta,
     constexpr int FUT_MARGIN[4] = {0, 200, 300, 400};
     if (depth <= 3 && N == NO_PV && !b.checkers()
             && abs(alpha) < VALUE_MATE - 100 
-            && eval(b) + FUT_MARGIN[depth] <= alpha)
+            && eval(b, alpha, beta) + FUT_MARGIN[depth] <= alpha)
         f_prune = true;
+
 
     Move prev = hist_.last_move();
     MovePicker mp(b, ttm, ply, prev, killers_, 
             counters_, history_);
 
+    //maybe not MAX_MOVES??
+    Move deferred_move[MAX_MOVES];
+    int deferred_moves = 0;
+
     Bound bound = BOUND_ALPHA;
     Move best_move = MOVE_NONE;
     Board bb;
     int moves_processed = 0,
-        local_best = -VALUE_INFINITE;
-    bool raised_alpha = false;
+        local_best = -VALUE_INFINITE,
+        score = -VALUE_INFINITE;
+
+    auto failed_high = [&](Move m, bool is_quiet) {
+        fhf += moves_processed == 0;
+        ++fh;
+
+        if (is_quiet) {
+            if (killers_[0][ply] != m) {
+                killers_[1][ply] = killers_[0][ply];
+                killers_[0][ply] = m;
+            }
+
+            if (prev != MOVE_NONE)
+                counters_[from_sq(prev)][to_sq(prev)] = m;
+            history_[b.side_to_move()][from_sq(m)][to_sq(m)]
+                += depth * depth;
+        }
+
+        if (!stop_) {
+            g_tt.store(TTEntry(b.key(), beta, BOUND_BETA, 
+                        depth, best_move, avoid_null));
+        }
+    };
+
     for (Move m = mp.next(); m != MOVE_NONE; m = mp.next(), 
             ++moves_processed) 
     {
@@ -148,21 +176,31 @@ int SearchContext::search(const Board &b, int alpha, int beta,
         if (f_prune && !bb.checkers() && is_quiet)
             continue;
 
-        hist_.push(b.key(), m);
-        int score = alpha;
-        if (!raised_alpha) {
+        if (moves_processed == 0) {
+            hist_.push(b.key(), m);
             score = -search<N>(bb, -beta, -alpha, 
                     depth - 1, ply + 1);
-        } else if (-search<NO_PV>(bb, -alpha - 1, -alpha, 
-                    depth - 1, ply + 1) > alpha) 
-        {
-            score = -search<IS_PV>(bb, -beta, -alpha, 
-                    depth - 1, ply + 1);
-        }
-        hist_.pop();
+            hist_.pop();
+        } else {
+            uint32_t move_hash = abdada::move_hash(b.key(), m);
 
-        //massive boost, no idea why I haven't been doing
-        //this before...
+            if (abdada::defer_move(move_hash, depth)) {
+                deferred_move[deferred_moves++] = m;
+                continue;
+            }
+
+            hist_.push(b.key(), m);
+            abdada::starting_search(move_hash, depth);
+            score = -search<NO_PV>(bb, -alpha - 1, -alpha,
+                    depth - 1, ply + 1);
+            abdada::finished_search(move_hash, depth);
+
+            if (score > alpha && score < beta)
+                score = -search<IS_PV>(bb, -beta, -alpha,
+                        depth - 1, ply + 1);
+            hist_.pop();
+        }
+
         if (score > local_best) {
             local_best = score;
             best_move = m;
@@ -170,32 +208,43 @@ int SearchContext::search(const Board &b, int alpha, int beta,
 
         if (score > alpha) {
             if (score >= beta) {
-                fhf += moves_processed == 0;
-                ++fh;
-
-                if (is_quiet) {
-                    if (killers_[0][ply] != m) {
-                        killers_[1][ply] = killers_[0][ply];
-                        killers_[0][ply] = m;
-                    }
-
-                    if (prev != MOVE_NONE)
-                        counters_[from_sq(prev)][to_sq(prev)] = m;
-                    history_[b.side_to_move()][from_sq(m)][to_sq(m)]
-                        += depth * depth;
-                }
-
-                if (!stop_) {
-                    g_tt.store(TTEntry(b.key(), beta, BOUND_BETA, 
-                                depth, best_move, avoid_null));
-                }
+                failed_high(m, is_quiet);
                 return beta;
             }
 
             alpha = score;
             best_move = m;
             bound = BOUND_EXACT;
-            raised_alpha = true;
+        }
+    }
+
+    for (int i = 0; i < deferred_moves; ++i) {
+        Move m = deferred_move[i];
+        bb = b.do_move(m);
+        hist_.push(b.key(), m);
+
+        score = -search<NO_PV>(bb, -alpha - 1, -alpha,
+                depth - 1, ply + 1);
+        if (score > alpha && score < beta)
+            score = -search<IS_PV>(bb, -beta, -alpha,
+                    depth - 1, ply + 1);
+
+        hist_.pop();
+
+        if (score > local_best) {
+            local_best = score;
+            best_move = m;
+        }
+
+        if (score > alpha) {
+            if (score >= beta) {
+                failed_high(m, b.is_quiet(m));
+                return beta;
+            }
+
+            alpha = score;
+            best_move = m;
+            bound = BOUND_EXACT;
         }
     }
 
@@ -211,6 +260,5 @@ int SearchContext::search(const Board &b, int alpha, int beta,
     }
 
     return alpha;
-
 }
 

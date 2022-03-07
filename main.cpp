@@ -11,9 +11,20 @@
 #include "perft.hpp"
 #include "movgen/generate.hpp"
 #include "core/eval.hpp"
+#include "core/engine.hpp"
 
 using namespace std;
 constexpr std::string_view STARTING_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+
+struct MyListener : public SearchListener {
+    virtual void accept(int, const SearchReport &report) final {
+        sync_cout << report << sync_endl;
+    }
+
+    virtual void on_search_finished(int, Move best_move) final {
+        sync_cout << "bestmove " << best_move << sync_endl;
+    }
+};
 
 int main() {
     init_zobrist();
@@ -31,7 +42,11 @@ int main() {
     history.back().validate();
 
     string token;
-    SearchContext search;
+    MyListener listener;
+    /* SearchContext search; */
+    /* search.add_listener(&listener); */
+
+    Engine eng;
     
     while (true) {
         Board &b = history.back();
@@ -40,7 +55,7 @@ int main() {
         cin >> token;
         Move m;
         if (token == "uci") {
-            UCI::main_loop(search);
+            /* UCI::main_loop(search); */
             break;
         } else if (token == "u") {
             if (history.size() > 1)
@@ -48,9 +63,11 @@ int main() {
         } else if (token == "q") {
             break;
         } else if (token == "s") {
-            search.set_board(b);
-            search.run(MAX_DEPTH, 5000, false);
-            search.wait_for_search();
+            /* search.set_board(b); */
+            /* search.run(MAX_DEPTH, 5000, false); */
+            /* search.wait_for_completion(); */
+            eng.start(b, MAX_DEPTH, 5000);
+            eng.wait_for_completion();
         } else if((m = move_from_str(b, token)) != MOVE_NONE) {
             if (b.piece_on(to_sq(m)) != NO_PIECE) {
                 cout << "Ok capture: " << boolalpha 

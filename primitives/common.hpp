@@ -183,11 +183,11 @@ inline Rank relative_rank(Color c, Square s) {
 
 /*------------------Move defitions-------------------*/
 
-enum Move : unsigned {
+enum Move : uint16_t {
     MOVE_NONE,
 };
 
-enum MoveType : unsigned {
+enum MoveType : uint16_t {
     NORMAL,
     PROMOTION = 1 << 14,
     EN_PASSANT = 2 << 14,

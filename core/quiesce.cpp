@@ -6,7 +6,7 @@ int SearchContext::quiesce(int alpha, int beta,
         const Board &b) 
 {
     ++nodes_;
-    int stand_pat = eval(b);
+    int stand_pat = eval(b, alpha, beta);
     if (stand_pat >= beta) 
         return beta;
     if (stand_pat > alpha) 
@@ -24,7 +24,7 @@ int SearchContext::quiesce(int alpha, int beta,
         Color them = ~b.side_to_move();
         if (stand_pat + cap_value + 200 < alpha 
             && type_of(m) != PROMOTION 
-            && count_material(b, them) - cap_value >= ENDGAME_MAT)
+            && b.material(them) - cap_value >= ENDGAME_MAT)
             continue;
 
         if (type_of(m) == NORMAL && !b.ok_capture(m))

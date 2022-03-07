@@ -72,6 +72,8 @@ public:
     //returns number of moves since last capture/pawn move
     int fifty_rule() const;
 
+    int material(Color c) const;
+
 private:
     Bitboard pieces_[PIECE_TYPE_NB];
     Bitboard combined_;
@@ -87,6 +89,8 @@ private:
     CastlingRights castling_;
     Color side_to_move_;
     Square en_passant_;
+
+    int material_[COLOR_NB];
 
     int fifty_;
 };

@@ -12,8 +12,7 @@ class Board;
 
 void init_ps_tables();
 
-int count_material(const Board &b, Color c);
-
-int eval(const Board &b);
+int eval(const Board &b, int alpha = -VALUE_INFINITE, 
+        int beta = VALUE_INFINITE);
 
 #endif

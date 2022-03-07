@@ -77,10 +77,14 @@ void Board::put_piece(Piece p, Square s) {
     Bitboard sbb = square_bb(s);
     assert(!(combined_ & sbb));
 
+    PieceType pt = type_of(p);
+    Color c = color_of(p);
+
     combined_ |= sbb;
-    color_combined_[color_of(p)] |= sbb;
-    pieces_[type_of(p)] |= sbb;
+    color_combined_[c] |= sbb;
+    pieces_[pt] |= sbb;
     pieces_on_[s] = p;
+    material_[c] += mg_value[pt];
 
     key_ ^= ZOBRIST.psq[p][s];
 }
@@ -90,11 +94,14 @@ void Board::remove_piece(Square s) {
     Bitboard sbb = square_bb(s);
     assert(combined_ & sbb);
     Piece p = pieces_on_[s];
+    PieceType pt = type_of(p);
+    Color c = color_of(p);
 
     combined_ ^= sbb;
-    color_combined_[color_of(p)] ^= sbb;
-    pieces_[type_of(p)] ^= sbb;
+    color_combined_[c] ^= sbb;
+    pieces_[pt] ^= sbb;
     pieces_on_[s] = NO_PIECE;
+    material_[c] -= mg_value[pt];
 
     key_ ^= ZOBRIST.psq[p][s];
 }
@@ -127,6 +134,8 @@ CastlingRights Board::castling() const { return castling_; }
 
 uint64_t Board::key() const { return key_; }
 int Board::fifty_rule() const { return fifty_; }
+
+int Board::material(Color c) const { return material_[c]; }
 
 namespace {
     constexpr char PIECE_CHAR[PIECE_NB] = {

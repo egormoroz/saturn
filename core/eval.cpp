@@ -168,10 +168,14 @@ void init_ps_tables() {
     }
 }
 
-int eval(const Board &b) {
+int eval(const Board &b, int/* alpha*/, int/* beta*/) {
     Color us = b.side_to_move(), them = ~us;
     int game_phase = 0;
     int mg[COLOR_NB]{}, eg[COLOR_NB]{};
+
+    /* constexpr int MARGIN = 350; */
+    /* if (b.material(us) - b.material(them) - MARGIN >= beta) */
+    /*     return beta; */
 
     //evaluate each piece
     for (PieceType pt: ALL_PTYPES) {
@@ -199,13 +203,5 @@ int eval(const Board &b) {
     if (mg_phase > 24) mg_phase = 24;
     int eg_phase = 24 - mg_phase;
     return (mg_score * mg_phase + eg_score * eg_phase) / 24;
-}
-
-int count_material(const Board &b, Color c) {
-    int material = 0;
-    for (PieceType pt: ALL_PTYPES)
-        material += mg_value[pt] * popcnt(b.pieces(c, pt));
-
-    return material;
 }
 
