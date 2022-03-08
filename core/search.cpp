@@ -10,9 +10,9 @@
 #include <cstring>
 
 
-SearchReport::SearchReport(uint32_t nodes, uint32_t tt_hits, 
+SearchReport::SearchReport(uint64_t nodes, uint64_t tt_hits, 
         float ordering, int16_t score, 
-        uint16_t time, uint8_t depth)
+        int time, uint8_t depth)
     : nodes(nodes), tt_hits(tt_hits), ordering(ordering),
       score(score), time(time), depth(depth), pv_len(0)
 {
@@ -21,7 +21,7 @@ SearchReport::SearchReport(uint32_t nodes, uint32_t tt_hits,
 std::ostream& operator<<(std::ostream &os, 
         const SearchReport &rep) 
 {
-    int nps = 1000 * rep.nodes / (rep.time + 1);
+    uint64_t nps = rep.nodes / (rep.time / 1000 + 1);
     os << "info score " << Score{rep.score} << " depth " 
        << int(rep.depth) << " nodes " << rep.nodes 
        << " time " << rep.time << " nps " << nps
@@ -142,7 +142,7 @@ void SearchContext::reset() {
 }
 
 bool SearchContext::stop() {
-    if (nodes_ & 8191)
+    if ((nodes_ & 1023) == 0)
         if (stop_ || (!infinite_ && timer_.out_of_time()))
             stop_ = true;
     return stop_;

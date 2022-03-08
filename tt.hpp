@@ -22,8 +22,7 @@ struct TTEntry {
             uint8_t depth8;
             uint8_t bound8;
             bool avoid_null;
-
-            uint8_t padding;
+            uint8_t age;
         };
     };
 
@@ -40,12 +39,14 @@ enum ProbeResult {
 class TranspositionTable {
     struct Bucket {
         static constexpr int N = 4;
-        TTEntry entries[4];
+        TTEntry entries[N];
     };
 public:
     TranspositionTable() = default;
 
     void init(size_t mbs);
+
+    void new_search();
 
     ProbeResult probe(uint64_t key, TTEntry &e) const;
     void store(TTEntry entry);
@@ -59,6 +60,7 @@ public:
 private:
     Bucket* buckets_{};
     size_t size_{};
+    uint8_t age_{};
 };
 
 extern TranspositionTable g_tt;

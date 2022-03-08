@@ -2,6 +2,7 @@
 #include <iostream>
 #include "../primitives/utility.hpp"
 #include "../uci.hpp"
+#include "../tt.hpp"
 
 Engine::Engine(int threads) {
     for (int i = 0; i < threads; ++i) {
@@ -12,7 +13,7 @@ Engine::Engine(int threads) {
 
 void Engine::accept(int, const SearchReport &new_rep) {
     std::lock_guard<std::mutex> lock(mtx_);
-    int nodes = report_.nodes + new_rep.nodes;
+    uint64_t nodes = report_.nodes + new_rep.nodes;
     if (new_rep.depth > report_.depth && new_rep.pv_len) {
         report_ = new_rep;
         report_.nodes = nodes;
@@ -36,6 +37,7 @@ void Engine::start(const Board &b, const History *hist,
     for (auto &s: searches_)
         s.wait_for_completion();
 
+    g_tt.new_search();
     working_ = searches_.size();
     report_ = SearchReport();
     for (auto &s: searches_)

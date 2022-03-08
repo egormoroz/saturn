@@ -106,7 +106,8 @@ Move move_from_str(const Board &b, std::string_view sv) {
         m = make<CASTLING>(from, to);
     }
 
-    if (b.en_passant() == to)
+    if (b.en_passant() == to 
+            && type_of(b.piece_on(from)) == PAWN)
         m = make<EN_PASSANT>(from, to);
         
     return b.is_valid_move(m) ? m : MOVE_NONE;

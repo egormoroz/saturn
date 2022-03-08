@@ -75,7 +75,7 @@ Move MovePicker::next() {
         cur_ = moves_;
         end_ = generate<CAPTURES>(b_, moves_);
         score_captures();
-        insertion_sort(moves_, end_);
+        insertion_sort(cur_, end_);
 
         [[fallthrough]];
 
@@ -121,7 +121,7 @@ Move MovePicker::next() {
         cur_ = moves_;
         end_ = generate<QUIET>(b_, moves_);
         score_quiets();
-        insertion_sort(moves_, end_);
+        insertion_sort(cur_, end_);
 
         [[fallthrough]];
     case Stage::PICK_QUIETS:
@@ -145,7 +145,7 @@ Move MovePicker::qnext() {
         cur_ = moves_;
         end_ = generate<CAPTURES>(b_, moves_);
         score_captures();
-        insertion_sort(moves_, end_);
+        insertion_sort(cur_, end_);
 
         [[fallthrough]];
 

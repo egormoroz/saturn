@@ -101,6 +101,7 @@ void main_loop(Engine &e) {
         else if (cmd == "position") position(b, hist, is);
         else if (cmd == "go") go(e, b, hist, is);
         else if (cmd == "stop") e.stop_search();
+        else if (cmd == "d") sync_cout << b << sync_endl;
         else if (cmd == "quit") break;
     } while (s != "quit");
 }

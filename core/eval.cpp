@@ -168,14 +168,19 @@ void init_ps_tables() {
     }
 }
 
-int eval(const Board &b, int/* alpha*/, int/* beta*/) {
+int eval(const Board &b, int alpha, int beta) {
     Color us = b.side_to_move(), them = ~us;
     int game_phase = 0;
     int mg[COLOR_NB]{}, eg[COLOR_NB]{};
 
-    /* constexpr int MARGIN = 350; */
-    /* if (b.material(us) - b.material(them) - MARGIN >= beta) */
+    (void)(alpha);
+    (void)(beta);
+    /* constexpr int MARGIN = mg_value[PAWN]; */
+    /* int mat_diff = b.material(us) - b.material(them); */
+    /* if (mat_diff + MARGIN >= beta) */
     /*     return beta; */
+    /* if (mat_diff - MARGIN <= alpha) */
+    /*     return alpha; */
 
     //evaluate each piece
     for (PieceType pt: ALL_PTYPES) {

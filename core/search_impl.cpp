@@ -10,8 +10,9 @@ namespace {
 constexpr int CUTOFF_CHECK_DEPTH = 4;
 
 constexpr bool DO_LMR = true;
-constexpr bool DO_IID = true;
+constexpr bool DO_IIR = true;
 constexpr bool DO_REV_FUT = true;
+constexpr bool DO_RAZORING = true;
 
 }
 
@@ -27,14 +28,6 @@ int SearchContext::search_root(const Board &b, int alpha,
     if (g_tt.probe(b.key(), tte) == HASH_HIT) {
         ttm = Move(tte.move16);
         if (!b.is_valid_move(ttm))
-            ttm = MOVE_NONE;
-    }
-
-    //internal iterative deepening
-    if (DO_IID && ttm == MOVE_NONE && depth > 7) {
-        search<IS_PV>(b, alpha, beta, depth / 2, 0);
-        if (g_tt.probe(b.key(), tte) == HASH_HIT
-                && !b.is_valid_move((ttm = Move(tte.move16))))
             ttm = MOVE_NONE;
     }
 
@@ -175,7 +168,7 @@ int SearchContext::search(const Board &b, int alpha, int beta,
     if (alpha >= beta)
         return alpha;
 
-    int stat_eval = eval(b);
+    int stat_eval = eval(b, alpha, beta);
 
     TTEntry tte;
     Move ttm = MOVE_NONE;
@@ -191,23 +184,19 @@ int SearchContext::search(const Board &b, int alpha, int beta,
                 return alpha;
 
             do_null = do_null && !tte.avoid_null;
-        }
 
-        if ((tte.bound8 == BOUND_ALPHA && tte.score16 >= stat_eval)
-                || (tte.bound8 == BOUND_BETA && tte.score16 <= stat_eval))
-            stat_eval = tte.score16;
+            if ((tte.bound8 == BOUND_ALPHA && tte.score16 >= stat_eval)
+                    || (tte.bound8 == BOUND_BETA && tte.score16 <= stat_eval))
+                stat_eval = tte.score16;
+
+        }
 
         if (!b.is_valid_move(ttm))
             ttm = MOVE_NONE;
     }
 
-    //internal iterative deepening
-    if (DO_IID && ttm == MOVE_NONE && depth > 7) {
-        search<IS_PV>(b, alpha, beta, depth / 2, ply);
-        if (g_tt.probe(b.key(), tte) == HASH_HIT
-                && !b.is_valid_move((ttm = Move(tte.move16))))
-            ttm = MOVE_NONE;
-    }
+    if (DO_IIR && ttm == MOVE_NONE && depth >= 4)
+        --depth;
 
     //Eval pruning / Static null move 
     if (DO_REV_FUT && depth < 3 && N == NO_PV && !b.checkers()
@@ -218,16 +207,26 @@ int SearchContext::search(const Board &b, int alpha, int beta,
             return stat_eval - eval_margin;
     }
 
+    if (DO_RAZORING && N == NO_PV && !b.checkers() 
+            && stat_eval + 200 * depth <= alpha)
+    {
+        int score = quiesce(alpha, beta, b);
+        if (score <= alpha)
+            return score;
+    }
+
 
     bool has_big_pieces = b.pieces(b.side_to_move())
         & ~b.pieces(PAWN, KING);
     bool avoid_null = false;
-    if (do_null && N == NO_PV && depth > 2 && !b.checkers()
-            && has_big_pieces)
+    if (do_null && N == NO_PV && depth >= 3 && !b.checkers()
+            && has_big_pieces && stat_eval >= beta)
     {
-        int R = depth > 6 ? 3 : 2;
+        int R = 4 + depth / 6 + std::min((stat_eval - beta) / 256, 3);
+        R = std::min(depth, R);
+
         int score = -search<NO_PV>(b.do_null_move(),
-                -beta, -beta + 1, depth - 1 - R, ply, false);
+                -beta, -beta + 1, depth - R, ply, false);
         if (score >= beta)
             return beta;
 
@@ -254,7 +253,7 @@ int SearchContext::search(const Board &b, int alpha, int beta,
     Move best_move = MOVE_NONE;
     Board bb;
     int moves_processed = 0,
-        local_best = -VALUE_INFINITE,
+        best_score = -VALUE_INFINITE,
         score = -VALUE_INFINITE,
         new_depth = depth - 1,
         reduction_depth = 0;
@@ -348,8 +347,8 @@ research:
             goto research;
         }
 
-        if (score > local_best) {
-            local_best = score;
+        if (score > best_score) {
+            best_score = score;
             best_move = m;
         }
 
@@ -360,7 +359,6 @@ research:
             }
 
             alpha = score;
-            best_move = m;
             bound = BOUND_EXACT;
         }
     }
@@ -378,8 +376,8 @@ research:
 
         hist_.pop();
 
-        if (score > local_best) {
-            local_best = score;
+        if (score > best_score) {
+            best_score = score;
             best_move = m;
         }
 
@@ -390,7 +388,6 @@ research:
             }
 
             alpha = score;
-            best_move = m;
             bound = BOUND_EXACT;
         }
     }
@@ -401,8 +398,8 @@ research:
         return 0;
     }
 
-    if (!stop_) {
-        g_tt.store(TTEntry(b.key(), alpha, bound, depth, 
+    if (!stop_ && best_move != MOVE_NONE) {
+        g_tt.store(TTEntry(b.key(), best_score, bound, depth, 
                     best_move, avoid_null));
     }
 

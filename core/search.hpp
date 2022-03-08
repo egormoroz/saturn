@@ -17,17 +17,17 @@ enum NodeType {
 struct SearchReport {
     SearchReport() = default;
 
-    SearchReport(uint32_t nodes, uint32_t tt_hits, 
+    SearchReport(uint64_t nodes, uint64_t tt_hits, 
             float ordering, int16_t score, 
-            uint16_t time, uint8_t depth);
+            int time, uint8_t depth);
 
     Move pv[MAX_PLIES];
-    uint32_t nodes{};
-    uint32_t tt_hits{};
+    uint64_t nodes{};
+    uint64_t tt_hits{};
     float ordering{};
 
     int16_t score{};
-    uint16_t time{};
+    int time{};
     uint8_t depth{};
     uint8_t pv_len{};
 };
@@ -90,8 +90,8 @@ private:
     bool done_{true};
     std::atomic_bool quitting_{false};
 
-    int tt_hits_{};
-    int nodes_{};
+    uint64_t tt_hits_{};
+    uint64_t nodes_{};
     int fh{}, fhf{};
 
     std::thread worker_;

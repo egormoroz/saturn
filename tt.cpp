@@ -24,43 +24,60 @@ void TranspositionTable::init(size_t mbs) {
     memset(buckets_, 0, size_ * sizeof(Bucket));
 }
 
+void TranspositionTable::new_search() {
+    ++age_;
+}
+
 ProbeResult TranspositionTable::probe(uint64_t key, 
         TTEntry &e) const 
 {
     Bucket &b = buckets_[key % size_];
     for (int i = 0; i < Bucket::N; ++i) {
         e = b.entries[i];
-        if ((e.key ^ e.data) == key)
+        if ((e.key ^ e.data) == key) {
+            e.age = age_;
             return HASH_HIT;
+        }
     }
 
     return HASH_MISS;
 }
 
-void TranspositionTable::store(TTEntry entry) {
-    Bucket &b = buckets_[entry.key % size_];
+void TranspositionTable::store(TTEntry new_entry) {
+    Bucket &b = buckets_[new_entry.key % size_];
     TTEntry *replace = nullptr;
     for (int i = 0; i < Bucket::N; ++i) {
         TTEntry &e = b.entries[i];
-        if ((e.key ^ e.data) == entry.key) {
+        if ((e.key ^ e.data) == new_entry.key) {
             replace = &e;
             break;
         }
     }
 
     if (!replace) {
-        int replace_depth = MAX_DEPTH;
+        int replace_depth = 9999;
         for (int i = 0; i < Bucket::N; ++i) {
             TTEntry &e = b.entries[i];
-            if (e.depth8 < replace_depth) {
+            if (e.age != age_ && e.depth8 < replace_depth) {
                 replace = &e;
                 replace_depth = e.depth8;
             }
         }
+
+        if (!replace) {
+            for (int i = 0; i < Bucket::N; ++i) {
+                TTEntry &e = b.entries[i];
+                if (e.depth8 < replace_depth) {
+                    replace = &e;
+                    replace_depth = e.depth8;
+                }
+            }
+        }
     }
 
-    replace->key = entry.key ^ entry.data;
-    replace->data = entry.data;
+    new_entry.age = age_;
+    replace->key = new_entry.key ^ new_entry.data;
+    replace->data = new_entry.data;
 }
 
 void TranspositionTable::prefetch(uint64_t key) const {
