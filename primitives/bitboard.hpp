@@ -17,12 +17,12 @@ using Bitboard = uint64_t;
 
 #if defined(__GNUC__)  // GCC, Clang, ICC
 
-inline Square lsb(Bitboard b) {
+constexpr Square lsb(Bitboard b) {
   assert(b);
   return Square(__builtin_ctzll(b));
 }
 
-inline Square msb(Bitboard b) {
+constexpr Square msb(Bitboard b) {
   assert(b);
   return Square(63 ^ __builtin_clzll(b));
 }
@@ -31,14 +31,14 @@ inline Square msb(Bitboard b) {
 
 #ifdef _WIN64  // MSVC, WIN64
 
-inline Square lsb(Bitboard b) {
+constexpr Square lsb(Bitboard b) {
     assert(b);
     unsigned long idx;
     _BitScanForward64(&idx, b);
     return (Square) idx;
 }
 
-inline Square msb(Bitboard b) {
+constexpr Square msb(Bitboard b) {
     assert(b);
     unsigned long idx;
     _BitScanReverse64(&idx, b);
@@ -47,7 +47,7 @@ inline Square msb(Bitboard b) {
 #endif // WIN64
 #endif // MSVC
 
-inline int popcnt(Bitboard b) {
+constexpr int popcnt(Bitboard b) {
 #if defined(_MSC_VER) || defined(__INTEL_COMPILER)
   return (int)__popcnt64(b);
 #else // Assumed gcc or compatible compiler
@@ -116,18 +116,18 @@ constexpr Bitboard QUEENSIDE_MASK[COLOR_NB] {
 /*---------------Bitboard operations-----------------*/
 
 //least significant square
-inline Bitboard lss_bb(Bitboard bb) {
+constexpr Bitboard lss_bb(Bitboard bb) {
     assert(bb);
     return bb & -bb;
 }
 
-inline Square pop_lsb(Bitboard &bb) {
+constexpr Square pop_lsb(Bitboard &bb) {
     Square sq = lsb(bb);
     bb &= bb - 1;
     return sq;
 }
 
-inline Bitboard square_bb(Square sq) {
+constexpr Bitboard square_bb(Square sq) {
     assert(sq < SQUARE_NB);
     return Bitboard(1ull << sq);
 }
