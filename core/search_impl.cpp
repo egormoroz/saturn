@@ -198,48 +198,43 @@ int SearchContext::search(const Board &b, int alpha, int beta,
     if (DO_IIR && ttm == MOVE_NONE && depth >= 4)
         --depth;
 
-    //Eval pruning / Static null move 
-    if (DO_REV_FUT && depth < 3 && N == NO_PV && !b.checkers()
-            && abs(beta - 1) > -VALUE_INFINITE + 100)
-    {
-        int eval_margin = 120 * depth;
-        if (stat_eval - eval_margin >= beta)
-            return stat_eval - eval_margin;
-    }
-
-    if (DO_RAZORING && N == NO_PV && !b.checkers() 
-            && stat_eval + 200 * depth <= alpha)
-    {
-        int score = quiesce(alpha, beta, b);
-        if (score <= alpha)
-            return score;
-    }
-
-
-    bool has_big_pieces = b.pieces(b.side_to_move())
-        & ~b.pieces(PAWN, KING);
     bool avoid_null = false;
-    if (do_null && N == NO_PV && depth >= 3 && !b.checkers()
-            && has_big_pieces && stat_eval >= beta)
-    {
-        int R = 4 + depth / 6 + std::min((stat_eval - beta) / 256, 3);
-        R = std::min(depth, R);
-
-        int score = -search<NO_PV>(b.do_null_move(),
-                -beta, -beta + 1, depth - R, ply, false);
-        if (score >= beta)
-            return beta;
-
-        avoid_null = true;
-    }
-
     bool f_prune = false;
-    constexpr int FUT_MARGIN[4] = {0, 200, 300, 400};
-    if (depth <= 3 && N == NO_PV && !b.checkers()
-            && abs(alpha) < VALUE_MATE - 100 
-            && stat_eval + FUT_MARGIN[depth] <= alpha)
-        f_prune = true;
+    if (N == NO_PV && !b.checkers()) {
+        if (DO_REV_FUT && depth <= 6 && stat_eval - 50 * depth > beta
+                && stat_eval < VALUE_MATE - 100)
+            return stat_eval;
 
+        if (DO_RAZORING && stat_eval + 200 * depth <= alpha) {
+            int score = quiesce(alpha, beta, b);
+            if (score <= alpha)
+                return score;
+        }
+
+        bool has_big_pieces = b.pieces(b.side_to_move())
+            & ~b.pieces(PAWN, KING);
+
+        if (do_null && depth >= 3 && has_big_pieces 
+                && stat_eval >= beta) 
+        {
+            int R = 4 + depth / 6 + std::min((stat_eval - beta) / 256, 3);
+            R = std::min(depth, R);
+
+            int score = -search<NO_PV>(b.do_null_move(),
+                    -beta, -beta + 1, depth - R, ply, false);
+            if (score >= beta)
+                return beta;
+
+            avoid_null = true;
+        }
+
+        constexpr int FUT_MARGIN[4] = {0, 200, 300, 400};
+        if (depth <= 3 && N == NO_PV && !b.checkers()
+                && abs(alpha) < VALUE_MATE - 100 
+                && stat_eval + FUT_MARGIN[depth] <= alpha)
+            f_prune = true;
+
+    }
 
     Move prev = hist_.last_move();
     MovePicker mp(b, ttm, ply, prev, killers_, 

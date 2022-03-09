@@ -49,7 +49,7 @@ int main() {
         } else if (token == "q") {
             break;
         } else if (token == "s") {
-            eng.start(b, nullptr, MAX_DEPTH, -1);
+            eng.start(b, nullptr, MAX_DEPTH, 5000);
             eng.wait_for_completion();
         } else if((m = move_from_str(b, token)) != MOVE_NONE) {
             if (b.piece_on(to_sq(m)) != NO_PIECE) {

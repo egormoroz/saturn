@@ -2,6 +2,7 @@
 #define TT_HPP
 
 #include "primitives/common.hpp"
+#include <cstddef>
 
 class Board;
 

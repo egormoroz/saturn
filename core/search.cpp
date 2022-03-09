@@ -85,7 +85,7 @@ void SearchContext::iterative_deepening() {
     auto report = [&](int depth) {
         SearchReport rep(nodes_, tt_hits_, fhf / float(fh),
                 score, timer_.elapsed_millis(), depth);
-        rep.pv_len = g_tt.extract_pv(root_, pv, depth);
+        rep.pv_len = g_tt.extract_pv(root_, pv, MAX_PLIES);
         for (int i = 0; i < rep.pv_len; ++i)
             rep.pv[i] = pv[i];
 

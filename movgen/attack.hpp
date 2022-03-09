@@ -4,6 +4,7 @@
 #include "../primitives/bitboard.hpp"
 #include "../primitives/common.hpp"
 #include <cassert>
+#include <cstddef>
 
 namespace attack_tables {
 
