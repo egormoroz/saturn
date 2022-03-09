@@ -29,14 +29,14 @@ enum Rank : uint8_t {
     RANK_NB
 };
 
-inline File file_of(Square sq) { return File(sq & 7); }
-inline Rank rank_of(Square sq) { return Rank(sq >> 3); }
+constexpr File file_of(Square sq) { return File(sq & 7); }
+constexpr Rank rank_of(Square sq) { return Rank(sq >> 3); }
 
-inline Square make_square(File f, Rank r) { 
+constexpr Square make_square(File f, Rank r) { 
     return Square(f + (r << 3));
 }
 
-inline bool is_ok(Square sq) { return sq >= SQ_A1 && sq <= SQ_H8; }
+constexpr bool is_ok(Square sq) { return sq >= SQ_A1 && sq <= SQ_H8; }
 
 
 /*------End of square, file and rank definitions-----*/
@@ -51,7 +51,7 @@ enum Color : uint8_t {
     COLOR_NONE = COLOR_NB,
 };
 
-inline Color operator~(Color c) { return Color(c ^ 1); }
+constexpr Color operator~(Color c) { return Color(c ^ 1); }
 
 enum PieceType : uint8_t {
     NO_PIECE_TYPE, //this is not optimal...
@@ -78,27 +78,27 @@ enum Piece : uint8_t {
     PIECE_NB, //this isn't either...
 };
 
-inline PieceType type_of(Piece p) {
+constexpr PieceType type_of(Piece p) {
     return PieceType(p & 7);
 }
 
-inline Color color_of(Piece p) {
+constexpr Color color_of(Piece p) {
     return Color(p >> 3);
 }
 
-inline Piece make_piece(Color c, PieceType pt) {
+constexpr Piece make_piece(Color c, PieceType pt) {
     return Piece((c << 3) | pt);
 }
 
-inline bool is_ok(Color c) {
+constexpr bool is_ok(Color c) {
     return c == WHITE || c == BLACK;
 }
 
-inline bool is_ok(PieceType pt) {
+constexpr bool is_ok(PieceType pt) {
     return pt >= PAWN && pt <= QUEEN;
 }
 
-inline bool is_ok(Piece p) {
+constexpr bool is_ok(Piece p) {
     return (p >= W_PAWN && p <= W_KING) 
         || (p >= B_PAWN && p <= B_KING);
 }
@@ -123,15 +123,15 @@ enum CastlingRights : uint8_t {
     CASTLING_RIGHTS_NB = 16,
 };
 
-inline CastlingRights kingside_rights(Color c) {
+constexpr CastlingRights kingside_rights(Color c) {
     return CastlingRights(1 << (c * 2));
 }
 
-inline CastlingRights queenside_rights(Color c) {
+constexpr CastlingRights queenside_rights(Color c) {
     return CastlingRights(2 << (c * 2));
 }
 
-inline bool is_ok(CastlingRights cr) {
+constexpr bool is_ok(CastlingRights cr) {
     return cr < CASTLING_RIGHTS_NB && cr >= 0;
 }
 
@@ -144,12 +144,12 @@ inline bool is_ok(CastlingRights cr) {
 constexpr T operator+(T d1, int d2) { return T(int(d1) + d2); }    \
 constexpr T operator-(T d1, int d2) { return T(int(d1) - d2); }    \
 constexpr T operator-(T d) { return T(-int(d)); }                  \
-inline T& operator+=(T& d1, int d2) { return d1 = d1 + d2; }       \
-inline T& operator-=(T& d1, int d2) { return d1 = d1 - d2; }
+constexpr T& operator+=(T& d1, int d2) { return d1 = d1 + d2; }       \
+constexpr T& operator-=(T& d1, int d2) { return d1 = d1 - d2; }
 
 #define ENABLE_INCR_OPERATORS_ON(T)                                \
-inline T& operator++(T& d) { return d = T(int(d) + 1); }           \
-inline T& operator--(T& d) { return d = T(int(d) - 1); }
+constexpr T& operator++(T& d) { return d = T(int(d) + 1); }           \
+constexpr T& operator--(T& d) { return d = T(int(d) - 1); }
 
 #define ENABLE_FULL_OPERATORS_ON(T)                                \
 ENABLE_BASE_OPERATORS_ON(T)                                        \
@@ -157,8 +157,8 @@ constexpr T operator*(int i, T d) { return T(i * int(d)); }        \
 constexpr T operator*(T d, int i) { return T(int(d) * i); }        \
 constexpr T operator/(T d, int i) { return T(int(d) / i); }        \
 constexpr int operator/(T d1, T d2) { return int(d1) / int(d2); }  \
-inline T& operator*=(T& d, int i) { return d = T(int(d) * i); }    \
-inline T& operator/=(T& d, int i) { return d = T(int(d) / i); }
+constexpr T& operator*=(T& d, int i) { return d = T(int(d) * i); }    \
+constexpr T& operator/=(T& d, int i) { return d = T(int(d) / i); }
 
 ENABLE_INCR_OPERATORS_ON(Piece)
 ENABLE_INCR_OPERATORS_ON(PieceType)
@@ -170,11 +170,11 @@ ENABLE_INCR_OPERATORS_ON(Rank)
 #undef ENABLE_INCR_OPERATORS_ON
 #undef ENABLE_BASE_OPERATORS_ON
 
-inline Rank relative_rank(Color c, Rank r) {
+constexpr Rank relative_rank(Color c, Rank r) {
     return Rank(r ^ (c * 7));
 }
 
-inline Rank relative_rank(Color c, Square s) {
+constexpr Rank relative_rank(Color c, Square s) {
     return relative_rank(c, rank_of(s));
 }
 
@@ -194,23 +194,23 @@ enum MoveType : uint16_t {
     CASTLING = 3 << 14,
 };
 
-inline Square from_sq(Move m) {
+constexpr Square from_sq(Move m) {
     return Square((m >> 6) & 0x3F);
 }
 
-inline Square to_sq(Move m) {
+constexpr Square to_sq(Move m) {
     return Square(m & 0x3F);
 }
 
-inline MoveType type_of(Move m) {
+constexpr MoveType type_of(Move m) {
     return MoveType(m & (3 << 14));
 }
 
-inline PieceType prom_type(Move m) {
+constexpr PieceType prom_type(Move m) {
     return PieceType(((m >> 12) & 3) + KNIGHT);
 }
 
-inline Move make_move(Square from, Square to) {
+constexpr Move make_move(Square from, Square to) {
     return Move((from << 6) | to);
 }
 
@@ -219,7 +219,7 @@ Move make(Square from, Square to, PieceType prom = KNIGHT) {
     return Move(MT | ((prom - KNIGHT) << 12) | (from << 6) | to);
 }
 
-inline bool is_ok(Move m) {
+constexpr bool is_ok(Move m) {
     return from_sq(m) != to_sq(m);
 }
 
