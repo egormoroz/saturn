@@ -17,12 +17,12 @@ enum NodeType {
 struct SearchReport {
     SearchReport() = default;
 
-    SearchReport(uint64_t nodes, uint64_t tt_hits, 
+    SearchReport(uint64_t nodes, uint64_t qnodes, uint64_t tt_hits, 
             float ordering, int16_t score, 
             int time, uint8_t depth);
 
-    Move pv[MAX_PLIES];
-    uint64_t nodes{};
+    Move pv[MAX_DEPTH];
+    uint64_t nodes{}, qnodes{};
     uint64_t tt_hits{};
     float ordering{};
 
@@ -40,6 +40,21 @@ struct SearchListener {
     virtual void on_search_finished(int idx) = 0;
 
     virtual ~SearchListener() = default;
+};
+
+struct RootMove {
+    Move m = MOVE_NONE;
+    int score = -VALUE_INFINITE;
+    int prev_score = -VALUE_INFINITE;
+
+    bool operator==(const RootMove &y) const 
+    { return m == y.m; }
+
+    bool operator<(const RootMove &y) const { 
+        if (score != y.score)
+            return score > y.score;
+        return prev_score > y.prev_score;
+    }
 };
 
 class SearchContext {
@@ -78,6 +93,9 @@ private:
     Board root_;
     History hist_;
 
+    RootMove root_moves_[MAX_MOVES];
+    int root_moves_nb_{};
+
     Killers killers_;
     CounterMoves counters_;
     HistoryHeuristic history_;
@@ -91,7 +109,7 @@ private:
     std::atomic_bool quitting_{false};
 
     uint64_t tt_hits_{};
-    uint64_t nodes_{};
+    uint64_t nodes_{}, qnodes_{};
     int fh{}, fhf{};
 
     std::thread worker_;

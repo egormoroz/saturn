@@ -252,7 +252,6 @@ constexpr int mated_in(int ply) { return -VALUE_MATE + ply; }
 
 constexpr int MAX_DEPTH = 64;
 constexpr int MAX_MOVES = 224;
-constexpr int MAX_PLIES = 129;
 
 /*----------End of various values definitions--------*/
 

@@ -85,6 +85,16 @@ void TranspositionTable::prefetch(uint64_t key) const {
             _MM_HINT_NTA);
 }
 
+uint64_t TranspositionTable::hashfull() const {
+    uint64_t cnt = 0;
+    for (size_t i = 0; i < 1000; ++i) {
+        for (auto &e: buckets_[i].entries)
+            cnt += e.depth8 && e.age == age_;
+    }
+
+    return cnt / Bucket::N;
+}
+
 TranspositionTable::~TranspositionTable() {
     if (buckets_) {
         delete[] buckets_;

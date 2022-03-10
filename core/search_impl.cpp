@@ -4,6 +4,9 @@
 #include "eval.hpp"
 #include "../movepicker.hpp"
 #include "defer.hpp"
+#include <algorithm>
+#include <iostream>
+#include "../primitives/utility.hpp"
 
 namespace {
 
@@ -24,27 +27,38 @@ int SearchContext::search_root(const Board &b, int alpha,
         ++depth;
 
     TTEntry tte;
-    Move ttm = MOVE_NONE;
-    if (g_tt.probe(b.key(), tte) == HASH_HIT) {
-        ttm = Move(tte.move16);
-        if (!b.is_valid_move(ttm))
-            ttm = MOVE_NONE;
+
+    if (!root_moves_nb_) {
+        Move ttm = MOVE_NONE;
+        if (g_tt.probe(b.key(), tte) == HASH_HIT) 
+            if (!b.is_valid_move(ttm))
+                ttm = MOVE_NONE;
+
+        MovePicker mp(b, ttm, 0, MOVE_NONE, killers_, 
+                counters_, history_);
+        for (Move m = mp.next(); m != MOVE_NONE; m = mp.next())
+            root_moves_[root_moves_nb_++].m = m;
+    } else {
+        std::stable_sort(root_moves_, root_moves_ + root_moves_nb_);
+        for (int i = 0; i < root_moves_nb_; ++i) {
+            auto &m = root_moves_[i];
+            m.prev_score = m.score;
+            m.score = -VALUE_INFINITE;
+        }
     }
 
-    MovePicker mp(b, ttm, 0, MOVE_NONE, killers_, 
-            counters_, history_);
-
     //maybe not MAX_MOVES??
-    Move deferred_move[MAX_MOVES];
+    int deferred_move[MAX_MOVES];
     int deferred_moves = 0;
 
     Bound bound = BOUND_ALPHA;
     Move best_move = MOVE_NONE;
     Board bb;
-    int moves_processed = 0, score = alpha;
-    for (Move m = mp.next(); m != MOVE_NONE; 
-            m = mp.next(), ++moves_processed)
-    {
+    int moves_tried = 0, score = alpha;
+    for (; moves_tried < root_moves_nb_; ++moves_tried) {
+        RootMove &rm = root_moves_[moves_tried];
+        Move m = root_moves_[moves_tried].m;
+
         if (deferred_moves && depth >= CUTOFF_CHECK_DEPTH
             && g_tt.probe(b.key(), tte) == HASH_HIT
             && tte.depth8 >= depth) 
@@ -58,7 +72,8 @@ int SearchContext::search_root(const Board &b, int alpha,
                 return alpha;
         }
 
-        if (!moves_processed) {
+        uint64_t before = nodes_;
+        if (!moves_tried) {
             bb = b.do_move(m);
             hist_.push(b.key(), m);
             score = -search<IS_PV>(bb, -beta, -alpha, 
@@ -68,7 +83,7 @@ int SearchContext::search_root(const Board &b, int alpha,
             uint32_t move_hash = abdada::move_hash(b.key(), m);
 
             if (abdada::defer_move(move_hash, depth)) {
-                deferred_move[deferred_moves++] = m;
+                deferred_move[deferred_moves++] = moves_tried;
                 continue;
             }
 
@@ -83,9 +98,11 @@ int SearchContext::search_root(const Board &b, int alpha,
                 score = -search<IS_PV>(bb, -beta, -alpha, 
                         depth - 1, 1);
             hist_.pop();
-
         }
+        uint64_t sub_size = nodes_ - before;
+        /* sync_cout << m << ": " << sub_size << sync_endl; */
 
+        rm.score = score;
         if (score > alpha) {
             if (score >= beta) {
                 if (!stop_) {
@@ -102,7 +119,8 @@ int SearchContext::search_root(const Board &b, int alpha,
     }
 
     for (int i = 0; i < deferred_moves; ++i) {
-        Move m = deferred_move[i];
+        RootMove &rm = root_moves_[deferred_move[i]];
+        Move m = rm.m;
         bb = b.do_move(m);
         hist_.push(b.key(), m);
 
@@ -114,6 +132,7 @@ int SearchContext::search_root(const Board &b, int alpha,
 
         hist_.pop();
 
+        rm.score = score;
         if (score > alpha) {
             if (score >= beta) {
                 if (!stop_) {
@@ -129,7 +148,7 @@ int SearchContext::search_root(const Board &b, int alpha,
         }
     }
 
-    if (!moves_processed) {
+    if (!moves_tried) {
         if (b.checkers())
             return -VALUE_MATE;
         return 0;
@@ -150,7 +169,7 @@ int SearchContext::search(const Board &b, int alpha, int beta,
     if (stop())
         return 0;
 
-    if (b.checkers())
+    if (b.checkers() && (N == IS_PV || depth < 6))
         ++depth;
 
     if (depth == 0)
@@ -160,7 +179,7 @@ int SearchContext::search(const Board &b, int alpha, int beta,
         return 0;
 
     ++nodes_;
-    if (ply >= MAX_PLIES)
+    if (ply >= MAX_DEPTH)
         return eval(b, alpha, beta);
 
     alpha = std::max(alpha, mated_in(ply));
@@ -185,18 +204,22 @@ int SearchContext::search(const Board &b, int alpha, int beta,
 
             do_null = do_null && !tte.avoid_null;
 
-            if ((tte.bound8 == BOUND_ALPHA && tte.score16 >= stat_eval)
-                    || (tte.bound8 == BOUND_BETA && tte.score16 <= stat_eval))
-                stat_eval = tte.score16;
-
         }
+
+        if ((tte.bound8 == BOUND_ALPHA && tte.score16 >= stat_eval)
+                || (tte.bound8 == BOUND_BETA && tte.score16 <= stat_eval))
+            stat_eval = tte.score16;
 
         if (!b.is_valid_move(ttm))
             ttm = MOVE_NONE;
     }
 
-    if (DO_IIR && ttm == MOVE_NONE && depth >= 4)
-        --depth;
+    if (DO_IIR && ttm == MOVE_NONE) {
+        if (N == IS_PV && depth >= 3)
+            depth -= 2;
+        if (N == NO_PV && depth >= 8)
+            depth -= 1;
+    }
 
     bool avoid_null = false;
     bool f_prune = false;
@@ -205,9 +228,11 @@ int SearchContext::search(const Board &b, int alpha, int beta,
                 && stat_eval < VALUE_MATE - 100)
             return stat_eval;
 
-        if (DO_RAZORING && stat_eval + 200 * depth <= alpha) {
-            int score = quiesce(alpha, beta, b);
-            if (score <= alpha)
+        if (DO_RAZORING && depth <= 3 
+                && stat_eval + 200 * depth <= alpha) 
+        {
+            int score = quiesce(alpha - 1, alpha, b);
+            if (score < alpha)
                 return score;
         }
 
@@ -265,8 +290,8 @@ int SearchContext::search(const Board &b, int alpha, int beta,
 
             if (prev != MOVE_NONE)
                 counters_[from_sq(prev)][to_sq(prev)] = m;
-            history_[b.side_to_move()][from_sq(m)][to_sq(m)]
-                += depth * depth;
+            /* history_[b.side_to_move()][from_sq(m)][to_sq(m)] */
+            /*     += depth * depth; */
         }
 
         if (!stop_) {
@@ -348,6 +373,11 @@ research:
         }
 
         if (score > alpha) {
+            if (is_quiet) {
+                history_[b.side_to_move()][from_sq(m)][to_sq(m)]
+                    += depth * depth;
+            }
+
             if (score >= beta) {
                 failed_high(m, is_quiet);
                 return beta;
@@ -377,8 +407,14 @@ research:
         }
 
         if (score > alpha) {
+            bool is_quiet = b.is_quiet(m);
+            if (is_quiet) {
+                history_[b.side_to_move()][from_sq(m)][to_sq(m)]
+                    += depth * depth;
+            }
+
             if (score >= beta) {
-                failed_high(m, b.is_quiet(m));
+                failed_high(m, is_quiet);
                 return beta;
             }
 

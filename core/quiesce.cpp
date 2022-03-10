@@ -6,6 +6,7 @@ int SearchContext::quiesce(int alpha, int beta,
         const Board &b) 
 {
     ++nodes_;
+    ++qnodes_;
     int stand_pat = eval(b, alpha, beta);
     if (stand_pat >= beta) 
         return beta;

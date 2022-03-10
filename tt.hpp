@@ -56,6 +56,8 @@ public:
 
     void prefetch(uint64_t key) const;
 
+    uint64_t hashfull() const;
+
     ~TranspositionTable();
 
 private:

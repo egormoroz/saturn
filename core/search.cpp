@@ -8,12 +8,13 @@
 #include "../tt.hpp"
 #include "../primitives/utility.hpp"
 #include <cstring>
+#include "../movgen/generate.hpp"
 
 
-SearchReport::SearchReport(uint64_t nodes, uint64_t tt_hits, 
+SearchReport::SearchReport(uint64_t nodes, uint64_t qnodes, uint64_t tt_hits, 
         float ordering, int16_t score, 
         int time, uint8_t depth)
-    : nodes(nodes), tt_hits(tt_hits), ordering(ordering),
+    : nodes(nodes), qnodes(qnodes), tt_hits(tt_hits), ordering(ordering),
       score(score), time(time), depth(depth), pv_len(0)
 {
 }
@@ -22,11 +23,14 @@ std::ostream& operator<<(std::ostream &os,
         const SearchReport &rep) 
 {
     uint64_t nps = rep.nodes / (rep.time / 1000 + 1);
+    float qratio = rep.qnodes / float(rep.nodes);
     os << "info score " << Score{rep.score} << " depth " 
        << int(rep.depth) << " nodes " << rep.nodes 
+       << " qnodes " << rep.qnodes << " qratio " << qratio
        << " time " << rep.time << " nps " << nps
        << " tt_hits " << rep.tt_hits
        << " ordering: " << rep.ordering
+       << " hashfull: " << g_tt.hashfull()
        << " pv ";
 
     for (int i = 0; i < rep.pv_len; ++i)
@@ -79,26 +83,26 @@ void SearchContext::stop_searching() {
 }
 
 void SearchContext::iterative_deepening() {
-    Move pv[MAX_PLIES];
     int score = 0, alpha = -VALUE_INFINITE, beta = VALUE_INFINITE;
 
     auto report = [&](int depth) {
-        SearchReport rep(nodes_, tt_hits_, fhf / float(fh),
+        SearchReport rep(nodes_, qnodes_, tt_hits_, fhf / float(fh),
                 score, timer_.elapsed_millis(), depth);
-        rep.pv_len = g_tt.extract_pv(root_, pv, MAX_PLIES);
-        for (int i = 0; i < rep.pv_len; ++i)
-            rep.pv[i] = pv[i];
-
+        rep.pv_len = g_tt.extract_pv(root_, rep.pv, depth);
         for (auto &l: listeners_)
             l->accept(id_, rep);
     };
 
+    root_moves_nb_ = 0;
     score = search_root(root_, alpha, beta, 1);
     report(1);
 
     constexpr int WINDOW = PAWN_VALUE / 4;
     for (int depth = 2; depth <= max_depth_; ++depth) {
-        alpha = score - WINDOW; beta = score + WINDOW;
+        if (depth >= 4) {
+            alpha = score - WINDOW; 
+            beta = score + WINDOW;
+        }
         score = search_root(root_, alpha, beta, depth);
         if (score <= alpha || score >= beta)
             score = search_root(root_, -VALUE_INFINITE, 
@@ -108,8 +112,11 @@ void SearchContext::iterative_deepening() {
 
         report(depth);
 
-        if (abs(score) > VALUE_MATE - 100)
+        if (abs(score) >= VALUE_MATE - depth)
             break;
+
+        /* if (abs(score) > VALUE_MATE - 100) */
+        /*     break; */
     }
 
     for (auto &l: listeners_)
@@ -132,9 +139,11 @@ void SearchContext::reset() {
     infinite_ = false;
     max_depth_ = 0;
     nodes_ = 0;
+    qnodes_ = 0;
     tt_hits_ = 0;
     fhf = 0;
     fh = 0;
+    root_moves_nb_ = 0;
 
     memset(killers_.data(), 0, sizeof(killers_));
     memset(counters_.data(), 0, sizeof(counters_));

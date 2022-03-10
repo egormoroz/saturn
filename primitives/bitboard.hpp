@@ -31,14 +31,14 @@ constexpr Square msb(Bitboard b) {
 
 #ifdef _WIN64  // MSVC, WIN64
 
-constexpr Square lsb(Bitboard b) {
+inline Square lsb(Bitboard b) {
     assert(b);
     unsigned long idx;
     _BitScanForward64(&idx, b);
     return (Square) idx;
 }
 
-constexpr Square msb(Bitboard b) {
+inline Square msb(Bitboard b) {
     assert(b);
     unsigned long idx;
     _BitScanReverse64(&idx, b);
@@ -47,7 +47,7 @@ constexpr Square msb(Bitboard b) {
 #endif // WIN64
 #endif // MSVC
 
-constexpr int popcnt(Bitboard b) {
+inline int popcnt(Bitboard b) {
 #if defined(_MSC_VER) || defined(__INTEL_COMPILER)
   return (int)__popcnt64(b);
 #else // Assumed gcc or compatible compiler
@@ -121,7 +121,7 @@ constexpr Bitboard lss_bb(Bitboard bb) {
     return bb & -bb;
 }
 
-constexpr Square pop_lsb(Bitboard &bb) {
+inline Square pop_lsb(Bitboard &bb) {
     Square sq = lsb(bb);
     bb &= bb - 1;
     return sq;
