@@ -49,6 +49,7 @@ void MovePicker::score_captures() {
             victim = prom_type(*it);
         if (*it == ttm_)
             ttm = it;
+
         it->value = MVV_LVA[victim][attacker];
     }
 
@@ -74,13 +75,19 @@ Move MovePicker::next() {
         stage_ = Stage(stage_ + 1);
         cur_ = moves_;
         end_ = generate<CAPTURES>(b_, moves_);
+        end_bad_caps_ = end_;
         score_captures();
         insertion_sort(cur_, end_);
 
         [[fallthrough]];
 
     case Stage::PICK_CAPTURES:
-        if ((m = select([]() { return true; })) != MOVE_NONE) 
+        if ((m = select([this]() { 
+            if (type_of(*cur_) != NORMAL || b_.ok_capture(*cur_))
+                return true;
+            *end_bad_caps_++ = *cur_;
+            return false;
+        })) != MOVE_NONE) 
             return m;
         stage_ = Stage(stage_ + 1);
 
@@ -103,7 +110,6 @@ Move MovePicker::next() {
         }
 
         [[fallthrough]];
-
     case Stage::PICK_COUNTERS:
         stage_ = Stage(stage_ + 1);
         m = (*counters_)[from_sq(prev_)][to_sq(prev_)];
@@ -114,6 +120,13 @@ Move MovePicker::next() {
             return m;
         }
 
+        end_ = end_bad_caps_;
+        [[fallthrough]];
+
+    case Stage::BAD_CAPTURES:
+        if ((m = select([]() { return true; })) != MOVE_NONE)
+            return m;
+        stage_ = Stage(stage_ + 1);
         [[fallthrough]];
 
     case Stage::INIT_QUIETS:

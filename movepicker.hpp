@@ -13,6 +13,7 @@ enum Stage {
     PICK_CAPTURES,
     PICK_KILLERS1,
     PICK_KILLERS2,
+    BAD_CAPTURES,
     PICK_COUNTERS,
     INIT_QUIETS,
     PICK_QUIETS
@@ -57,7 +58,7 @@ private:
     const HistoryHeuristic *history_{};
 
     ExtMove moves_[MAX_MOVES];
-    ExtMove *cur_{}, *end_{};
+    ExtMove *cur_{}, *end_{}, *end_bad_caps_{};
 
     Move excluded_[3];
 };
