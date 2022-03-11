@@ -61,6 +61,8 @@ class SearchContext {
 public:
     explicit SearchContext(int id = 0);
 
+    static void init_tables();
+
     //hist can be nullptr
     void run(const Board &root, const History *hist,
             int max_depth, int max_millis, bool infinite);
@@ -115,6 +117,8 @@ private:
     std::thread worker_;
     std::mutex mtx_;
     std::condition_variable cond_;
+
+    static uint8_t LMR[32][64];
 };
 
 #endif

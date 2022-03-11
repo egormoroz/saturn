@@ -8,7 +8,9 @@
 #include "../tt.hpp"
 #include "../primitives/utility.hpp"
 #include <cstring>
-#include "../movgen/generate.hpp"
+#include <cmath>
+
+uint8_t SearchContext::LMR[32][64];
 
 
 SearchReport::SearchReport(uint64_t nodes, uint64_t qnodes, uint64_t tt_hits, 
@@ -99,10 +101,10 @@ void SearchContext::iterative_deepening() {
 
     constexpr int WINDOW = PAWN_VALUE / 4;
     for (int depth = 2; depth <= max_depth_; ++depth) {
-        if (depth >= 4) {
-            alpha = score - WINDOW; 
-            beta = score + WINDOW;
-        }
+        /* if (depth >= 4) { */
+        /*     alpha = score - WINDOW; */ 
+        /*     beta = score + WINDOW; */
+        /* } */
         score = search_root(root_, alpha, beta, depth);
         if (score <= alpha || score >= beta)
             score = search_root(root_, -VALUE_INFINITE, 
@@ -163,5 +165,13 @@ SearchContext::~SearchContext() {
     cond_.notify_one();
     if (worker_.joinable())
         worker_.join();
+}
+
+void SearchContext::init_tables() {
+    for (int d = 1; d < 32; ++d)
+        for (int m = 1; m < 64; ++m)
+            LMR[d][m] = 0.1 + log(d) * log(m) / 2;
+
+    LMR[0][0] = LMR[0][1] = LMR[1][0] = 0;
 }
 

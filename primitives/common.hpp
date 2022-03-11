@@ -185,6 +185,7 @@ constexpr Rank relative_rank(Color c, Square s) {
 
 enum Move : uint16_t {
     MOVE_NONE,
+    MOVE_NULL = 0xFFFF,
 };
 
 enum MoveType : uint16_t {

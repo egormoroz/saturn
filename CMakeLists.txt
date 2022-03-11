@@ -8,7 +8,8 @@ add_executable(gm_bit
     board/validate.cpp board/ok_capture.cpp movgen/attack.cpp 
     movgen/magic.cpp movgen/generate.cpp primitives/utility.cpp
     core/search.cpp core/eval.cpp core/search_impl.cpp
-    core/quiesce.cpp core/engine.cpp core/defer.cpp)
+    core/quiesce.cpp core/engine.cpp core/defer.cpp
+    tree.cpp)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP")
 

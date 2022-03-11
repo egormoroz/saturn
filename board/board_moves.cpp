@@ -114,6 +114,7 @@ Board Board::do_null_move() const {
     Board result = *this;
     result.side_to_move_ = ~side_to_move_;
     result.en_passant_ = SQ_NONE;
+    result.fifty_++;
     result.update_pin_info();
 
     result.key_ ^= ZOBRIST.side

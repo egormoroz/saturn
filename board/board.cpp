@@ -34,8 +34,8 @@ Bitboard Board::attackers_to(Color c, Square s, Bitboard blockers) const {
 }
 
 Bitboard Board::attackers_to(Square s, Bitboard blockers) const {
-    return (pawn_attacks_bb(WHITE, s) & pieces(WHITE, PAWN))
-        | (pawn_attacks_bb(BLACK, s) & pieces(BLACK, PAWN))
+    return (pawn_attacks_bb(BLACK, s) & pieces(WHITE, PAWN))
+        | (pawn_attacks_bb(WHITE, s) & pieces(BLACK, PAWN))
         | (attacks_bb<KNIGHT>(s) & pieces(KNIGHT))
         | (attacks_bb<BISHOP>(s, blockers) & pieces(BISHOP, QUEEN))
         | (attacks_bb<ROOK>(s, blockers) & pieces(ROOK, QUEEN))

@@ -29,7 +29,7 @@ struct History {
     }
 
     bool is_repetition(uint64_t key, int fifty) const {
-        for (int i = std::max(ply - fifty, 0); i < ply; i += 2)
+        for (int i = std::max(ply - fifty, 0); i < ply - 1; i += 2)
             if (entries[i].key == key)
                 return true;
         return false;
