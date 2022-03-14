@@ -73,7 +73,7 @@ int main() {
 #ifdef TRACE
         else if (token == "w") {
             walk_tree();
-        }  else if (token == "j") {
+        } else if (token == "j") {
             ofstream fout("tree.json");
             g_tree.json(fout);
         }
@@ -84,7 +84,7 @@ int main() {
                     << b.ok_capture(m) << "\n";
             }
             history.push_back(b.do_move(m));
-        }else {
+        } else {
             cout << "unknown command / illegal move" << endl;
         }
     }

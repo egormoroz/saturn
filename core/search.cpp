@@ -101,10 +101,10 @@ void SearchContext::iterative_deepening() {
 
     constexpr int WINDOW = PAWN_VALUE / 4;
     for (int depth = 2; depth <= max_depth_; ++depth) {
-        /* if (depth >= 4) { */
-        /*     alpha = score - WINDOW; */ 
-        /*     beta = score + WINDOW; */
-        /* } */
+        if (depth >= 4) {
+            alpha = score - WINDOW; 
+            beta = score + WINDOW;
+        }
         score = search_root(root_, alpha, beta, depth);
         if (score <= alpha || score >= beta)
             score = search_root(root_, -VALUE_INFINITE, 
@@ -116,9 +116,6 @@ void SearchContext::iterative_deepening() {
 
         if (abs(score) >= VALUE_MATE - depth)
             break;
-
-        /* if (abs(score) > VALUE_MATE - 100) */
-        /*     break; */
     }
 
     for (auto &l: listeners_)
