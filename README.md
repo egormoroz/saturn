@@ -15,6 +15,8 @@ Probably about 2500 elo on CCRL when singlethreaded
 - Improve test coverage and reporting of errors
 - Fix crashes in 220+ halfmoves games
 - Better draw detection
+- Make it less dumb in endgames
+- Probably add separate references section (CPW, tckerrigan, crafty, SF, vice, etc)
 
 # Features
 ## Move generation
