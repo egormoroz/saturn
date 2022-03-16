@@ -28,7 +28,7 @@ public:
      * */
     bool is_valid_move(Move m) const;
 
-    bool ok_capture(Move m) const;
+    bool see_ge(Move m, int threshold = 0) const;
 
     bool is_quiet(Move m) const;
 

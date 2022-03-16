@@ -28,7 +28,7 @@ int SearchContext::quiesce(int alpha, int beta,
             && b.material(them) - cap_value >= ENDGAME_MAT)
             continue;
 
-        if (type_of(m) == NORMAL && !b.ok_capture(m))
+        if (type_of(m) == NORMAL && !b.see_ge(m))
             continue;
 
         bb = b.do_move(m);

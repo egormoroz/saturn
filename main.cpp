@@ -81,7 +81,7 @@ int main() {
         else if((m = move_from_str(b, token)) != MOVE_NONE) {
             if (b.piece_on(to_sq(m)) != NO_PIECE) {
                 cout << "Ok capture: " << boolalpha 
-                    << b.ok_capture(m) << "\n";
+                    << b.see_ge(m) << "\n";
             }
             history.push_back(b.do_move(m));
         } else {

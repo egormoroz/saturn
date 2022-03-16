@@ -2,7 +2,6 @@
 #define HISTORY_HPP
 
 #include "primitives/common.hpp"
-#include <cassert>
 #include <algorithm>
 
 //in plies

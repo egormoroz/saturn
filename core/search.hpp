@@ -76,6 +76,7 @@ public:
 private:
     void reset();
     void iterative_deepening();
+    int aspiration_window(int score, int depth);
 
     int search_root(const Board &b, int alpha, int beta,
             int depth);

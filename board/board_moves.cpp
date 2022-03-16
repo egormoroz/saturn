@@ -1,5 +1,4 @@
 #include "board.hpp"
-#include <cassert>
 #include "../zobrist.hpp"
 #include "../movgen/attack.hpp"
 

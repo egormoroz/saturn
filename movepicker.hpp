@@ -10,7 +10,7 @@ class Board;
 enum Stage {
     HASH,
     INIT_CAPTURES,
-    PICK_CAPTURES,
+    GOOD_CAPTURES,
     PICK_KILLERS1,
     PICK_KILLERS2,
     PICK_COUNTERS,
@@ -39,6 +39,8 @@ public:
 
     Move next();
     Move qnext();
+
+    Stage stage() const;
 
 private:
     void score_captures();

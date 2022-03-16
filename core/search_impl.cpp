@@ -342,6 +342,8 @@ int SearchContext::search(const Board &b, int alpha, int beta,
         }
     };
 
+//    b.validate();
+
     for (Move m = mp.next(); m != MOVE_NONE; m = mp.next(), 
             ++moves_processed) 
     {

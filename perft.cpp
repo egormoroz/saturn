@@ -3,7 +3,6 @@
 #include "board/board.hpp"
 #include <vector>
 #include <thread>
-#include "movepicker.hpp"
 
 namespace {
 

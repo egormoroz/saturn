@@ -2,6 +2,8 @@
 #define PRIMITIVES_COMMON_HPP
 
 #include <cstdint>
+//#undef NDEBUG
+#include <cassert>
 
 /*---------Square, file and rank definitions---------*/
 
@@ -178,6 +180,10 @@ constexpr Rank relative_rank(Color c, Square s) {
     return relative_rank(c, rank_of(s));
 }
 
+constexpr Square relative_square(Color c, Square s) {
+    return Square(s ^ (c * 56));
+}
+
 /*----------End of some operation definitions--------*/
 
 
@@ -229,7 +235,7 @@ constexpr bool is_ok(Move m) {
 
 /*-------------Various values definitions------------*/
 
-enum {
+enum : int {
     VALUE_ZERO = 0,
     VALUE_MATE = 32000,
     VALUE_INFINITE = 32001,

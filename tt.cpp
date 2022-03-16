@@ -1,5 +1,4 @@
 #include "tt.hpp"
-#include <cassert>
 #include <cstring>
 #include "board/board.hpp"
 #include <algorithm>

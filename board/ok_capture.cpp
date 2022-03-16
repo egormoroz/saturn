@@ -1,10 +1,9 @@
 #include "board.hpp"
-#include <cassert>
 #include "../movgen/attack.hpp"
 
-bool Board::ok_capture(Move m) const {
-    assert(is_ok(m));
-    assert(type_of(m) == NORMAL);
+bool Board::see_ge(Move m, int threshold) const {
+    if (type_of(m) != NORMAL)
+        return threshold >= 0;
 
     auto value_on = [this](Square s) { 
         return PIECE_VALUE[type_of(piece_on(s))];
@@ -12,7 +11,11 @@ bool Board::ok_capture(Move m) const {
 
     Square from = from_sq(m), to = to_sq(m);
 
-    int balance = value_on(from) - value_on(to);
+    int balance = value_on(to) - threshold;
+    if (balance < 0)
+        return false;
+
+    balance = value_on(from) - balance;
     if (balance <= 0)
         return true;
 

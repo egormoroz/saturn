@@ -58,9 +58,10 @@ void MovePicker::score_captures() {
 }
 
 void MovePicker::score_quiets() {
+    Color us = b_.side_to_move();
     for (auto it = cur_; it != end_; ++it) {
-        it->value = (*history_)
-            [b_.side_to_move()][from_sq(*it)][to_sq(*it)];
+        Square from = from_sq(*it), to = to_sq(*it);
+        it->value = 2 * (*history_)[us][from][to];
     }
 }
 
@@ -81,9 +82,9 @@ Move MovePicker::next() {
 
         [[fallthrough]];
 
-    case Stage::PICK_CAPTURES:
+    case Stage::GOOD_CAPTURES:
         if ((m = select([this]() { 
-            if (type_of(*cur_) != NORMAL || b_.ok_capture(*cur_))
+            if (type_of(*cur_) != NORMAL || b_.see_ge(*cur_))
                 return true;
             *end_bad_caps_++ = *cur_;
             return false;
@@ -162,7 +163,7 @@ Move MovePicker::qnext() {
 
         [[fallthrough]];
 
-    case Stage::PICK_CAPTURES:
+    case Stage::GOOD_CAPTURES:
         return select([]() { return true; });
 
     default:
@@ -170,6 +171,8 @@ Move MovePicker::qnext() {
         return MOVE_NONE;
     }
 }
+
+Stage MovePicker::stage() const { return stage_; }
 
 template<typename Pred>
 Move MovePicker::select(Pred filter) {

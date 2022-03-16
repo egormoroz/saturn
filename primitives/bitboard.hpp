@@ -3,7 +3,6 @@
 
 #include <cstdint>
 #include "common.hpp"
-#include <cassert>
 
 #ifdef _MSC_VER
 #pragma warning(disable:4146)

@@ -31,8 +31,8 @@ std::ostream& operator<<(std::ostream &os,
        << " qnodes " << rep.qnodes << " qratio " << qratio
        << " time " << rep.time << " nps " << nps
        << " tt_hits " << rep.tt_hits
-       << " ordering: " << rep.ordering
-       << " hashfull: " << g_tt.hashfull()
+       << " ordering " << rep.ordering
+       << " hashfull " << g_tt.hashfull()
        << " pv ";
 
     for (int i = 0; i < rep.pv_len; ++i)
@@ -99,16 +99,18 @@ void SearchContext::iterative_deepening() {
     score = search_root(root_, alpha, beta, 1);
     report(1);
 
-    constexpr int WINDOW = PAWN_VALUE / 4;
+    /* constexpr int WINDOW = PAWN_VALUE / 4; */
     for (int depth = 2; depth <= max_depth_; ++depth) {
-        if (depth >= 4) {
-            alpha = score - WINDOW; 
-            beta = score + WINDOW;
-        }
-        score = search_root(root_, alpha, beta, depth);
-        if (score <= alpha || score >= beta)
-            score = search_root(root_, -VALUE_INFINITE, 
-                    VALUE_INFINITE, depth);
+        /* if (depth >= 4) { */
+        /*     alpha = score - WINDOW; */ 
+        /*     beta = score + WINDOW; */
+        /* } */
+        /* score = search_root(root_, alpha, beta, depth); */
+        /* if (score <= alpha || score >= beta) */
+        /*     score = search_root(root_, -VALUE_INFINITE, */ 
+        /*             VALUE_INFINITE, depth); */
+        score = depth >= 4 ? aspiration_window(score, depth)
+            : search_root(root_, -VALUE_INFINITE, VALUE_INFINITE, depth);
 
         if (stop()) break;
 
@@ -120,6 +122,28 @@ void SearchContext::iterative_deepening() {
 
     for (auto &l: listeners_)
         l->on_search_finished(id_);
+}
+
+int SearchContext::aspiration_window(int score, int depth) {
+    int delta = 16;
+    int alpha = score - delta, beta = score + delta;
+
+    while (!stop()) {
+        score = search_root(root_, alpha, beta, depth);
+
+        if (score <= alpha) {
+            beta = (alpha + beta) / 2;
+            alpha = std::max(-VALUE_INFINITE, alpha - delta);
+        } else if (score >= beta) {
+            beta = std::min(int(VALUE_INFINITE), beta + delta);
+        } else {
+            return score;
+        }
+
+        delta = delta + delta / 2;
+    }
+
+    return 0;
 }
 
 void SearchContext::wait_for_completion() {
