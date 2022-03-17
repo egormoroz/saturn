@@ -1,7 +1,7 @@
 #ifndef TREE_HPP
 #define TREE_HPP
 
-//#define TRACE
+#define TRACE
 
 #include "primitives/common.hpp"
 #include <vector>

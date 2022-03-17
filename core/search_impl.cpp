@@ -9,6 +9,7 @@
 namespace {
 
 constexpr int CUTOFF_CHECK_DEPTH = 4;
+//constexpr int NULL_MOVE_DIVISOR = 6;
 
 constexpr bool DO_NULL = true;
 constexpr bool DO_LMR = true;
@@ -16,7 +17,69 @@ constexpr bool DO_IIR = true;
 constexpr bool DO_REV_FUT = true;
 constexpr bool DO_RAZORING = true;
 
+struct Tracer {
+    Tracer(Move m, int alpha, int beta, int depth, int ply)
+#ifdef TRACE
+        : node_idx(g_tree.begin_node( m, alpha, beta, 
+            depth, ply)), before(g_tree.size()) 
+#endif
+    {}
+
+    void finish(int score) {
+#ifdef TRACE
+        g_tree.end_node(node_idx, score, before);
+#endif
+    }
+
+    size_t node_idx{}, before{};
+};
+
+//returns true if it's safe to return score from search
+template<bool full_probe>
+bool probe_tt(const Board &b, int alpha, int beta, int depth, 
+        int &score, bool *should_null = nullptr, 
+        int *eval = nullptr, Move *ttm = nullptr)
+{
+    TTEntry tte;
+    if (g_tt.probe(b.key(), tte) != HASH_HIT)
+        return false;
+
+    if (tte.depth8 >= depth) {
+        if (tte.bound8 == BOUND_EXACT) {
+            score = tte.score16;
+            return true;
+        }
+
+        if (tte.bound8 == BOUND_BETA && tte.score16 >= beta) {
+            score = beta;
+            return true;
+        }
+
+        if (tte.bound8 == BOUND_ALPHA && tte.score16 <= alpha) {
+            score = alpha;
+            return true;
+        }
+
+        if constexpr (full_probe) {
+            *should_null = *should_null && !tte.avoid_null;
+            Bound b = Bound(tte.bound8);
+            int s = tte.score16;
+            if ((b == BOUND_ALPHA && s >= *eval)
+                || (b == BOUND_BETA && s <= *eval))
+                *eval = tte.score16;
+        }
+    }
+
+    if constexpr (full_probe) {
+        *ttm = Move(tte.move16);
+        if (!b.is_valid_move(*ttm))
+            *ttm = MOVE_NULL;
+    }
+
+    return false;
 }
+
+} //namespace
 
 
 int SearchContext::search_root(const Board &b, int alpha, 
@@ -77,21 +140,14 @@ int SearchContext::search_root(const Board &b, int alpha,
 
         if (!moves_tried) {
             bb = b.do_move(m);
-            hist_.push(b.key(), m);
-
-#ifdef TRACE
-            size_t node_idx = g_tree.begin_node(m,
-                alpha, beta, depth - 1, 0), before = g_tree.size();
-#endif
+            ss_.push(b.key(), m);
+            Tracer tr(m, alpha, beta, depth - 1, 0);
 
             score = -search<IS_PV>(bb, -beta, -alpha, 
                     depth - 1, 1);
+            tr.finish(score);
 
-#ifdef TRACE
-            g_tree.end_node(node_idx, score, before);
-#endif
-
-            hist_.pop();
+            ss_.pop();
         } else {
             uint32_t move_hash = abdada::move_hash(b.key(), m);
 
@@ -101,13 +157,10 @@ int SearchContext::search_root(const Board &b, int alpha,
             }
 
             bb = b.do_move(m);
-            hist_.push(b.key(), m);
+            ss_.push(b.key(), m);
 
-#ifdef TRACE
-            size_t node_idx = g_tree.begin_node(m,
-                alpha, beta, depth - 1, 0), before = g_tree.size();
-#endif
 
+            Tracer tr(m, alpha, beta, depth - 1, 0);
             abdada::starting_search(move_hash, depth);
             score = -search<NO_PV>(bb, -alpha - 1, 
                     -alpha, depth - 1, 1);
@@ -116,11 +169,9 @@ int SearchContext::search_root(const Board &b, int alpha,
             if (score > alpha && score < beta)
                 score = -search<IS_PV>(bb, -beta, -alpha, 
                         depth - 1, 1);
-
-#ifdef TRACE
-            g_tree.end_node(node_idx, score, before);
-#endif
-            hist_.pop();
+            
+            tr.finish(score);
+            ss_.pop();
         }
 
         rm.score = score;
@@ -143,11 +194,7 @@ int SearchContext::search_root(const Board &b, int alpha,
         RootMove &rm = root_moves_[deferred_move[i]];
         Move m = rm.m;
         bb = b.do_move(m);
-        hist_.push(b.key(), m);
-#ifdef TRACE
-        size_t node_idx = g_tree.begin_node(m,
-            alpha, beta, depth - 1, 0), before = g_tree.size();
-#endif
+        ss_.push(b.key(), m);
 
         score = -search<NO_PV>(bb, -alpha - 1, -alpha,
                 depth - 1, 1);
@@ -155,11 +202,7 @@ int SearchContext::search_root(const Board &b, int alpha,
             score = -search<IS_PV>(bb, -beta, -alpha,
                     depth - 1, 1);
 
-#ifdef TRACE
-        g_tree.end_node(node_idx, score, before);
-#endif
-
-        hist_.pop();
+        ss_.pop();
 
         rm.score = score;
         if (score > alpha) {
@@ -204,7 +247,9 @@ int SearchContext::search(const Board &b, int alpha, int beta,
     if (depth == 0)
         return quiesce(alpha, beta, b);
 
-    if (hist_.is_repetition(b.key(), b.fifty_rule()))
+    g_tt.prefetch(b.key());
+
+    if (ss_.is_repetition(b.key(), b.fifty_rule()))
         return 0;
 
     ++nodes_;
@@ -220,27 +265,10 @@ int SearchContext::search(const Board &b, int alpha, int beta,
 
     TTEntry tte;
     Move ttm = MOVE_NONE;
-    if (g_tt.probe(b.key(), tte) == HASH_HIT) {
-        ttm = Move(tte.move16);
-        if (tte.depth8 >= depth) {
-            tt_hits_++;
-            if (tte.bound8 == BOUND_EXACT)
-                return tte.score16;
-            if (tte.bound8 == BOUND_BETA && tte.score16 >= beta)
-                return beta;
-            if (tte.bound8 == BOUND_ALPHA && tte.score16 <= alpha)
-                return alpha;
-
-            do_null = do_null && !tte.avoid_null;
-
-            if ((tte.bound8 == BOUND_ALPHA && tte.score16 >= stat_eval)
-                    || (tte.bound8 == BOUND_BETA && tte.score16 <= stat_eval))
-                stat_eval = tte.score16;
-        }
-
-        if (!b.is_valid_move(ttm))
-            ttm = MOVE_NONE;
-    }
+    int tmp;
+    if (probe_tt<true>(b, alpha, beta, depth, tmp, 
+                &do_null, &stat_eval, &ttm))
+        return tmp;
 
     if (DO_IIR && ttm == MOVE_NONE) {
         if (N == IS_PV && depth >= 3)
@@ -249,15 +277,16 @@ int SearchContext::search(const Board &b, int alpha, int beta,
             depth -= 1;
     }
 
-    bool avoid_null = false;
     bool f_prune = false;
+    bool avoid_null = false;
     if (N == NO_PV && !b.checkers()) {
         if (DO_REV_FUT && depth <= 6 && stat_eval - 50 * depth > beta
                 && beta > -VALUE_MATE + 100)
             return stat_eval;
 
         if (DO_RAZORING && depth <= 3 
-                && stat_eval + 200 * depth * depth <= alpha) 
+                && stat_eval + 200 * depth * depth <= alpha)
+                /* && alpha < VALUE_MATE - 100) */ 
         {
             int score = quiesce(alpha - 1, alpha, b);
             if (score < alpha)
@@ -274,21 +303,14 @@ int SearchContext::search(const Board &b, int alpha, int beta,
             R = std::min(depth, R);
 
             Board bb = b.do_null_move();
-            hist_.push(bb.key(), MOVE_NULL);
-
-#ifdef TRACE
-            size_t idx = g_tree.begin_node(MOVE_NULL, 
-                    alpha, beta, depth - R, ply), 
-                   before = g_tree.size();
-#endif
+            ss_.push(bb.key(), MOVE_NULL);
+            Tracer tr(MOVE_NULL, alpha, beta, depth - R, ply);
 
             int score = -search<NO_PV>(bb,
                     -beta, -beta + 1, depth - R, ply + 1, false);
 
-#ifdef TRACE
-            g_tree.end_node(idx, score, before);
-#endif
-            hist_.pop();
+            tr.finish(score);
+            ss_.pop();
             if (score >= beta)
                 return beta;
 
@@ -303,7 +325,7 @@ int SearchContext::search(const Board &b, int alpha, int beta,
 
     }
 
-    Move prev = hist_.last_move();
+    Move prev = ss_.last_move();
     MovePicker mp(b, ttm, ply, prev, killers_, 
             counters_, history_);
 
@@ -373,30 +395,20 @@ int SearchContext::search(const Board &b, int alpha, int beta,
             && !b.checkers() && !bb.checkers() && is_quiet
             && killers_[0][ply] != m && killers_[1][ply] != m)
         {
-            /* reduction_depth = 1; */
-            /* if (moves_processed > 8) */
-            /*     reduction_depth = 2; */
-            /* new_depth -= reduction_depth; */
             new_depth -= LMR[std::min(depth, 32)]
                 [std::min(moves_processed, 63)];
         }
 
 research:
         if (moves_processed == 0) {
-            hist_.push(b.key(), m);
+            ss_.push(b.key(), m);
+            Tracer tr(m, alpha, beta, new_depth, ply);
 
-#ifdef TRACE
-            size_t node_idx = g_tree.begin_node(m, 
-                    alpha, beta, new_depth, ply), 
-                   before = g_tree.size();
-#endif
             score = -search<N>(bb, -beta, -alpha, 
                     new_depth, ply + 1);
 
-#ifdef TRACE
-            g_tree.end_node(node_idx, score, before);
-#endif
-            hist_.pop();
+            tr.finish(score);
+            ss_.pop();
         } else {
             uint32_t move_hash = abdada::move_hash(b.key(), m);
 
@@ -405,13 +417,9 @@ research:
                 continue;
             }
 
-#ifdef TRACE
-            size_t node_idx = g_tree.begin_node(m, alpha, 
-                    beta, new_depth, ply), 
-                   before = g_tree.size();
-#endif
+            Tracer tr(m, alpha, beta, new_depth, ply);
+            ss_.push(b.key(), m);
 
-            hist_.push(b.key(), m);
             abdada::starting_search(move_hash, depth);
             score = -search<NO_PV>(bb, -alpha - 1, -alpha,
                     new_depth, ply + 1);
@@ -420,11 +428,10 @@ research:
             if (score > alpha && score < beta)
                 score = -search<IS_PV>(bb, -beta, -alpha,
                         new_depth, ply + 1);
-            hist_.pop();
 
-#ifdef TRACE
-            g_tree.end_node(node_idx, score, before);
-#endif
+            ss_.pop();
+            tr.finish(score);
+
         }
 
         if (reduction_depth && score > alpha) {
@@ -457,12 +464,7 @@ research:
     for (int i = 0; i < deferred_moves; ++i) {
         Move m = deferred_move[i];
         bb = b.do_move(m);
-        hist_.push(b.key(), m);
-
-#ifdef TRACE
-        size_t node_idx = g_tree.begin_node(m,
-            alpha, beta, depth - 1, ply), before = g_tree.size();
-#endif
+        ss_.push(b.key(), m);
 
         score = -search<NO_PV>(bb, -alpha - 1, -alpha,
                 depth - 1, ply + 1);
@@ -470,11 +472,7 @@ research:
             score = -search<IS_PV>(bb, -beta, -alpha,
                     depth - 1, ply + 1);
 
-#ifdef TRACE
-        g_tree.end_node(node_idx, score, before);
-#endif
-
-        hist_.pop();
+        ss_.pop();
 
         if (score > best_score) {
             best_score = score;

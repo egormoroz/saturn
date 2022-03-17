@@ -12,7 +12,7 @@ public:
     virtual void on_search_finished(int idx) final;
 
     //hist can be nullptr
-    void start(const Board &b, const History *hist,
+    void start(const Board &b, const SearchStack *ss,
             int max_depth, int max_time);
 
     void stop_search();

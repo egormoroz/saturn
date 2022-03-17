@@ -4,7 +4,7 @@
 #include <variant>
 #include <iosfwd>
 #include "board/board.hpp"
-#include "history.hpp"
+#include "search_stack.hpp"
 
 #define sync_cout std::cout << IO_LOCK
 #define sync_endl std::endl << IO_UNLOCK

@@ -5,9 +5,9 @@
 #include <algorithm>
 
 //in plies
-constexpr int MAX_GAME_LEN = 256;
+constexpr int MAX_GAME_LEN = 512;
 
-struct History {
+struct SearchStack {
     struct Entry {
         uint64_t key;
         Move m;
@@ -28,7 +28,9 @@ struct History {
     }
 
     bool is_repetition(uint64_t key, int fifty) const {
-        for (int i = std::max(ply - fifty, 0); i < ply - 1; i += 2)
+        int k = std::max(0, ply - fifty);
+
+        for (int i = ply - 2; i >= k; i -= 2)
             if (entries[i].key == key)
                 return true;
         return false;

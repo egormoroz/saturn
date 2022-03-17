@@ -24,7 +24,7 @@ SearchReport::SearchReport(uint64_t nodes, uint64_t qnodes, uint64_t tt_hits,
 std::ostream& operator<<(std::ostream &os, 
         const SearchReport &rep) 
 {
-    uint64_t nps = rep.nodes / (rep.time / 1000 + 1);
+    uint64_t nps = 1000 * rep.nodes / (rep.time + 1);
     float qratio = rep.qnodes / float(rep.nodes);
     os << "info score " << Score{rep.score} << " depth " 
        << int(rep.depth) << " nodes " << rep.nodes 
@@ -56,7 +56,7 @@ SearchContext::SearchContext(int id) : id_(id) {
     });
 }
 
-void SearchContext::run(const Board &b, const History *hist,
+void SearchContext::run(const Board &b, const SearchStack *ss,
         int max_depth, int max_millis, bool infinite) 
 {
     stop_searching();
@@ -65,9 +65,9 @@ void SearchContext::run(const Board &b, const History *hist,
         reset();
 
         root_ = b;
-        hist_.ply = 0;
-        if (hist)
-            hist_ = *hist;
+        ss_.ply = 0;
+        if (ss)
+            ss_ = *ss;
 
         timer_.restart(Clock::now(), max_millis);
         infinite_ = infinite;
@@ -99,16 +99,7 @@ void SearchContext::iterative_deepening() {
     score = search_root(root_, alpha, beta, 1);
     report(1);
 
-    /* constexpr int WINDOW = PAWN_VALUE / 4; */
     for (int depth = 2; depth <= max_depth_; ++depth) {
-        /* if (depth >= 4) { */
-        /*     alpha = score - WINDOW; */ 
-        /*     beta = score + WINDOW; */
-        /* } */
-        /* score = search_root(root_, alpha, beta, depth); */
-        /* if (score <= alpha || score >= beta) */
-        /*     score = search_root(root_, -VALUE_INFINITE, */ 
-        /*             VALUE_INFINITE, depth); */
         score = depth >= 4 ? aspiration_window(score, depth)
             : search_root(root_, -VALUE_INFINITE, VALUE_INFINITE, depth);
 

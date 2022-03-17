@@ -63,8 +63,7 @@ public:
 
     static void init_tables();
 
-    //hist can be nullptr
-    void run(const Board &root, const History *hist,
+    void run(const Board &root, const SearchStack *ss,
             int max_depth, int max_millis, bool infinite);
     void stop_searching();
     void wait_for_completion();
@@ -94,7 +93,7 @@ private:
     int id_;
 
     Board root_;
-    History hist_;
+    SearchStack ss_;
 
     RootMove root_moves_[MAX_MOVES];
     int root_moves_nb_{};

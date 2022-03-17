@@ -31,7 +31,7 @@ void Engine::on_search_finished(int) {
     }
 }
 
-void Engine::start(const Board &b, const History *hist,
+void Engine::start(const Board &b, const SearchStack *ss,
         int max_depth, int max_time) 
 {
     for (auto &s: searches_)
@@ -41,7 +41,7 @@ void Engine::start(const Board &b, const History *hist,
     working_ = searches_.size();
     report_ = SearchReport();
     for (auto &s: searches_)
-        s.run(b, hist, max_depth, max_time, max_time < 0);
+        s.run(b, ss, max_depth, max_time, max_time < 0);
 }
 
 void Engine::stop_search() {

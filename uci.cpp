@@ -22,7 +22,7 @@ std::ostream& operator<<(std::ostream& os, SyncCout sc) {
 using namespace UCI;
 
 namespace {
-    void position(Board &b, History &hist, istringstream &is) {
+    void position(Board &b, SearchStack &hist, istringstream &is) {
         string s, fen;
         is >> s;
         hist.ply = 0;
@@ -49,11 +49,10 @@ namespace {
         }
     }
 
-    void go(Engine &e, Board &b, History &hist, istringstream &is) {
+    void go(Engine &e, Board &b, SearchStack &hist, istringstream &is) {
         string token;
         int time_left[2]{}, increment[2]{};
         int max_depth = MAX_DEPTH;
-        /* int max_nodes = INT32_MAX; */
         int move_time = 0;
         bool infinite = false;
 
@@ -69,7 +68,7 @@ namespace {
 
         Color us = b.side_to_move();
         int millis_left = time_left[us], inc = increment[us];
-        int max_millis = millis_left / 55 + inc - 200;
+        int max_millis = millis_left / 50 + inc - 100;
         max_millis = std::max(max_millis, move_time);
         if (infinite)
             max_millis = -1;
@@ -85,7 +84,7 @@ void main_loop(Engine &e) {
         << "uciok" << sync_endl;
 
     Board b;
-    History hist;
+    SearchStack hist;
 
     string s, cmd;
     istringstream is;
