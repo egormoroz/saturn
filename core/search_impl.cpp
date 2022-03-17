@@ -194,15 +194,10 @@ int SearchContext::search_root(const Board &b, int alpha,
         RootMove &rm = root_moves_[deferred_move[i]];
         Move m = rm.m;
         bb = b.do_move(m);
-        ss_.push(b.key(), m);
 
-        score = -search<NO_PV>(bb, -alpha - 1, -alpha,
-                depth - 1, 1);
-        if (score > alpha && score < beta)
-            score = -search<IS_PV>(bb, -beta, -alpha,
-                    depth - 1, 1);
-
-        ss_.pop();
+        score = search_move<NO_PV, false, false>(b, bb, m, 
+            alpha, beta, depth - 1, 1, 1, 
+            nullptr, deferred_moves);
 
         rm.score = score;
         if (score > alpha) {
@@ -337,9 +332,7 @@ int SearchContext::search(const Board &b, int alpha, int beta,
     Board bb;
     int moves_tried = 0,
         best_score = -VALUE_INFINITE,
-        score = -VALUE_INFINITE,
-        new_depth = depth - 1,
-        reduction_depth = 0;
+        score = -VALUE_INFINITE;
 
     auto failed_high = [&](Move m, bool is_quiet) {
         fhf += moves_tried == 0;
@@ -353,8 +346,6 @@ int SearchContext::search(const Board &b, int alpha, int beta,
 
             if (prev != MOVE_NONE)
                 counters_[from_sq(prev)][to_sq(prev)] = m;
-            /* history_[b.side_to_move()][from_sq(m)][to_sq(m)] */
-            /*     += depth * depth; */
         }
 
         if (!stop_) {
@@ -363,15 +354,11 @@ int SearchContext::search(const Board &b, int alpha, int beta,
         }
     };
 
-//    b.validate();
-
     for (Move m = mp.next(); m != MOVE_NONE; m = mp.next(), 
             ++moves_tried) 
     {
         bb = b.do_move(m);
         bool is_quiet = b.is_quiet(m);
-        reduction_depth = 0;
-        new_depth = depth - 1;
 
         if (f_prune && !bb.checkers() && is_quiet)
             continue;
@@ -409,15 +396,10 @@ int SearchContext::search(const Board &b, int alpha, int beta,
     for (int i = 0; i < deferred_moves; ++i) {
         Move m = deferred_move[i];
         bb = b.do_move(m);
-        ss_.push(b.key(), m);
 
-        score = -search<NO_PV>(bb, -alpha - 1, -alpha,
-                depth - 1, ply + 1);
-        if (score > alpha && score < beta)
-            score = -search<IS_PV>(bb, -beta, -alpha,
-                    depth - 1, ply + 1);
-
-        ss_.pop();
+        score = search_move<NO_PV, false, false>(b, bb, m, 
+            alpha, beta, depth - 1, ply + 1, moves_tried, 
+            deferred_move, deferred_moves);
 
         if (score > best_score) {
             best_score = score;
