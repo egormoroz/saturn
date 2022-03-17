@@ -86,6 +86,12 @@ private:
 
     int quiesce(int alpha, int beta, const Board &b);
 
+    template<NodeType N, bool reduce, bool defer>
+    int search_move(const Board &before, const Board &after,
+            Move played, int alpha, int beta, int depth, 
+            int ply, int moves_tried, Move *deferred, 
+            int &deferred_moves);
+
     bool stop();
 
     //shared_ptr?

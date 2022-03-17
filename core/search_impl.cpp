@@ -263,7 +263,6 @@ int SearchContext::search(const Board &b, int alpha, int beta,
 
     int stat_eval = eval(b, alpha, beta);
 
-    TTEntry tte;
     Move ttm = MOVE_NONE;
     int tmp;
     if (probe_tt<true>(b, alpha, beta, depth, tmp, 
@@ -336,14 +335,14 @@ int SearchContext::search(const Board &b, int alpha, int beta,
     Bound bound = BOUND_ALPHA;
     Move best_move = MOVE_NONE;
     Board bb;
-    int moves_processed = 0,
+    int moves_tried = 0,
         best_score = -VALUE_INFINITE,
         score = -VALUE_INFINITE,
         new_depth = depth - 1,
         reduction_depth = 0;
 
     auto failed_high = [&](Move m, bool is_quiet) {
-        fhf += moves_processed == 0;
+        fhf += moves_tried == 0;
         ++fh;
 
         if (is_quiet) {
@@ -367,7 +366,7 @@ int SearchContext::search(const Board &b, int alpha, int beta,
 //    b.validate();
 
     for (Move m = mp.next(); m != MOVE_NONE; m = mp.next(), 
-            ++moves_processed) 
+            ++moves_tried) 
     {
         bb = b.do_move(m);
         bool is_quiet = b.is_quiet(m);
@@ -377,68 +376,14 @@ int SearchContext::search(const Board &b, int alpha, int beta,
         if (f_prune && !bb.checkers() && is_quiet)
             continue;
 
-        if (deferred_moves && depth >= CUTOFF_CHECK_DEPTH
-            && g_tt.probe(b.key(), tte) == HASH_HIT
-            && tte.depth8 >= depth) 
-        {
-            if (tte.bound8 == BOUND_BETA && tte.score16 >= beta)
-                return beta;
-            //Do we really need to check these?
-            if (tte.bound8 == BOUND_EXACT)
-                return tte.score16;
-            if (tte.bound8 == BOUND_ALPHA && tte.score16 <= alpha)
-                return alpha;
-        }
+        //TODO: test me!
+        if (deferred_moves && depth >= CUTOFF_CHECK_DEPTH && 
+                probe_tt<false>(b, alpha, beta, depth, score))
+            return score;
 
-        //Late move reduction
-        if (DO_LMR && N == NO_PV && new_depth > 3 && moves_processed > 3
-            && !b.checkers() && !bb.checkers() && is_quiet
-            && killers_[0][ply] != m && killers_[1][ply] != m)
-        {
-            new_depth -= LMR[std::min(depth, 32)]
-                [std::min(moves_processed, 63)];
-        }
-
-research:
-        if (moves_processed == 0) {
-            ss_.push(b.key(), m);
-            Tracer tr(m, alpha, beta, new_depth, ply);
-
-            score = -search<N>(bb, -beta, -alpha, 
-                    new_depth, ply + 1);
-
-            tr.finish(score);
-            ss_.pop();
-        } else {
-            uint32_t move_hash = abdada::move_hash(b.key(), m);
-
-            if (abdada::defer_move(move_hash, depth)) {
-                deferred_move[deferred_moves++] = m;
-                continue;
-            }
-
-            Tracer tr(m, alpha, beta, new_depth, ply);
-            ss_.push(b.key(), m);
-
-            abdada::starting_search(move_hash, depth);
-            score = -search<NO_PV>(bb, -alpha - 1, -alpha,
-                    new_depth, ply + 1);
-            abdada::finished_search(move_hash, depth);
-
-            if (score > alpha && score < beta)
-                score = -search<IS_PV>(bb, -beta, -alpha,
-                        new_depth, ply + 1);
-
-            ss_.pop();
-            tr.finish(score);
-
-        }
-
-        if (reduction_depth && score > alpha) {
-            new_depth += reduction_depth;
-            reduction_depth = 0;
-            goto research;
-        }
+        score = search_move<N, true, true>(b, bb, m, alpha,
+            beta, depth - 1, ply + 1, moves_tried,
+            deferred_move, deferred_moves);
 
         if (score > best_score) {
             best_score = score;
@@ -496,7 +441,7 @@ research:
         }
     }
 
-    if (!moves_processed) {
+    if (!moves_tried) {
         if (b.checkers())
             return mated_in(ply);
         return 0;
@@ -508,5 +453,70 @@ research:
     }
 
     return alpha;
+}
+
+template<NodeType N, bool reduce, bool defer>
+int SearchContext::search_move(const Board &before, 
+        const Board &after, Move played, 
+        int alpha, int beta, int depth, int ply, int moves_tried,
+        Move *deferred, int &deferred_moves)
+{
+    int score = 0, reduction = 0;
+
+    if (!moves_tried) {
+        ss_.push(before.key(), played);
+        Tracer tr(played, alpha, beta, depth, ply);
+
+        score = -search<N>(after, -beta, -alpha, depth, ply);
+        
+        tr.finish(score);
+        ss_.pop();
+    } else {
+        uint32_t move_hash;
+        if constexpr (defer) {
+            move_hash = abdada::move_hash(before.key(), played);
+            if (abdada::defer_move(move_hash, depth)) {
+                deferred[deferred_moves++] = played;
+                //failing low does nothing
+                return alpha;
+            }
+        }
+
+        if (reduce && DO_LMR && N == NO_PV 
+            && depth > 3 && moves_tried > 3
+            && !before.checkers() && !after.checkers() 
+            && killers_[0][ply] != played 
+            && killers_[1][ply] != played
+            && before.is_quiet(played))
+        {
+            reduction = LMR[std::min(depth, 32)]
+                [std::min(moves_tried, 63)];
+            depth -= reduction;
+        }
+
+        ss_.push(before.key(), played);
+        Tracer tr(played, alpha, beta, depth, ply);
+
+        if constexpr (defer)
+            abdada::starting_search(move_hash, depth);
+        score = -search<NO_PV>(after, -alpha - 1, -alpha,
+                depth, ply);
+        if constexpr (defer)
+            abdada::finished_search(move_hash, depth);
+
+        if (score > alpha && score < beta)
+            score = -search<IS_PV>(after, -beta, -alpha,
+                    depth, ply);
+
+        tr.finish(score);
+        ss_.pop();
+    }
+
+    if (reduction && score > alpha)
+        return search_move<N, false, defer>(before, after,
+                played, alpha, beta, depth + reduction, ply, 
+                moves_tried, deferred, deferred_moves);
+
+    return score;
 }
 
