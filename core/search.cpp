@@ -91,6 +91,13 @@ void SearchContext::iterative_deepening() {
         SearchReport rep(nodes_, qnodes_, tt_hits_, fhf / float(fh),
                 score, timer_.elapsed_millis(), depth);
         rep.pv_len = g_tt.extract_pv(root_, rep.pv, depth);
+        if (!rep.pv_len) {
+            sync_cout << "info string WARNING! NO PV MOVE" << sync_endl;
+            rep.pv[0] = root_moves_nb_ ? root_moves_[0].m
+                : MOVE_NONE;
+            rep.pv_len = 1;
+        }
+
         for (auto &l: listeners_)
             l->accept(id_, rep);
     };
