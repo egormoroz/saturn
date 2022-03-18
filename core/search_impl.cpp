@@ -120,7 +120,8 @@ int SearchContext::search_root(const Board &b, int alpha,
     Bound bound = BOUND_ALPHA;
     Move best_move = MOVE_NONE;
     Board bb;
-    int moves_tried = 0, score = alpha;
+    int moves_tried = 0, score = alpha,
+        best_score = -VALUE_INFINITE;
     for (; moves_tried < root_moves_nb_; ++moves_tried) {
         RootMove &rm = root_moves_[moves_tried];
         Move m = root_moves_[moves_tried].m;
@@ -175,7 +176,15 @@ int SearchContext::search_root(const Board &b, int alpha,
         }
 
         rm.score = score;
-        if (score > alpha) {
+        if (score > best_score) {
+            best_score = score;
+            best_move = m;
+
+            if (score > alpha) {
+                alpha = score;
+                bound = BOUND_EXACT;
+            }
+
             if (score >= beta) {
                 if (!stop_) {
                     g_tt.store(TTEntry(b.key(), beta, BOUND_BETA, 
@@ -183,10 +192,6 @@ int SearchContext::search_root(const Board &b, int alpha,
                 }
                 return beta;
             }
-
-            alpha = score;
-            best_move = m;
-            bound = BOUND_EXACT;
         }
     }
 
@@ -239,7 +244,7 @@ int SearchContext::search(const Board &b, int alpha, int beta,
     if (b.checkers() && (N == IS_PV || depth < 6))
         ++depth;
 
-    if (depth == 0)
+    if (depth <= 0)
         return quiesce(alpha, beta, b);
 
     g_tt.prefetch(b.key());
@@ -444,6 +449,7 @@ int SearchContext::search_move(const Board &before,
         Move *deferred, int &deferred_moves)
 {
     int score = 0, reduction = 0;
+    assert(ply > 0);
 
     if (!moves_tried) {
         ss_.push(before.key(), played);
@@ -467,8 +473,8 @@ int SearchContext::search_move(const Board &before,
         if (reduce && DO_LMR && N == NO_PV 
             && depth > 3 && moves_tried > 3
             && !before.checkers() && !after.checkers() 
-            && killers_[0][ply] != played 
-            && killers_[1][ply] != played
+            && killers_[0][ply - 1] != played 
+            && killers_[1][ply - 1] != played
             && before.is_quiet(played))
         {
             reduction = LMR[std::min(depth, 32)]
