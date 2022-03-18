@@ -126,18 +126,10 @@ int SearchContext::search_root(const Board &b, int alpha,
         RootMove &rm = root_moves_[moves_tried];
         Move m = root_moves_[moves_tried].m;
 
-        if (deferred_moves && depth >= CUTOFF_CHECK_DEPTH
-            && g_tt.probe(b.key(), tte) == HASH_HIT
-            && tte.depth8 >= depth) 
-        {
-            if (tte.bound8 == BOUND_BETA && tte.score16 >= beta)
-                return beta;
-            //Do we really need to check these?
-            if (tte.bound8 == BOUND_EXACT)
-                return tte.score16;
-            if (tte.bound8 == BOUND_ALPHA && tte.score16 <= alpha)
-                return alpha;
-        }
+        //TODO: test me!
+        if (deferred_moves && depth >= CUTOFF_CHECK_DEPTH && 
+                probe_tt<false>(b, alpha, beta, depth, score))
+            return score;
 
         if (!moves_tried) {
             bb = b.do_move(m);
@@ -205,7 +197,15 @@ int SearchContext::search_root(const Board &b, int alpha,
             nullptr, deferred_moves);
 
         rm.score = score;
-        if (score > alpha) {
+        if (score > best_score) {
+            best_score = score;
+            best_move = m;
+
+            if (score > alpha) {
+                alpha = score;
+                bound = BOUND_EXACT;
+            }
+
             if (score >= beta) {
                 if (!stop_) {
                     g_tt.store(TTEntry(b.key(), beta, BOUND_BETA, 
@@ -213,10 +213,6 @@ int SearchContext::search_root(const Board &b, int alpha,
                 }
                 return beta;
             }
-
-            alpha = score;
-            best_move = m;
-            bound = BOUND_EXACT;
         }
     }
 
