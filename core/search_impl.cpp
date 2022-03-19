@@ -245,7 +245,9 @@ int SearchContext::search(const Board &b, int alpha, int beta,
 
     g_tt.prefetch(b.key());
 
-    if (ss_.is_repetition(b.key(), b.fifty_rule()))
+    int fty = b.fifty_rule();
+    if (fty >= 100 || b.is_material_draw()
+        || ss_.is_repetition(b.key(), fty))
         return 0;
 
     ++nodes_;

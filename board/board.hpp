@@ -34,6 +34,9 @@ public:
 
     void update_pin_info();
 
+    uint64_t mat_key() const;
+    bool is_material_draw() const;
+
     Bitboard attackers_to(Color atk_side, Square s, Bitboard blockers) const;
     Bitboard attackers_to(Square s, Bitboard blockers) const;
 
@@ -72,7 +75,7 @@ public:
     //returns number of moves since last capture/pawn move
     int fifty_rule() const;
 
-    int material(Color c) const;
+    int16_t material(Color c) const;
 
 private:
     Bitboard pieces_[PIECE_TYPE_NB];
@@ -84,13 +87,13 @@ private:
     Bitboard pinners_[COLOR_NB];
 
     Piece pieces_on_[SQUARE_NB];
+    uint64_t mat_key_;
 
     uint64_t key_;
     CastlingRights castling_;
     Color side_to_move_;
     Square en_passant_;
-
-    int material_[COLOR_NB];
+    int16_t material_[COLOR_NB];
 
     int fifty_;
 };

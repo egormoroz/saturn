@@ -5,6 +5,12 @@
 int SearchContext::quiesce(int alpha, int beta, 
         const Board &b) 
 {
+    if (stop())
+        return 0;
+
+    if (b.is_material_draw())
+        return 0;
+
     ++nodes_;
     ++qnodes_;
     int stand_pat = eval(b, alpha, beta);
@@ -12,9 +18,6 @@ int SearchContext::quiesce(int alpha, int beta,
         return beta;
     if (stand_pat > alpha) 
         alpha = stand_pat;
-
-    if (stop())
-        return 0;
 
     MovePicker mp(b);
     Board bb;

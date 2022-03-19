@@ -11,6 +11,17 @@
  * as some methods not worth creating a separate file
  * */
 
+constexpr uint64_t PCKEY_INDEX[COLOR_NB][PIECE_TYPE_NB] = {
+    { 0, 1ull << 0, 1ull << 4, 1ull << 8, 1ull << 12, 1ull << 16, 0 },
+    { 0, 1ull << 20, 1ull << 24, 1ull << 28,  1ull << 32, 1ull << 36, 0 },
+};
+
+template<Piece p, Piece ...pcs>
+constexpr uint64_t pckey_v = pckey_v<p> | pckey_v<pcs...>;
+
+template<Piece p>
+constexpr uint64_t pckey_v<p> = PCKEY_INDEX[int(color_of(p))][type_of(p)];
+
 void Board::update_pin_info() {
     //could be cheaper, because we look up sliders 3(!) times
     Color us = side_to_move_, them = ~us;
@@ -23,6 +34,25 @@ void Board::update_pin_info() {
             their_king, pinners_[us]);
 
     checkers_ = attackers_to(them, our_king, combined_);
+}
+
+uint64_t Board::mat_key() const { return mat_key_; }
+
+bool Board::is_material_draw() const {
+    switch (mat_key_) {
+    case 0:
+    case pckey_v<W_KNIGHT>:
+    case pckey_v<W_KNIGHT> * 2:
+    case pckey_v<B_KNIGHT>:
+    case pckey_v<B_KNIGHT> * 2:
+    case pckey_v<W_KNIGHT, B_KNIGHT>:
+    case pckey_v<W_BISHOP>:
+    case pckey_v<B_BISHOP>:
+    case pckey_v<W_BISHOP, B_KNIGHT>:
+    case pckey_v<B_BISHOP, W_KNIGHT>:
+        return true;
+    };
+    return false;
 }
 
 Bitboard Board::attackers_to(Color c, Square s, Bitboard blockers) const {
@@ -85,6 +115,7 @@ void Board::put_piece(Piece p, Square s) {
     pieces_[pt] |= sbb;
     pieces_on_[s] = p;
     material_[c] += mg_value[pt];
+    mat_key_ += PCKEY_INDEX[c][pt];
 
     key_ ^= ZOBRIST.psq[p][s];
 }
@@ -102,6 +133,7 @@ void Board::remove_piece(Square s) {
     pieces_[pt] ^= sbb;
     pieces_on_[s] = NO_PIECE;
     material_[c] -= mg_value[pt];
+    mat_key_ -= PCKEY_INDEX[c][pt];
 
     key_ ^= ZOBRIST.psq[p][s];
 }
@@ -135,7 +167,7 @@ CastlingRights Board::castling() const { return castling_; }
 uint64_t Board::key() const { return key_; }
 int Board::fifty_rule() const { return fifty_; }
 
-int Board::material(Color c) const { return material_[c]; }
+int16_t Board::material(Color c) const { return material_[c]; }
 
 namespace {
     constexpr char PIECE_CHAR[PIECE_NB] = {
@@ -167,6 +199,7 @@ std::ostream& operator<<(std::ostream& os, const Board &b) {
 
     auto flags = os.flags();
     os << "Key: " << std::hex << b.key() << "\n";
+    os << "Material draw: " << std::boolalpha << b.is_material_draw() << "\n";
     os.flags(flags);
 
     os << "Checkers: ";
