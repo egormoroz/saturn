@@ -18,8 +18,8 @@ struct SearchReport {
     SearchReport() = default;
 
     SearchReport(uint64_t nodes, uint64_t qnodes, uint64_t tt_hits, 
-            float ordering, int16_t score, 
-            int time, uint8_t depth);
+            float ordering, int16_t score, int time, 
+            uint8_t depth, uint8_t sel_depth);
 
     Move pv[MAX_DEPTH];
     uint64_t nodes{}, qnodes{};
@@ -28,7 +28,7 @@ struct SearchReport {
 
     int16_t score{};
     int time{};
-    uint8_t depth{};
+    uint8_t depth{}, sel_depth{};
     uint8_t pv_len{};
 };
 
@@ -100,6 +100,7 @@ private:
 
     Board root_;
     SearchStack ss_;
+    std::array<Move, MAX_DEPTH> skip_move_;
 
     RootMove root_moves_[MAX_MOVES];
     int root_moves_nb_{};
@@ -116,6 +117,7 @@ private:
     bool done_{true};
     std::atomic_bool quitting_{false};
 
+    int sel_depth_{};
     uint64_t tt_hits_{};
     uint64_t nodes_{}, qnodes_{};
     int fh{}, fhf{};

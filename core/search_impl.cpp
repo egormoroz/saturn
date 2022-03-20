@@ -243,6 +243,7 @@ int SearchContext::search(const Board &b, int alpha, int beta,
     if (depth <= 0)
         return quiesce(alpha, beta, b);
 
+
     g_tt.prefetch(b.key());
 
     int fty = b.fifty_rule();
@@ -251,6 +252,7 @@ int SearchContext::search(const Board &b, int alpha, int beta,
         return 0;
 
     ++nodes_;
+    sel_depth_ = std::max(sel_depth_, ply);
     if (ply >= MAX_DEPTH)
         return eval(b, alpha, beta);
 
@@ -259,15 +261,33 @@ int SearchContext::search(const Board &b, int alpha, int beta,
     if (alpha >= beta)
         return alpha;
 
+    Move skip_move = skip_move_[ply];
     int stat_eval = eval(b, alpha, beta);
-
+    TTEntry tte;
     Move ttm = MOVE_NONE;
-    int tmp;
-    if (probe_tt<true>(b, alpha, beta, depth, tmp, 
-                &do_null, &stat_eval, &ttm))
-        return tmp;
+    if (!skip_move && g_tt.probe(b.key(), tte) == HASH_HIT) {
+        if (tte.depth8 >= depth) {
+            if (tte.bound8 == BOUND_EXACT)
+                return tte.score16;
+            if (tte.bound8 == BOUND_ALPHA && tte.score16 <= alpha)
+                return alpha;
+            if (tte.bound8 == BOUND_BETA && tte.score16 >= beta)
+                return beta;
 
-    if (DO_IIR && ttm == MOVE_NONE) {
+            do_null = do_null && !tte.avoid_null;
+
+            Bound b = Bound(tte.bound8);
+            int s = tte.score16;
+            if ((b == BOUND_ALPHA && s >= stat_eval)
+                || (b == BOUND_BETA && s <= stat_eval))
+                stat_eval = tte.score16;
+        }
+
+        if (!b.is_valid_move(ttm = Move(tte.move16)))
+            ttm = MOVE_NONE;
+    }
+
+    if (DO_IIR && ttm == MOVE_NONE && !skip_move) {
         if (N == IS_PV && depth >= 3)
             depth -= 2;
         if (N == NO_PV && depth >= 8)
@@ -278,7 +298,7 @@ int SearchContext::search(const Board &b, int alpha, int beta,
     bool avoid_null = false;
     if (N == NO_PV && !b.checkers()) {
         if (DO_REV_FUT && depth <= 6 && stat_eval - 50 * depth > beta
-                && beta > -VALUE_MATE + 100)
+                && beta > -VALUE_MATE + 100 && !skip_move)
             return stat_eval;
 
         if (DO_RAZORING && depth <= 3 
@@ -294,7 +314,7 @@ int SearchContext::search(const Board &b, int alpha, int beta,
             & ~b.pieces(PAWN, KING);
 
         if (DO_NULL && do_null && depth >= 3 && has_big_pieces 
-                && stat_eval >= beta) 
+                && stat_eval >= beta && !skip_move) 
         {
             int R = 4 + depth / 6 + std::min((stat_eval - beta) / 256, 3);
             R = std::min(depth, R);
@@ -351,7 +371,7 @@ int SearchContext::search(const Board &b, int alpha, int beta,
                 counters_[from_sq(prev)][to_sq(prev)] = m;
         }
 
-        if (!stop_) {
+        if (!stop_ && !skip_move) {
             g_tt.store(TTEntry(b.key(), beta, BOUND_BETA, 
                         depth, best_move, avoid_null));
         }
@@ -360,19 +380,38 @@ int SearchContext::search(const Board &b, int alpha, int beta,
     for (Move m = mp.next(); m != MOVE_NONE; m = mp.next(), 
             ++moves_tried) 
     {
+        if (m == skip_move)
+            continue;
+
         bb = b.do_move(m);
         bool is_quiet = b.is_quiet(m);
 
         if (f_prune && !bb.checkers() && is_quiet)
             continue;
 
-        //TODO: test me!
         if (deferred_moves && depth >= CUTOFF_CHECK_DEPTH && 
                 probe_tt<false>(b, alpha, beta, depth, score))
             return score;
 
+        int extension = 0;
+        if (depth >= 7 && ttm == m && tte.depth8 >= depth - 3
+            && abs(tte.score16) <= 400 
+            && tte.bound8 == BOUND_ALPHA
+            && !skip_move)
+        {
+            int s_beta = tte.score16 - 3 * depth,
+                s_depth = (depth - 1) / 2;
+
+            skip_move_[ply] = m;
+            score = search<NO_PV>(b, s_beta - 1, s_beta, s_depth, ply, false);
+            skip_move_[ply] = MOVE_NONE;
+
+            if (score < s_beta)
+                extension = 1;
+        }
+
         score = search_move<N, true, true>(b, bb, m, alpha,
-            beta, depth - 1, ply + 1, moves_tried,
+            beta, depth - 1 + extension, ply + 1, moves_tried,
             deferred_move, deferred_moves);
 
         if (score > best_score) {
@@ -432,7 +471,7 @@ int SearchContext::search(const Board &b, int alpha, int beta,
         return 0;
     }
 
-    if (!stop_ && best_move != MOVE_NONE) {
+    if (!stop_ && best_move != MOVE_NONE && !skip_move) {
         g_tt.store(TTEntry(b.key(), best_score, bound, depth, 
                     best_move, avoid_null));
     }
@@ -468,15 +507,27 @@ int SearchContext::search_move(const Board &before,
             }
         }
 
+        Move prev = ss_.last_move();
+        bool killer_or_counter = killers_[0][ply - 1] == played
+            || killers_[1][ply - 1] == played
+            || counters_[from_sq(prev)][to_sq(prev)] == played;
+
         if (reduce && DO_LMR && N == NO_PV 
-            && depth > 3 && moves_tried > 3
-            && !before.checkers() && !after.checkers() 
-            && killers_[0][ply - 1] != played 
-            && killers_[1][ply - 1] != played
+            && depth > 2 && moves_tried > 1
+            /* && !before.checkers() && !after.checkers() */ 
+            /* && killers_[0][ply - 1] != played */ 
+            /* && killers_[1][ply - 1] != played */
             && before.is_quiet(played))
         {
             reduction = LMR[std::min(depth, 32)]
                 [std::min(moves_tried, 63)];
+
+            if (after.checkers())
+                --reduction;
+            if (killer_or_counter)
+                reduction -= 2;
+
+            reduction = std::clamp(reduction, 0, depth - 1);
             depth -= reduction;
         }
 

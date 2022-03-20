@@ -14,10 +14,10 @@ uint8_t SearchContext::LMR[32][64];
 
 
 SearchReport::SearchReport(uint64_t nodes, uint64_t qnodes, uint64_t tt_hits, 
-        float ordering, int16_t score, 
-        int time, uint8_t depth)
+        float ordering, int16_t score, int time, 
+        uint8_t depth, uint8_t sel_depth)
     : nodes(nodes), qnodes(qnodes), tt_hits(tt_hits), ordering(ordering),
-      score(score), time(time), depth(depth), pv_len(0)
+      score(score), time(time), depth(depth), sel_depth(sel_depth), pv_len(0)
 {
 }
 
@@ -27,8 +27,9 @@ std::ostream& operator<<(std::ostream &os,
     uint64_t nps = 1000 * rep.nodes / (rep.time + 1);
     float qratio = rep.qnodes / float(rep.nodes);
     os << "info score " << Score{rep.score} << " depth " 
-       << int(rep.depth) << " nodes " << rep.nodes 
-       << " qnodes " << rep.qnodes << " qratio " << qratio
+       << int(rep.depth) << " seldepth " << int(rep.sel_depth)
+       << " nodes " << rep.nodes << " qnodes " << rep.qnodes 
+       << " qratio " << qratio
        << " time " << rep.time << " nps " << nps
        << " tt_hits " << rep.tt_hits
        << " ordering " << rep.ordering
@@ -89,7 +90,7 @@ void SearchContext::iterative_deepening() {
 
     auto report = [&](int depth) {
         SearchReport rep(nodes_, qnodes_, tt_hits_, fhf / float(fh),
-                score, timer_.elapsed_millis(), depth);
+                score, timer_.elapsed_millis(), depth, sel_depth_);
         rep.pv_len = g_tt.extract_pv(root_, rep.pv, depth);
         if (!rep.pv_len) {
             sync_cout << "info string WARNING! NO PV MOVE" << sync_endl;
@@ -169,6 +170,7 @@ void SearchContext::reset() {
     memset(killers_.data(), 0, sizeof(killers_));
     memset(counters_.data(), 0, sizeof(counters_));
     memset(history_.data(), 0, sizeof(history_));
+    memset(skip_move_.data(), 0, sizeof(skip_move_));
 }
 
 bool SearchContext::stop() {
