@@ -60,8 +60,8 @@ void UCIContext::enter_loop() {
         else if (cmd == "position") parse_position(is);
         else if (cmd == "go") parse_go(is);
         else if (cmd == "setoption") parse_setopt(is);
-        else if (cmd == "stop") {}
-        else if (cmd == "d") {}
+        else if (cmd == "stop") search_.stop();
+        else if (cmd == "d") sync_cout() << board_;
         else if (cmd == "quit") break;
 
     } while (s != "quit");
@@ -111,6 +111,10 @@ void UCIContext::parse_go(std::istream &is) {
         else if (token == "infinite") limits.infinite = true;
         else if (token == "depth") is >> limits.max_depth;
     }
+
+    if (!limits.time[WHITE] && !limits.time[BLACK]
+            && !limits.move_time)
+        limits.infinite = true;
 
     search_.go(board_, st_, limits);
 }

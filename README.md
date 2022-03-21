@@ -19,5 +19,4 @@ Get the best possible perfomance **exact** search.
 - [ ] Killer move heuristic: TT -> Good -> Killers -> Bad -> Non
 - [ ] PSQT non-tactical ordering
 - [ ] History heuristic for non-tactical
-- 
 - [ ] Tune aspiration window

@@ -3,6 +3,7 @@
 
 #include <cstdint>
 #include <chrono>
+#include "../primitives/common.hpp"
 
 struct SearchStats {
     uint64_t nodes{}, qnodes{};
@@ -33,12 +34,12 @@ struct TimeMan {
 };
 
 struct SearchLimits {
-    int max_depth;
-    int time[2], inc[2];
-    int move_time;
-    bool infinite;
+    int max_depth = MAX_DEPTH;
+    int time[2]{}, inc[2]{};
+    int move_time{};
+    bool infinite{};
 
-    TimePoint start;
+    TimePoint start{};
 };
 
 

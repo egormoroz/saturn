@@ -7,6 +7,11 @@
 #include "search_common.hpp"
 #include "routine.hpp"
 
+struct RootMove {
+    Move move;
+    int16_t score;
+};
+
 class SearchWorker {
 public:
     SearchWorker();
@@ -20,6 +25,8 @@ public:
 private:
     void check_time();
     void iterative_deepening();
+
+    int negamax(const Board &b, int depth);
 
     Board root_;
     Stack stack_;
