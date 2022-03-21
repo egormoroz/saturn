@@ -6,18 +6,18 @@ Here I will try measure perfomance after every single update.
 Get the best possible perfomance **exact** search.
 
 ### Checklist
-0.  [x] Puzzle framework!
-1.  [ ] Barebones negamax, basic draw detection
-2.  [ ] Alpha-beta (staged movegen) + Quiescence (SEE >=0 moves)
-3.  [ ] Add TT to alpha-beta (try w/ and w/out searching TT move first)
-4.  [ ] Iterative deepening
-5.  [ ] Internal iterative deepening
-6.  [ ] Aspiration window (try different strategies)
-7.  [ ] Order root moves based on (prev score, nodes, etc...)
-8.  [ ] Most valueable victim / Least valuable attacker
-9.  [ ] TT move -> Good tactical (MVV/LVA) -> Bad tactical (MVV/LVA) -> Non-tactical
-10. [ ] Killer move heuristic: TT -> Good -> Killers -> Bad -> Non
-11. [ ] PSQT non-tactical ordering
-12. [ ] History heuristic for non-tactical
-
-100. [ ] Tune aspiration window
+- [x] Puzzle framework!
+- [ ] Barebones negamax, basic draw detection
+- [ ] Alpha-beta (staged movegen) + Quiescence (SEE >=0 moves)
+- [ ] Add TT to alpha-beta (try w/ and w/out searching TT move first)
+- [ ] Iterative deepening
+- [ ] Internal iterative deepening
+- [ ] Aspiration window (try different strategies)
+- [ ] Order root moves based on (prev score, nodes, etc...)
+- [ ] Most valueable victim / Least valuable attacker
+- [ ] TT move -> Good tactical (MVV/LVA) -> Bad tactical (MVV/LVA) -> Non-tactical
+- [ ] Killer move heuristic: TT -> Good -> Killers -> Bad -> Non
+- [ ] PSQT non-tactical ordering
+- [ ] History heuristic for non-tactical
+- 
+- [ ] Tune aspiration window
