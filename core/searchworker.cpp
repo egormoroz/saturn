@@ -1,5 +1,6 @@
 #include "searchworker.hpp"
 #include <cstdio>
+#include "../cli.hpp"
 
 SearchWorker::SearchWorker() 
     : root_(Board::start_pos())
@@ -38,6 +39,6 @@ void SearchWorker::check_time() {
 }
 
 void SearchWorker::iterative_deepening() {
-    printf("go! go! go!\n");
+    sync_cout() << "bestmove none\n";
 }
 

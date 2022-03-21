@@ -21,6 +21,10 @@ struct CoutWrapper {
         return *this;
     }
 
+    ~CoutWrapper() {
+        std::cout.flush();
+    }
+
 private:
     std::lock_guard<std::mutex> lock_;
 };

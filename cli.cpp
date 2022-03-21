@@ -47,6 +47,7 @@ void UCIContext::enter_loop() {
     std::istringstream is;
 
     do {
+        s.clear();
         if (!std::getline(std::cin, s))
             s = "quit";
 
@@ -143,8 +144,7 @@ void UCIContext::update_option(std::string_view name,
 }
 
 void UCIContext::print_info() {
-    sync_cout() << "id name gm_bit\nid author asdf\n"
-        << "uciok\n";
+    sync_cout() << "id name saturn\nid author asdf\n";
 
     static const char *opt_type[] = { "check", "spin", "string" };
     for (auto &[name, opt]: options_) {
@@ -152,6 +152,8 @@ void UCIContext::print_info() {
             << " type " << opt_type[opt.index()]
             << " default " << opt << '\n';
     }
+
+    sync_cout() << "uciok\n";
 }
 
 int enter_cli(int argc, char **argv) {
