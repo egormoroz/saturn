@@ -6,7 +6,7 @@ Here I will try measure perfomance after every single update.
 Get the best possible perfomance **exact** search.
 
 ### Checklist
-0.  [ ] Puzzle framework!
+0.  [x] Puzzle framework!
 1.  [ ] Barebones negamax, basic draw detection
 2.  [ ] Alpha-beta (staged movegen) + Quiescence (SEE >=0 moves)
 3.  [ ] Add TT to alpha-beta (try w/ and w/out searching TT move first)
