@@ -45,7 +45,7 @@ class TranspositionTable {
 public:
     TranspositionTable() = default;
 
-    void init(size_t mbs);
+    void resize(size_t mbs);
 
     void new_search();
 

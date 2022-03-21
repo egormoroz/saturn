@@ -23,16 +23,22 @@ void Tree::clear() { nodes.clear(); }
 size_t Tree::begin_node(Move prev, int16_t alpha, int16_t beta, 
         uint8_t depth, uint8_t ply)
 {
-    nodes.push_back(Node{ prev, alpha, beta, 0, depth, ply, 0 });
+    nodes.push_back(Node{ prev, alpha, beta, 0, depth, 
+            ply, NodeType::NonTerminal, 0 });
     return size() - 1;
 }
 
-void Tree::end_node(size_t node_idx, int16_t score,
-        size_t initial_size) {
+void Tree::end_node(size_t node_idx, 
+        int16_t score, size_t initial_size) 
+{
     nodes[node_idx].subtree_size = static_cast<uint32_t>(
         size() - initial_size
     );
     nodes[node_idx].score = score;
+}
+
+void Tree::set_last_type(NodeType ntp) {
+    nodes.back().ntp = ntp;
 }
 
 size_t Tree::size() const { return nodes.size(); }

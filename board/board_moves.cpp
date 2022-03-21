@@ -92,9 +92,11 @@ Board Board::do_move(Move m) const {
 
     result.side_to_move_ = them;
 
-    result.fifty_++;
+    //this may possibly overflow only in quiescience
+    //and there we don't care about half_moves
+    result.half_moves_++;
     if (type_of(moved) == PAWN || captured != NO_PIECE)
-        result.fifty_ = 0;
+        result.half_moves_ = 0;
 
     result.key_ ^= ZOBRIST.side
         ^ ZOBRIST.castling[castling_]
@@ -113,7 +115,7 @@ Board Board::do_null_move() const {
     Board result = *this;
     result.side_to_move_ = ~side_to_move_;
     result.en_passant_ = SQ_NONE;
-    result.fifty_++;
+    result.half_moves_++;
     result.update_pin_info();
 
     result.key_ ^= ZOBRIST.side
@@ -123,11 +125,6 @@ Board Board::do_null_move() const {
     return result;
 }
 
-/*
- * TODO: test me!
- * So far I've only checked that this function is correct
- * for legal moves. But what about illegal?
- * */
 bool Board::is_valid_move(Move m) const {
     Color us = side_to_move_, them = ~us;
     

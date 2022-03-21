@@ -22,6 +22,16 @@ constexpr uint64_t pckey_v = pckey_v<p> | pckey_v<pcs...>;
 template<Piece p>
 constexpr uint64_t pckey_v<p> = PCKEY_INDEX[int(color_of(p))][type_of(p)];
 
+Board Board::start_pos() {
+    Board board;
+    bool b = board.load_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+
+    assert(b);
+    board.validate();
+
+    return board;
+}
+
 void Board::update_pin_info() {
     //could be cheaper, because we look up sliders 3(!) times
     Color us = side_to_move_, them = ~us;
@@ -53,6 +63,10 @@ bool Board::is_material_draw() const {
         return true;
     };
     return false;
+}
+
+bool Board::has_nonpawns(Color c) const {
+    return pieces(c) & ~pieces(c, PAWN, KING);
 }
 
 Bitboard Board::attackers_to(Color c, Square s, Bitboard blockers) const {
@@ -165,7 +179,7 @@ Square Board::en_passant() const { return en_passant_; }
 CastlingRights Board::castling() const { return castling_; }
 
 uint64_t Board::key() const { return key_; }
-int Board::fifty_rule() const { return fifty_; }
+uint8_t Board::half_moves() const { return half_moves_; }
 
 int16_t Board::material(Color c) const { return material_[c]; }
 

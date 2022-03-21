@@ -6,10 +6,10 @@
 #include <array>
 
 struct ExtMove {
-    uint16_t move;
+    Move move;
     int16_t value;
 
-    operator Move() const { return Move(move); }
+    operator Move() const { return move; }
     void operator=(Move m) { move = m; }
 
     operator float() const = delete;
@@ -22,8 +22,8 @@ struct ExtMove {
 };
 
 enum GenType {
-    CAPTURES = 1, //and promotions
-    QUIET = 2,
+    TACTICAL = 1, //and promotions
+    NON_TACTICAL = 2,
     LEGAL = 3,
 };
 

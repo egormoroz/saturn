@@ -27,8 +27,7 @@ constexpr int N = static_cast<int>(std::size(PERFT_RESULTS));
 
 uint64_t perft(const Board &b, int depth) {
     ExtMove begin[MAX_MOVES], *end;
-    end = generate<CAPTURES>(b, begin);
-    end = generate<QUIET>(b, end);
+    end = generate<LEGAL>(b, begin);
 
     if (depth == 0)
         return 1;

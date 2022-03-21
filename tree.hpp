@@ -8,12 +8,28 @@
 #include <iosfwd>
 #include <limits>
 
+enum class NodeType : uint8_t {
+    NonTerminal,
+    Leaf,
+    NoReplies,
+
+    TTExact,
+    TTLower,
+    TTUpper,
+
+    Null,
+    Razoring,
+    Futility,
+    ReverseFutility,
+};
+
 struct Node {
     Move prev_move;
     int16_t alpha, beta;
     int16_t score;
     uint8_t depth;
     uint8_t ply;
+    NodeType ntp;
 
     uint32_t subtree_size;
 };
@@ -41,6 +57,8 @@ struct Tree {
 
     void end_node(size_t node_idx, int16_t score,
             size_t initial_size);
+
+    void set_last_type(NodeType ntp);
 
     size_t size() const;
 

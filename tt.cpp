@@ -16,8 +16,9 @@ TTEntry::TTEntry(uint64_t key, int s,
     avoid_null = null;
 }
 
-void TranspositionTable::init(size_t mbs) {
-    assert(buckets_ == nullptr);
+void TranspositionTable::resize(size_t mbs) {
+    if (buckets_)
+        delete[] buckets_;
     size_ = mbs * 1024 * 1024 / sizeof(Bucket);
     buckets_ = new Bucket[size_];
     memset(buckets_, 0, size_ * sizeof(Bucket));

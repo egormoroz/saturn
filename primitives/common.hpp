@@ -235,23 +235,10 @@ constexpr bool is_ok(Move m) {
 
 /*-------------Various values definitions------------*/
 
-enum : int {
+enum : int16_t {
     VALUE_ZERO = 0,
     VALUE_MATE = 32000,
-    VALUE_INFINITE = 32001,
-
-    PAWN_VALUE = 100,
-    KNIGHT_VALUE = 325,
-    BISHOP_VALUE = 325,
-    ROOK_VALUE = 550,
-    QUEEN_VALUE = 1000,
-    KING_VALUE = 0,
-};
-
-constexpr int PIECE_VALUE[PIECE_NB] = {
-    VALUE_ZERO, 
-    PAWN_VALUE, KNIGHT_VALUE, BISHOP_VALUE, 
-    ROOK_VALUE, QUEEN_VALUE, KING_VALUE
+    VALUE_WIN = 30000,
 };
 
 constexpr int mate_in(int ply) { return VALUE_MATE - ply; }
