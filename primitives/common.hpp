@@ -238,7 +238,7 @@ constexpr bool is_ok(Move m) {
 enum : int16_t {
     VALUE_ZERO = 0,
     VALUE_MATE = 32000,
-    VALUE_WIN = 30000,
+    MATE_BOUND = 30000,
 };
 
 constexpr int mate_in(int ply) { return VALUE_MATE - ply; }

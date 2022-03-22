@@ -192,7 +192,7 @@ void UCIContext::parse_go(std::istream &is) {
 
 void UCIContext::parse_setopt(std::istream &is) {
     std::string name, op;
-    is >> name >> op;
+    is >> name >> name >> op;
     std::transform(name.begin(), name.end(), name.begin(),
         [](char ch) { return std::tolower(ch); });
     if (auto it = options_.find(name); it != options_.end()) {

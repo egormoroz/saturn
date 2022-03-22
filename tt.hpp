@@ -27,9 +27,11 @@ struct TTEntry {
         };
     };
 
+    int score(int ply) const;
+
     TTEntry() = default;
-    TTEntry(uint64_t key, int score, Bound b, int depth, Move m,
-            bool avoid_null);
+    TTEntry(uint64_t key, int score, Bound b, int depth, 
+            Move m, int ply, bool avoid_null);
 };
 
 class TranspositionTable {

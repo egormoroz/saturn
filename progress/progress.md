@@ -29,8 +29,8 @@ to the qsearch the score is somewhat sane.
 No significant improvements in puzzles due to the absence 
 of iterative deepening and relatively low depth. 
 
-## 4. Iterative deepening
-Huge gains thanks to TT and such. 
+## 4. Iterative deepening + internal iterative deepening
+Huge gains thanks to TT and such. IID boots move ordering.
 It counts one more node for no reason, but I'm too lazy to fix this.
 (move the increment into the cycle).
 
@@ -43,7 +43,7 @@ It counts one more node for no reason, but I'm too lazy to fix this.
 |     4 |      44'802 |     42'863 |     42'869 |      5'453 |
 |     5 |     334'973 |    282'702 |    280'478 |     25'972 |
 |     6 |   3'073'695 |  2'074'516 |  2'025'382 |    134'662 |
-|     7 |  19'273'822 | 10'528'642 | 10'246'249 |  1'175'187 |
-|     8 | 178'770'818 | 71'989'817 | 68'744'120 |  5'518'337 |
+|     7 |  19'273'822 | 10'528'642 | 10'246'249 |    895'180 |
+|     8 | 178'770'818 | 71'989'817 | 68'744'120 |  3'877'582 |
 
 

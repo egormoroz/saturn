@@ -11,18 +11,19 @@
 namespace {
 
 bool can_return_ttscore(const TTEntry &tte, 
-    int &alpha, int beta, int depth)
+    int &alpha, int beta, int depth, int ply)
 {
     if (tte.depth8 < depth)
         return false;
 
+    int tt_score = tte.score(ply);
     if (tte.bound8 == BOUND_EXACT) {
-        alpha = tte.score16;
+        alpha = tt_score;
         return true;
     }
-    if (tte.bound8 == BOUND_ALPHA && tte.score16 <= alpha)
+    if (tte.bound8 == BOUND_ALPHA && tt_score <= alpha)
         return true;
-    if (tte.bound8 == BOUND_BETA && tte.score16 >= beta) {
+    if (tte.bound8 == BOUND_BETA && tt_score >= beta) {
         alpha = beta;
         return true;
     }
@@ -83,6 +84,7 @@ void SearchWorker::iterative_deepening() {
     std::ostringstream ss;
 
     for (int d = 1; d <= limits_.max_depth; ++d) {
+        g_tree.clear();
         score = search(root_, -VALUE_MATE, VALUE_MATE, d);
         if (!loop_.keep_going())
             break;
@@ -94,16 +96,22 @@ void SearchWorker::iterative_deepening() {
 
         ss.str("");
         ss.clear();
+        float fhf = stats_.fail_high_first 
+            / float(stats_.fail_high + 1);
         ss << "info score " << Score{score}
            << " depth " << d
            << " nodes " << stats_.nodes
            << " time " << elapsed
            << " nps " << nps
+           << " fhf " << fhf
            << " pv ";
 
         for (int i = 0; i < pv_len; ++i)
             ss << pv[i] << ' ';
         sync_cout() << ss.str() << '\n';
+
+        if (abs(score) >= VALUE_MATE - d)
+            break;
     }
     sync_cout() << "bestmove " << pv[0] << '\n';
 }
@@ -111,6 +119,7 @@ void SearchWorker::iterative_deepening() {
 int SearchWorker::search(const Board &b, int alpha, 
         int beta, int depth) 
 {
+    const int ply = stack_.height();
     check_time();
     if (!loop_.keep_going())
         return 0;
@@ -138,9 +147,17 @@ int SearchWorker::search(const Board &b, int alpha,
     TTEntry tte;
     Move ttm = MOVE_NONE;
     if (g_tt.probe(b.key(), tte)) {
-        if (can_return_ttscore(tte, alpha, beta, depth))
+        if (can_return_ttscore(tte, alpha, beta, 
+                    depth, ply))
             return alpha;
         if (ttm = Move(tte.move16); !b.is_valid_move(ttm))
+            ttm = MOVE_NONE;
+    }
+
+    if (!ttm && depth >= 5) {
+        search(b, alpha, beta, depth - 2);
+        if (g_tt.probe(b.key(), tte) 
+                && !b.is_valid_move(ttm = Move(tte.move16)))
             ttm = MOVE_NONE;
     }
 
@@ -154,7 +171,7 @@ int SearchWorker::search(const Board &b, int alpha,
     {
         ++moves_tried;
         size_t ndx = g_tree.begin_node(m, alpha, beta, 
-                depth, stack_.height());
+                depth, ply);
         bb = b.do_move(m);
         stack_.push(b.key(), m);
 
@@ -172,6 +189,8 @@ int SearchWorker::search(const Board &b, int alpha,
             alpha = score;
         if (score >= beta) {
             alpha = beta;
+            stats_.fail_high++;
+            stats_.fail_high_first += moves_tried == 1;
             break;
         }
     }
@@ -185,7 +204,7 @@ int SearchWorker::search(const Board &b, int alpha,
     if (loop_.keep_going()) {
         g_tt.store(TTEntry(b.key(), alpha, 
             determine_bound(alpha, beta, old_alpha),
-            depth, best_move, false));
+            depth, best_move, ply, false));
     }
 
     return alpha;

@@ -6,14 +6,28 @@
 
 TranspositionTable g_tt;
 
-TTEntry::TTEntry(uint64_t key, int s, 
-        Bound b, int depth, Move m, bool null) : key(key)
+int TTEntry::score(int ply) const {
+    int s = score16;
+    if (s > MATE_BOUND)
+        s -= ply;
+    else if (s < -MATE_BOUND)
+        s += ply;
+    return s;
+}
+
+TTEntry::TTEntry(uint64_t key, int s, Bound b, 
+    int depth, Move m, int ply, bool null) : key(key)
 {
     move16 = uint16_t(m);
-    score16 = int16_t(s);
     depth8 = uint8_t(depth);
     bound8 = uint8_t(b);
     avoid_null = null;
+
+    if (s > MATE_BOUND)
+        s += ply;
+    else if (s < -MATE_BOUND)
+        s -= ply;
+    score16 = int16_t(s);
 }
 
 void TranspositionTable::resize(size_t mbs) {
@@ -81,6 +95,7 @@ void TranspositionTable::store(TTEntry new_entry) {
     }
 
     new_entry.age = age_;
+
     replace->key = new_entry.key ^ new_entry.data;
     replace->data = new_entry.data;
 }
