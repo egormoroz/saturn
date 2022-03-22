@@ -46,4 +46,13 @@ It counts one more node for no reason, but I'm too lazy to fix this.
 |     7 |  19'273'822 | 10'528'642 | 10'246'249 |    895'180 |
 |     8 | 178'770'818 | 71'989'817 | 68'744'120 |  3'877'582 |
 
+## 5. Aspiration window
+Nothing special. Lowers amount of nodes a little bit.
+
+## 6. Root move ordering
+Puzzles did not improve significantly; 
+nodes in quiet positions did reduce, although not everywhere...
+Sometimes it's better to sort by nodes rather than by score,
+but this needs to be tested...
+Fail-high-firt / fail-high ratio did improve actually.
 

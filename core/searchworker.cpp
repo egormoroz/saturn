@@ -39,6 +39,49 @@ Bound determine_bound(int alpha, int beta, int old_alpha) {
 
 } //namespace
 
+
+void RootMovePicker::reset(const Board &root){
+    Move ttm = MOVE_NONE;
+    TTEntry tte;
+    if (g_tt.probe(root.key(), tte)) {
+        if (!root.is_valid_move(ttm = Move(tte.move16)))
+            ttm = MOVE_NONE;
+    }
+
+    MovePicker mp(root, ttm);
+    cur_ = num_moves_ = 0;
+    for (Move m = mp.next<false>(); m != MOVE_NONE; 
+            m = mp.next<false>())
+    {
+        moves_[num_moves_++] = { m, 0, 0, 0 };
+    }
+}
+
+Move RootMovePicker::next() {
+    if (cur_ >= num_moves_)
+        return MOVE_NONE;
+    return moves_[cur_++].move;
+}
+
+void RootMovePicker::update_last(int score, uint64_t nodes) {
+    assert(cur_ > 0 && cur_ <= num_moves_);
+    auto &last = moves_[cur_ - 1];
+    last.nodes = nodes;
+    last.prev_score = last.score;
+    last.score = score;
+}
+
+void RootMovePicker::complete_iter() {
+    std::sort(moves_.begin(), moves_.begin() + num_moves_,
+        [](const RootMove &x, const RootMove &y)
+    {
+        if (x.score != y.score) return x.score > y.score;
+        return x.prev_score > y.prev_score;
+        /* return x.nodes > y.nodes; */
+    });
+    cur_ = 0;
+}
+
 SearchWorker::SearchWorker() 
     : root_(Board::start_pos())
 {
@@ -58,6 +101,7 @@ void SearchWorker::go(const Board &root, const Stack &st,
     man_.start = limits.start;
     man_.max_time = limits_.move_time;
     stats_.reset();
+    rmp_.reset(root_);
 
     loop_.resume();
 }
@@ -83,12 +127,7 @@ void SearchWorker::iterative_deepening() {
     int pv_len = 0, score = 0;
     std::ostringstream ss;
 
-    for (int d = 1; d <= limits_.max_depth; ++d) {
-        g_tree.clear();
-        score = search(root_, -VALUE_MATE, VALUE_MATE, d);
-        if (!loop_.keep_going())
-            break;
-
+    auto report = [&](int d) {
         auto elapsed = timer::now() - limits_.start;
         uint64_t nps = stats_.nodes * 1000 / (elapsed + 1);
 
@@ -109,11 +148,99 @@ void SearchWorker::iterative_deepening() {
         for (int i = 0; i < pv_len; ++i)
             ss << pv[i] << ' ';
         sync_cout() << ss.str() << '\n';
+    };
+
+    score = search_root(-VALUE_MATE, VALUE_MATE, 1);
+    report(1);
+    for (int d = 2; d <= limits_.max_depth; ++d) {
+        g_tree.clear();
+        score = aspriration_window(score, d);
+        if (!loop_.keep_going())
+            break;
+
+        report(d);
 
         if (abs(score) >= VALUE_MATE - d)
             break;
     }
     sync_cout() << "bestmove " << pv[0] << '\n';
+}
+
+int SearchWorker::aspriration_window(int score, int depth) {
+    if (depth <= 5)
+        return search_root(-VALUE_MATE, VALUE_MATE, depth);
+
+    int delta = 32, alpha = score - delta, 
+        beta = score + delta;
+    while (loop_.keep_going()) {
+        score = search_root(alpha, beta, depth);
+
+        if (score <= alpha) {
+            beta = (alpha + beta) / 2;
+            alpha = std::max(-VALUE_MATE, alpha - delta);
+        } else if (score >= beta) {
+            beta = std::min(+VALUE_MATE, beta + delta);
+        } else {
+            break;
+        }
+
+        delta += delta / 2;
+    }
+
+    return score;
+}
+
+int SearchWorker::search_root(int alpha, int beta, int depth) {
+    if (root_.half_moves() >= 100 
+        || (!root_.checkers() && root_.is_material_draw())
+        || stack_.is_repetition(root_.half_moves()))
+        return 0;
+
+    TTEntry tte;
+    Move ttm = MOVE_NONE;
+    if (g_tt.probe(root_.key(), tte)) {
+        if (can_return_ttscore(tte, alpha, beta, depth, 0))
+            return alpha;
+        if (ttm = Move(tte.move16); !root_.is_valid_move(ttm))
+            ttm = MOVE_NONE;
+    }
+
+    Move best_move = MOVE_NONE;
+    int best_score = -VALUE_MATE, old_alpha = alpha;
+    Board bb;
+    for (Move m = rmp_.next(); m != MOVE_NONE; m = rmp_.next()) {
+        uint64_t nodes_before = stats_.nodes;
+        size_t ndx = g_tree.begin_node(m, alpha, beta, depth, 0);
+        bb = root_.do_move(m);
+        stack_.push(root_.key(), m);
+
+        int score = -search(bb, -beta, -alpha, depth - 1);
+
+        stack_.pop();
+        g_tree.end_node(ndx, score);
+        rmp_.update_last(score, stats_.nodes - nodes_before);
+
+        if (score > best_score) {
+            best_score = score;
+            best_move = m;
+        }
+
+        if (score > alpha)
+            alpha = score;
+        if (score >= beta) {
+            alpha = beta;
+            break;
+        }
+    }
+    
+    rmp_.complete_iter();
+    if (loop_.keep_going()) {
+        g_tt.store(TTEntry(root_.key(), alpha, 
+            determine_bound(alpha, beta, old_alpha),
+            depth, best_move, 0, false));
+    }
+
+    return alpha;
 }
 
 int SearchWorker::search(const Board &b, int alpha, 

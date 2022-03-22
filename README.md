@@ -11,8 +11,8 @@ Get the best possible perfomance out of **exact** search.
 - [x] Alpha-beta (staged movegen) + Quiescence (SEE >=0 moves)
 - [x] Add TT to alpha-beta (try w/ and w/out searching TT move first)
 - [x] Iterative deepening, internal iterative deepening
-- [ ] Aspiration window (try different strategies)
-- [ ] Order root moves based on (prev score, nodes, etc...)
+- [x] Aspiration window (try different strategies)
+- [x] Order root moves based on (prev score, nodes, etc...)
 - [ ] Most valueable victim / Least valuable attacker
 - [ ] TT move -> Good tactical (MVV/LVA) -> Bad tactical (MVV/LVA) -> Non-tactical
 - [ ] Killer move heuristic: TT -> Good -> Killers -> Bad -> Non

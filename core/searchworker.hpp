@@ -9,7 +9,24 @@
 
 struct RootMove {
     Move move;
-    int16_t score;
+    int16_t score, prev_score;
+    uint64_t nodes;
+};
+
+class RootMovePicker {
+public:
+    RootMovePicker() = default;
+
+    void reset(const Board &root);
+
+    Move next();
+    void update_last(int score, uint64_t nodes);
+
+    void complete_iter();
+
+private:
+    std::array<RootMove, MAX_MOVES> moves_;
+    int cur_{}, num_moves_{};
 };
 
 class SearchWorker {
@@ -25,9 +42,9 @@ public:
 private:
     void check_time();
     void iterative_deepening();
+    int aspriration_window(int score, int depth);
 
-    int search_root(const Board &b, int alpha, 
-            int beta, int depth);
+    int search_root(int alpha, int beta, int depth);
     int search(const Board &b, int alpha, int beta, int depth);
 
     template<bool with_evasions>
@@ -35,6 +52,8 @@ private:
 
     Board root_;
     Stack stack_;
+
+    RootMovePicker rmp_;
 
     TimeMan man_;
     SearchLimits limits_;
