@@ -23,6 +23,7 @@ public:
 
     const Entry& top() const;
     int height() const;
+    bool capped() const;
 
     bool is_repetition(int halfmoves) const;
 

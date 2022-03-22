@@ -3,7 +3,74 @@
 #include <algorithm>
 #include <cstring>
 #include <sstream>
+#include "tree.hpp"
 #include "tt.hpp"
+
+namespace {
+
+template<bool root>
+void print_tree(std::vector<size_t> &nodes, size_t parent, int depth) {
+    if (!root) {
+        nodes.push_back(parent);
+        std::cout << g_tree.nodes[parent] << '\n';
+    }
+    if (!depth)
+        return;
+
+    size_t child = root ? 0 : g_tree.first_child(parent);
+    while (child != Tree::npos) {
+        print_tree<false>(nodes, child, depth - 1);
+        child = g_tree.next_child(child);
+    }
+}
+
+void tree_walker() {
+ if (!g_tree.size())
+        return;
+
+    int depth = 1;
+    std::string token;
+    size_t parent = Tree::npos;
+    std::vector<size_t> nodes;
+    std::ostringstream ss;
+
+    while (true) {
+        nodes.clear();
+        if (parent == Tree::npos)
+            print_tree<true>(nodes, parent, depth);
+        else
+            print_tree<false>(nodes, parent, depth);
+
+        std::cout << "walker> ";
+        std::cin >> token;
+
+        if (token == "quit")
+            break;
+        else if (token == "setd")
+            std::cin >> depth;
+        else if (token == "d")
+            std::cout << depth << '\n';
+        else if (token == "sel") {
+            std::cin >> token;
+            for (size_t i: nodes) {
+                ss.str("");
+                ss.clear();
+                ss << g_tree.nodes[i].played;
+                if (ss.str() == token) {
+                    parent = i;
+                    break;
+                }
+            }
+
+        } else if (token == "root") {
+            parent = Tree::npos;
+        } else if (token == "up") {
+            parent = g_tree.parent(parent);
+        }
+    }
+}
+
+} //namespace
 
 std::ostream& operator<<(std::ostream &os, const UciSpin &spin) {
     return os << spin.value << " min " 
@@ -11,7 +78,10 @@ std::ostream& operator<<(std::ostream &os, const UciSpin &spin) {
 }
 
 std::istream& operator>>(std::istream &is, UciSpin &spin) {
-    return is >> spin.value;
+    int64_t value;
+    is >> value;
+    spin.value = std::clamp(value, spin.min, spin.max);
+    return is;
 }
 
 std::ostream& operator<<(std::ostream &os, const UciOption &opt) {
@@ -47,12 +117,12 @@ void UCIContext::enter_loop() {
     std::istringstream is;
 
     do {
-        s.clear();
         if (!std::getline(std::cin, s))
             s = "quit";
 
         is.str(s);
         is.clear();
+        cmd.clear();
         is >> cmd;
 
         if (cmd == "isready") sync_cout() << "readyok\n";
@@ -62,6 +132,7 @@ void UCIContext::enter_loop() {
         else if (cmd == "setoption") parse_setopt(is);
         else if (cmd == "stop") search_.stop();
         else if (cmd == "d") sync_cout() << board_;
+        else if (cmd == "tree") tree_walker();
         else if (cmd == "quit") break;
 
     } while (s != "quit");

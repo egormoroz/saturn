@@ -27,7 +27,9 @@ public:
     MovePicker(const Board &board, Move ttm);
     MovePicker(const Board &board);
 
+    template<bool qmoves>
     Move next();
+
     Stage stage() const;
 
 private:

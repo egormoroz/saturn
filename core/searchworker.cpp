@@ -1,9 +1,9 @@
 #include "searchworker.hpp"
-#include <cstdio>
 #include "../cli.hpp"
 #include "eval.hpp"
-#include "../movgen/generate.hpp"
+#include "../movepicker.hpp"
 #include "../primitives/utility.hpp"
+#include "../tree.hpp"
 
 SearchWorker::SearchWorker() 
     : root_(Board::start_pos())
@@ -46,20 +46,26 @@ void SearchWorker::check_time() {
 
 void SearchWorker::iterative_deepening() {
     //there is no iterative deepening yet
-    
-    ExtMove moves[MAX_MOVES];
-    ExtMove *end = generate<LEGAL>(root_, moves);
+    g_tree.clear();
+    MovePicker mp(root_);
 
     Move best_move = MOVE_NONE;
-    int best_score = -VALUE_MATE, score;
+    int best_score = -VALUE_MATE;
     Board bb;
-    for (auto it = moves; it != end; ++it) {
-        Move m = it->move;
+    for (Move m = mp.next<false>(); m != MOVE_NONE; 
+            m = mp.next<false>()) 
+    {
+        size_t ndx = g_tree.begin_node(m, -VALUE_MATE, VALUE_MATE,
+                limits_.max_depth, 0);
         bb = root_.do_move(m);
-
         stack_.push(root_.key(), m);
-        score = -negamax(bb, limits_.max_depth);
+
+        int score = -search(bb, -VALUE_MATE, VALUE_MATE, 
+                limits_.max_depth);
+
         stack_.pop();
+        g_tree.end_node(ndx, score);
+
 
         if (score > best_score) {
             best_score = score;
@@ -79,33 +85,52 @@ void SearchWorker::iterative_deepening() {
         << "bestmove " << best_move << '\n';
 }
 
-int SearchWorker::negamax(const Board &b, int depth) {
+int SearchWorker::search(const Board &b, int alpha, 
+        int beta, int depth) 
+{
     check_time();
     if (!loop_.keep_going())
         return 0;
 
-    if (b.half_moves() >= 100 || b.is_material_draw()
+    if (b.half_moves() >= 100 
+        || (!b.checkers() && b.is_material_draw())
         || stack_.is_repetition(b.half_moves()))
         return 0;
 
+    //Mate distance pruning
+    int mated_score = stack_.mated_score();
+    alpha = std::max(alpha, mated_score);
+    beta = std::min(beta, -mated_score - 1);
+    if (alpha >= beta)
+        return alpha;
+
     stats_.nodes++;
-    if (depth <= 0)
+    if (stack_.capped())
         return eval(b);
+    if (depth <= 0)
+        return b.checkers() ? quiescence<true>(b, alpha, beta)
+            : quiescence<false>(b, alpha, beta);
 
     Board bb;
-    ExtMove moves[MAX_MOVES];
-    ExtMove *end = generate<LEGAL>(b, moves);
-    int best_score = -VALUE_MATE, score, moves_tried = 0;
-    for (auto it = moves; it != end; ++it, ++moves_tried) {
-        Move m = it->move;
-
+    MovePicker mp(b);
+    int best_score = -VALUE_MATE, moves_tried = 0;
+    for (Move m = mp.next<false>(); m != MOVE_NONE; 
+            m = mp.next<false>(), ++moves_tried) 
+    {
+        size_t ndx = g_tree.begin_node(m, alpha, beta, 
+                depth, stack_.height());
         bb = b.do_move(m);
         stack_.push(b.key(), m);
-        score = -negamax(bb, depth - 1);
+        int score = -search(bb, -beta, -alpha, depth - 1);
         stack_.pop();
+        g_tree.end_node(ndx, score);
 
         if (score > best_score)
             best_score = score;
+        if (score > alpha)
+            alpha = score;
+        if (score >= beta)
+            return beta;
     }
 
     if (!moves_tried) {
@@ -115,5 +140,74 @@ int SearchWorker::negamax(const Board &b, int depth) {
     }
 
     return best_score;
+}
+template int SearchWorker::quiescence<true>(
+        const Board &b, int alpha, int beta);
+template int SearchWorker::quiescence<false>(
+        const Board &b, int alpha, int beta);
+
+template<bool with_evasions>
+int SearchWorker::quiescence(const Board &b, 
+        int alpha, int beta) 
+{
+    check_time();
+    if (!loop_.keep_going() || b.half_moves() >= 100
+        || b.is_material_draw()
+        || stack_.is_repetition(b.half_moves()))
+        return 0;
+
+    if (stack_.capped())
+        return eval(b);
+
+    stats_.nodes++;
+    stats_.qnodes++;
+
+    //Mate distance pruning
+    int mated_score = stack_.mated_score();
+    alpha = std::max(alpha, mated_score);
+    beta = std::min(beta, -mated_score - 1);
+    if (alpha >= beta)
+        return alpha;
+
+    if constexpr (!with_evasions) {
+        int stand_pat = eval(b);
+        alpha = std::max(alpha, stand_pat);
+        if (alpha >= beta)
+            return beta;
+    }
+
+    MovePicker mp(b);
+    Board bb;
+    constexpr bool only_tacticals = !with_evasions;
+    int moves_tried = 0;
+    for (Move m = mp.next<only_tacticals>(); m != MOVE_NONE; 
+            m = mp.next<only_tacticals>(), ++moves_tried)
+    {
+        if (only_tacticals && !b.see_ge(m))
+            continue;
+
+        size_t ndx = g_tree.begin_node(m, alpha, beta, 
+                0, stack_.height());
+        bb = b.do_move(m);
+        stack_.push(b.key(), m);
+
+        //filter out perpetual checks
+        bool gen_evasions = !with_evasions && bb.checkers();
+        int score = gen_evasions ? -quiescence<true>(bb, -beta, -alpha)
+            : -quiescence<false>(bb, -beta, -alpha);
+
+        stack_.pop();
+        g_tree.end_node(ndx, score);
+
+        if (score > alpha)
+            alpha = score;
+        if (score >= beta)
+            return beta;
+    }
+
+    if (with_evasions && !moves_tried)
+        return stack_.mated_score();
+
+    return alpha;
 }
 

@@ -3,12 +3,12 @@ This is a simple uci chess engine.
 Here I will try measure perfomance after every single update.
 
 ## Current goal
-Get the best possible perfomance **exact** search.
+Get the best possible perfomance out of **exact** search.
 
 ### Checklist
 - [x] Puzzle framework!
 - [x] Barebones negamax, basic draw detection
-- [ ] Alpha-beta (staged movegen) + Quiescence (SEE >=0 moves)
+- [x] Alpha-beta (staged movegen) + Quiescence (SEE >=0 moves)
 - [ ] Add TT to alpha-beta (try w/ and w/out searching TT move first)
 - [ ] Iterative deepening
 - [ ] Internal iterative deepening

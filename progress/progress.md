@@ -8,10 +8,20 @@ The following info must be specified for each version:
 4. New opponents (if suitable) elo difference
 5. New elo = min(self play, other engines)
 
-## 1. Negamax
+## TODO
+Add tables w/ info!
 
-Nothing special. Sucks because of big branch factor.
-Passes all mate2 tests (except the one with KNkbp, because
-after capturing the pawn the position is considered drawn material-wise
-(even though it's mate in two plies)). 
-Absence of quiescence search hurts a lot as well...
+## 1. Negamax
+Nothing special. Sucks because of big branching factor.
+Passes all mate2 tests. Absence of quiescence search hurts a lot as well...
+
+## 2. Alpha-beta, quiescience + tacticals -> nontacticals
+In the starting position the effective branching factor (EBF)
+got from ~20 to ~10 (828 -> 8210 -> 82780 -> 595447 -> 5444539 
+-> 33194743 @ ~8mnps).
+This is huge, especially considering the fact
+that we now do some extra work (quiescence search).
+Quiescence search handles checks, now it is possible to find
+forced checkmate in N in fewer than N depth, and overall thanks
+to the qsearch the score is somewhat sane.
+

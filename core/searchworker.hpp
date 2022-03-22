@@ -26,7 +26,10 @@ private:
     void check_time();
     void iterative_deepening();
 
-    int negamax(const Board &b, int depth);
+    int search(const Board &b, int alpha, int beta, int depth);
+
+    template<bool with_evasions>
+    int quiescence(const Board &b, int alpha, int beta);
 
     Board root_;
     Stack stack_;

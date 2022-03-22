@@ -22,9 +22,8 @@ const Stack::Entry& Stack::top() const {
     return entries_[height_ - 1];
 }
 
-int Stack::height() const {
-    return height_ - start_;
-}
+int Stack::height() const { return height_ - start_; }
+bool Stack::capped() const { return height_ >= MAX_PLIES; }
 
 bool Stack::is_repetition(int halfmoves) const {
     if (!height_)

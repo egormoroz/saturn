@@ -7,6 +7,10 @@ MovePicker::MovePicker(const Board &board, Move ttm)
 MovePicker::MovePicker(const Board &board)
     : board_(board), stage_(Stage::INIT_TACTICAL) {}
 
+template Move MovePicker::next<true>();
+template Move MovePicker::next<false>();
+
+template<bool qmoves>
 Move MovePicker::next() {
     Move m;
     switch (stage_) {
@@ -23,8 +27,10 @@ Move MovePicker::next() {
     case Stage::TACTICAL:
         if ((m = select()) != MOVE_NONE)
             return m;
-        stage_ = Stage::INIT_NONTACTICAL;
+        if constexpr (qmoves)
+            return MOVE_NONE;
 
+        stage_ = Stage::INIT_NONTACTICAL;
         [[fallthrough]];
     case Stage::INIT_NONTACTICAL:
         stage_ = Stage::NON_TACTICAL;

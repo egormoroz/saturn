@@ -143,8 +143,8 @@ constexpr int16_t gamephaseInc[PIECE_TYPE_NB] = {
     0, 0, 1, 1, 2, 4, 0
 };
 
-int mg_table[PIECE_TYPE_NB][SQUARE_NB];
-int eg_table[PIECE_TYPE_NB][SQUARE_NB];
+int16_t mg_table[PIECE_TYPE_NB][SQUARE_NB];
+int16_t eg_table[PIECE_TYPE_NB][SQUARE_NB];
 
 } //namespace
 
@@ -193,7 +193,7 @@ int16_t eval(const Board &b) {
     }
 
     //tapered eval
-    int mg_score = mg[us] - mg[them],
+    int16_t mg_score = mg[us] - mg[them],
         eg_score = eg[us] - eg[them];
     int mg_phase = game_phase;
     if (mg_phase > 24) mg_phase = 24;

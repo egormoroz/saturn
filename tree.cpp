@@ -2,16 +2,14 @@
 #include <ostream>
 #include "primitives/utility.hpp"
 
-#ifdef TRACE
 Tree g_tree;
-#endif
 
 std::ostream& operator<<(std::ostream& os, const Node &n) {
     for (uint8_t i = 0; i < n.ply; ++i)
         os << "  ";
 
     os << "( "
-       << n.prev_move << ", " 
+       << n.played << ", " 
        << "[ " << n.alpha << ", " << n.beta << " ], "
        << n.score << ", " << int(n.depth) << ", " 
        << int(n.ply) << " )";
@@ -23,22 +21,38 @@ void Tree::clear() { nodes.clear(); }
 size_t Tree::begin_node(Move prev, int16_t alpha, int16_t beta, 
         uint8_t depth, uint8_t ply)
 {
+#ifdef TRACE
     nodes.push_back(Node{ prev, alpha, beta, 0, depth, 
             ply, NodeType::NonTerminal, 0 });
     return size() - 1;
+#else
+    (void)(prev);
+    (void)(alpha);
+    (void)(beta);
+    (void)(depth);
+    (void)(ply);
+    return 0;
+#endif
 }
 
-void Tree::end_node(size_t node_idx, 
-        int16_t score, size_t initial_size) 
-{
+void Tree::end_node(size_t node_idx, int16_t score) {
+#ifdef TRACE
     nodes[node_idx].subtree_size = static_cast<uint32_t>(
-        size() - initial_size
+        size() - (node_idx + 1)
     );
     nodes[node_idx].score = score;
+#else
+    (void)(node_idx);
+    (void)(score);
+#endif
 }
 
 void Tree::set_last_type(NodeType ntp) {
+#ifdef TRACE
     nodes.back().ntp = ntp;
+#else
+    (void)(ntp);
+#endif
 }
 
 size_t Tree::size() const { return nodes.size(); }
@@ -122,7 +136,7 @@ void Tree::json(std::ostream &os) const {
 
 void Tree::json(std::ostream &os, size_t parent) const {
     const Node &n = nodes[parent];
-    os << "{\"move\": \"" << n.prev_move << "\",\n"
+    os << "{\"move\": \"" << n.played << "\",\n"
        << "\"alpha\": " << n.alpha << ",\n"
        << "\"beta\": " << n.beta << ",\n"
        << "\"score\": " << n.score << ",\n"
