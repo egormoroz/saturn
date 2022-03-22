@@ -59,7 +59,6 @@ def run(eng_path, positions, depth, time, debug):
         d = None
         while True:
             line = eng.stdout.readline().strip()
-            # dbg_print(f'< {line}')
             if line.startswith('bestmove'):
                 bm = line.replace('bestmove ', '').strip()
                 break
@@ -67,6 +66,9 @@ def run(eng_path, positions, depth, time, debug):
                 d, bm = parse_line(line)
                 dbg_print(d)
                 if bm == pos.bm:
+                    eng.stdin.write('stop\n')
+                    eng.stdin.flush()
+                    dbg_print('> stop')
                     break
             else:
                 print(f'invalid response: {line}')

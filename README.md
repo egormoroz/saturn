@@ -9,7 +9,7 @@ Get the best possible perfomance out of **exact** search.
 - [x] Puzzle framework!
 - [x] Barebones negamax, basic draw detection
 - [x] Alpha-beta (staged movegen) + Quiescence (SEE >=0 moves)
-- [ ] Add TT to alpha-beta (try w/ and w/out searching TT move first)
+- [x] Add TT to alpha-beta (try w/ and w/out searching TT move first)
 - [ ] Iterative deepening
 - [ ] Internal iterative deepening
 - [ ] Aspiration window (try different strategies)

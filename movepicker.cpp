@@ -1,11 +1,16 @@
 #include "movepicker.hpp"
 
 MovePicker::MovePicker(const Board &board, Move ttm)
-    : board_(board), moves_{{ttm, 0}}, excluded_{ttm}, 
-      stage_(Stage::TT_MOVE) {}
-
-MovePicker::MovePicker(const Board &board)
-    : board_(board), stage_(Stage::INIT_TACTICAL) {}
+    : board_(board)
+{
+    if (ttm != MOVE_NONE) {
+        stage_ = Stage::TT_MOVE;
+        moves_[0] = ttm;
+        excluded_[0] = ttm;
+    } else {
+        stage_ = Stage::INIT_TACTICAL;
+    }
+}
 
 template Move MovePicker::next<true>();
 template Move MovePicker::next<false>();
@@ -51,7 +56,7 @@ Move MovePicker::next() {
 Stage MovePicker::stage() const { return stage_; }
 
 void MovePicker::score_tactical() {
-    for (auto it = cur_; it != end_; ++it) {
+    for (auto it = cur_; it < end_; ++it) {
         for (Move ex: excluded_)
             if (it->move == ex)
                 *it = *--end_;
@@ -59,7 +64,7 @@ void MovePicker::score_tactical() {
 }
 
 void MovePicker::score_nontactical() {
-    for (auto it = cur_; it != end_; ++it) {
+    for (auto it = cur_; it < end_; ++it) {
         for (Move ex: excluded_)
             if (it->move == ex)
                 *it = *--end_;

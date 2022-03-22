@@ -50,7 +50,7 @@ private:
     void parse_setopt(std::istream &is);
 
     void update_option(std::string_view name, 
-            const UciOption &opt);
+            std::string_view op, const UciOption &opt);
 
     void print_info();
 

@@ -24,8 +24,7 @@ class Board;
 
 class MovePicker {
 public:
-    MovePicker(const Board &board, Move ttm);
-    MovePicker(const Board &board);
+    MovePicker(const Board &board, Move ttm = MOVE_NONE);
 
     template<bool qmoves>
     Move next();

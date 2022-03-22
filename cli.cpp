@@ -191,29 +191,31 @@ void UCIContext::parse_go(std::istream &is) {
 }
 
 void UCIContext::parse_setopt(std::istream &is) {
-    std::string name, dummy;
-    is >> name >> dummy;
+    std::string name, op;
+    is >> name >> op;
     std::transform(name.begin(), name.end(), name.begin(),
         [](char ch) { return std::tolower(ch); });
     if (auto it = options_.find(name); it != options_.end()) {
-        if (dummy == "value") {
-            is >> it->second;
-            update_option(name, it->second);
-        }
+        is >> it->second;
+        update_option(name, op, it->second);
     }
 }
 
 void UCIContext::update_option(std::string_view name, 
-        const UciOption &opt)
+        std::string_view op, const UciOption &opt)
 {
     if (name == "hash") {
-        if (auto spin = std::get_if<UciSpin>(&opt); spin 
-                && spin->value >= spin->min
-                && spin->value <= spin->max) 
-        {
-            search_.stop();
-            search_.wait_for_completion();
-            g_tt.resize(spin->value);
+        if (op == "value") {
+            if (auto spin = std::get_if<UciSpin>(&opt); spin 
+                    && spin->value >= spin->min
+                    && spin->value <= spin->max) 
+            {
+                search_.stop();
+                search_.wait_for_completion();
+                g_tt.resize(spin->value);
+            }
+        } else if (op == "clear") {
+            g_tt.clear();
         }
     }
 }

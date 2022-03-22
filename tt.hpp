@@ -32,11 +32,6 @@ struct TTEntry {
             bool avoid_null);
 };
 
-enum ProbeResult {
-    HASH_HIT,
-    HASH_MISS,
-};
-
 class TranspositionTable {
     struct Bucket {
         static constexpr int N = 4;
@@ -46,10 +41,11 @@ public:
     TranspositionTable() = default;
 
     void resize(size_t mbs);
+    void clear();
 
     void new_search();
 
-    ProbeResult probe(uint64_t key, TTEntry &e) const;
+    bool probe(uint64_t key, TTEntry &e) const;
     void store(TTEntry entry);
 
     int extract_pv(Board b, Move *pv, int len);

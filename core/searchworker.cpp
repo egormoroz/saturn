@@ -4,6 +4,32 @@
 #include "../movepicker.hpp"
 #include "../primitives/utility.hpp"
 #include "../tree.hpp"
+#include "../tt.hpp"
+#include <algorithm>
+
+namespace {
+
+bool can_return_ttscore(const TTEntry &tte, 
+    int &alpha, int beta, int depth)
+{
+    if (tte.depth8 < depth)
+        return false;
+
+    if (tte.bound8 == BOUND_EXACT) {
+        alpha = tte.score16;
+        return true;
+    }
+    if (tte.bound8 == BOUND_ALPHA && tte.score16 <= alpha)
+        return true;
+    if (tte.bound8 == BOUND_BETA && tte.score16 >= beta) {
+        alpha = beta;
+        return true;
+    }
+
+    return false;
+}
+
+} //namespace
 
 SearchWorker::SearchWorker() 
     : root_(Board::start_pos())
@@ -61,7 +87,7 @@ void SearchWorker::iterative_deepening() {
         stack_.push(root_.key(), m);
 
         int score = -search(bb, -VALUE_MATE, VALUE_MATE, 
-                limits_.max_depth);
+                limits_.max_depth - 1);
 
         stack_.pop();
         g_tree.end_node(ndx, score);
@@ -104,33 +130,56 @@ int SearchWorker::search(const Board &b, int alpha,
     if (alpha >= beta)
         return alpha;
 
-    stats_.nodes++;
-    if (stack_.capped())
-        return eval(b);
     if (depth <= 0)
         return b.checkers() ? quiescence<true>(b, alpha, beta)
             : quiescence<false>(b, alpha, beta);
+    stats_.nodes++;
+    if (stack_.capped())
+        return eval(b);
+
+    TTEntry tte;
+    Move ttm = MOVE_NONE;
+    if (g_tt.probe(b.key(), tte)) {
+        if (can_return_ttscore(tte, alpha, beta, depth))
+            return alpha;
+        if (ttm = Move(tte.move16); !b.is_valid_move(ttm))
+            ttm = MOVE_NONE;
+    }
+
+    /* if (!ttm && depth >= 5) */
+    /*     search(b, alpha, beta, depth - 1); */
 
     Board bb;
-    MovePicker mp(b);
-    int best_score = -VALUE_MATE, moves_tried = 0;
+    MovePicker mp(b, ttm);
+    int best_score = -VALUE_MATE, moves_tried = 0,
+        old_alpha = alpha;
+    Move best_move = MOVE_NONE;
     for (Move m = mp.next<false>(); m != MOVE_NONE; 
-            m = mp.next<false>(), ++moves_tried) 
+            m = mp.next<false>()) 
     {
+        ++moves_tried;
         size_t ndx = g_tree.begin_node(m, alpha, beta, 
                 depth, stack_.height());
         bb = b.do_move(m);
         stack_.push(b.key(), m);
+
+        g_tt.prefetch(b.key());
         int score = -search(bb, -beta, -alpha, depth - 1);
+
         stack_.pop();
         g_tree.end_node(ndx, score);
 
-        if (score > best_score)
+        if (score > best_score) {
             best_score = score;
+            best_move = m;
+        }
+
         if (score > alpha)
             alpha = score;
-        if (score >= beta)
-            return beta;
+        if (score >= beta) {
+            alpha = beta;
+            break;
+        }
     }
 
     if (!moves_tried) {
@@ -139,8 +188,18 @@ int SearchWorker::search(const Board &b, int alpha,
         return 0;
     }
 
-    return best_score;
+    if (loop_.keep_going()) {
+        Bound bound = BOUND_ALPHA;
+        if (alpha >= beta) bound = BOUND_BETA;
+        else if (alpha > old_alpha) bound = BOUND_EXACT;
+
+        g_tt.store(TTEntry(b.key(), alpha, bound,
+            depth, best_move, false));
+    }
+
+    return alpha;
 }
+
 template int SearchWorker::quiescence<true>(
         const Board &b, int alpha, int beta);
 template int SearchWorker::quiescence<false>(
@@ -201,7 +260,7 @@ int SearchWorker::quiescence(const Board &b,
 
         if (score > alpha)
             alpha = score;
-        if (score >= beta)
+        if (score >= beta) 
             return beta;
     }
 

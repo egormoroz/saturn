@@ -24,11 +24,16 @@ void TranspositionTable::resize(size_t mbs) {
     memset(buckets_, 0, size_ * sizeof(Bucket));
 }
 
+void TranspositionTable::clear() {
+    if (buckets_)
+        memset(buckets_, 0, size_ * sizeof(Bucket));
+}
+
 void TranspositionTable::new_search() {
     ++age_;
 }
 
-ProbeResult TranspositionTable::probe(uint64_t key, 
+bool TranspositionTable::probe(uint64_t key, 
         TTEntry &e) const 
 {
     Bucket &b = buckets_[key % size_];
@@ -36,11 +41,11 @@ ProbeResult TranspositionTable::probe(uint64_t key,
         e = b.entries[i];
         if ((e.key ^ e.data) == key) {
             e.age = age_;
-            return HASH_HIT;
+            return true;
         }
     }
 
-    return HASH_MISS;
+    return false;
 }
 
 void TranspositionTable::store(TTEntry new_entry) {
@@ -104,7 +109,7 @@ TranspositionTable::~TranspositionTable() {
 int TranspositionTable::extract_pv(Board b, Move *pv, int len) {
     int n = 0;
     TTEntry tte;
-    while (probe(b.key(), tte) == HASH_HIT && n < len) {
+    while (probe(b.key(), tte) && n < len) {
         Move m = Move(tte.move16);
         if (!b.is_valid_move(m))
             break;
