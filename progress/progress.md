@@ -26,17 +26,24 @@ forced checkmate in N in fewer than N depth, and overall thanks
 to the qsearch the score is somewhat sane.
 
 ## 3. Alpha-beta with TT
-No significat improvements in puzzles due to the absence 
-of iterative deepening. For each depth the TT was cleared. 
-Below are the node counts for each depth.
-| depth |    no TT    |  TT no ttm |  TT + ttm  |
-| ----- | ----------- | ---------- | ---------- |
-|     1 |          20 |         20 |         20 |
-|     2 |         428 |        428 |        428 |
-|     3 |       4'438 |      4'438 |      4'438 |
-|     4 |      44'802 |     42'863 |     42'869 |
-|     5 |     334'973 |    282'702 |    280'478 |
-|     6 |   3'073'695 |  2'074'516 |  2'025'382 |
-|     7 |  19'273'822 | 10'528'642 | 10'246'249 |
-|     8 | 178'770'818 | 71'989'817 | 68'744'120 |
+No significant improvements in puzzles due to the absence 
+of iterative deepening and relatively low depth. 
+
+## 4. Iterative deepening
+Huge gains thanks to TT and such. 
+It counts one more node for no reason, but I'm too lazy to fix this.
+(move the increment into the cycle).
+
+
+| depth |    no TT    |  TT no ttm |  TT + ttm  |     ID     |
+| ----- | ----------- | ---------- | ---------- | ---------- |
+|     1 |          20 |         20 |         20 |         21 |
+|     2 |         428 |        428 |        428 |        130 |
+|     3 |       4'438 |      4'438 |      4'438 |       1091 |
+|     4 |      44'802 |     42'863 |     42'869 |      5'453 |
+|     5 |     334'973 |    282'702 |    280'478 |     25'972 |
+|     6 |   3'073'695 |  2'074'516 |  2'025'382 |    134'662 |
+|     7 |  19'273'822 | 10'528'642 | 10'246'249 |  1'175'187 |
+|     8 | 178'770'818 | 71'989'817 | 68'744'120 |  5'518'337 |
+
 

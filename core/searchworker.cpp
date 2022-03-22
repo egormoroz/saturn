@@ -6,6 +6,7 @@
 #include "../tree.hpp"
 #include "../tt.hpp"
 #include <algorithm>
+#include <sstream>
 
 namespace {
 
@@ -27,6 +28,12 @@ bool can_return_ttscore(const TTEntry &tte,
     }
 
     return false;
+}
+
+Bound determine_bound(int alpha, int beta, int old_alpha) {
+    if (alpha >= beta) return BOUND_BETA;
+    if (alpha > old_alpha) return BOUND_EXACT;
+    return BOUND_ALPHA;
 }
 
 } //namespace
@@ -71,44 +78,34 @@ void SearchWorker::check_time() {
 }
 
 void SearchWorker::iterative_deepening() {
-    //there is no iterative deepening yet
-    g_tree.clear();
-    MovePicker mp(root_);
+    Move pv[MAX_DEPTH]{};
+    int pv_len = 0, score = 0;
+    std::ostringstream ss;
 
-    Move best_move = MOVE_NONE;
-    int best_score = -VALUE_MATE;
-    Board bb;
-    for (Move m = mp.next<false>(); m != MOVE_NONE; 
-            m = mp.next<false>()) 
-    {
-        size_t ndx = g_tree.begin_node(m, -VALUE_MATE, VALUE_MATE,
-                limits_.max_depth, 0);
-        bb = root_.do_move(m);
-        stack_.push(root_.key(), m);
+    for (int d = 1; d <= limits_.max_depth; ++d) {
+        score = search(root_, -VALUE_MATE, VALUE_MATE, d);
+        if (!loop_.keep_going())
+            break;
 
-        int score = -search(bb, -VALUE_MATE, VALUE_MATE, 
-                limits_.max_depth - 1);
+        auto elapsed = timer::now() - limits_.start;
+        uint64_t nps = stats_.nodes * 1000 / (elapsed + 1);
 
-        stack_.pop();
-        g_tree.end_node(ndx, score);
+        pv_len = g_tt.extract_pv(root_, pv, d);
 
+        ss.str("");
+        ss.clear();
+        ss << "info score " << Score{score}
+           << " depth " << d
+           << " nodes " << stats_.nodes
+           << " time " << elapsed
+           << " nps " << nps
+           << " pv ";
 
-        if (score > best_score) {
-            best_score = score;
-            best_move = m;
-        }
+        for (int i = 0; i < pv_len; ++i)
+            ss << pv[i] << ' ';
+        sync_cout() << ss.str() << '\n';
     }
-
-    auto elapsed = timer::now() - limits_.start;
-    uint64_t nps = stats_.nodes * 1000 / (elapsed + 1);
-
-    sync_cout() << "info score " << Score{best_score}
-        << " depth " << limits_.max_depth
-        << " nodes " << stats_.nodes
-        << " time " << elapsed
-        << " nps " << nps
-        << " pv " << best_move << '\n'
-        << "bestmove " << best_move << '\n';
+    sync_cout() << "bestmove " << pv[0] << '\n';
 }
 
 int SearchWorker::search(const Board &b, int alpha, 
@@ -116,11 +113,6 @@ int SearchWorker::search(const Board &b, int alpha,
 {
     check_time();
     if (!loop_.keep_going())
-        return 0;
-
-    if (b.half_moves() >= 100 
-        || (!b.checkers() && b.is_material_draw())
-        || stack_.is_repetition(b.half_moves()))
         return 0;
 
     //Mate distance pruning
@@ -137,6 +129,12 @@ int SearchWorker::search(const Board &b, int alpha,
     if (stack_.capped())
         return eval(b);
 
+    g_tt.prefetch(b.key());
+    if (b.half_moves() >= 100 
+        || (!b.checkers() && b.is_material_draw())
+        || stack_.is_repetition(b.half_moves()))
+        return 0;
+
     TTEntry tte;
     Move ttm = MOVE_NONE;
     if (g_tt.probe(b.key(), tte)) {
@@ -145,9 +143,6 @@ int SearchWorker::search(const Board &b, int alpha,
         if (ttm = Move(tte.move16); !b.is_valid_move(ttm))
             ttm = MOVE_NONE;
     }
-
-    /* if (!ttm && depth >= 5) */
-    /*     search(b, alpha, beta, depth - 1); */
 
     Board bb;
     MovePicker mp(b, ttm);
@@ -163,7 +158,6 @@ int SearchWorker::search(const Board &b, int alpha,
         bb = b.do_move(m);
         stack_.push(b.key(), m);
 
-        g_tt.prefetch(b.key());
         int score = -search(bb, -beta, -alpha, depth - 1);
 
         stack_.pop();
@@ -189,11 +183,8 @@ int SearchWorker::search(const Board &b, int alpha,
     }
 
     if (loop_.keep_going()) {
-        Bound bound = BOUND_ALPHA;
-        if (alpha >= beta) bound = BOUND_BETA;
-        else if (alpha > old_alpha) bound = BOUND_EXACT;
-
-        g_tt.store(TTEntry(b.key(), alpha, bound,
+        g_tt.store(TTEntry(b.key(), alpha, 
+            determine_bound(alpha, beta, old_alpha),
             depth, best_move, false));
     }
 
