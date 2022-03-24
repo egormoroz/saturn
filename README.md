@@ -13,9 +13,9 @@ Get the best possible perfomance out of **exact** search.
 - [x] Iterative deepening, internal iterative deepening
 - [x] Aspiration window (try different strategies)
 - [x] Order root moves based on (prev score, nodes, etc...)
-- [ ] Most valueable victim / Least valuable attacker
-- [ ] TT move -> Good tactical (MVV/LVA) -> Bad tactical (MVV/LVA) -> Non-tactical
-- [ ] Killer move heuristic: TT -> Good -> Killers -> Bad -> Non
-- [ ] PSQT non-tactical ordering
-- [ ] History heuristic for non-tactical
-- [ ] Tune aspiration window
+- [x] Most valueable victim / Least valuable attacker
+- [x] TT move -> Good tactical (MVV/LVA) -> Bad tactical (MVV/LVA) -> Non-tactical
+- [x] Killer move heuristic: TT -> Good -> Killers -> Bad -> Non
+- [x] PSQT non-tactical ordering
+- [x] History heuristic for non-tactical
+- [x] Countermoves, follow-ups

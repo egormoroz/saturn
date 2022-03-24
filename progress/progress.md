@@ -46,13 +46,24 @@ It counts one more node for no reason, but I'm too lazy to fix this.
 |     7 |  19'273'822 | 10'528'642 | 10'246'249 |    895'180 |
 |     8 | 178'770'818 | 71'989'817 | 68'744'120 |  3'877'582 |
 
-## 5. Aspiration window
+## 5.1 Aspiration window
 Nothing special. Lowers amount of nodes a little bit.
 
-## 6. Root move ordering
+## 5.2 Root move ordering
 Puzzles did not improve significantly; 
 nodes in quiet positions did reduce, although not everywhere...
 Sometimes it's better to sort by nodes rather than by score,
 but this needs to be tested...
 Fail-high-firt / fail-high ratio did improve actually.
+
+## 6. MVV/LVA, killers + PSQT for quiet moves
+The biggest move ordering boost came from killers (unsuprisingly)
+and PSQT for quit moves since there was no quiet move ordering at all.
+Startpos: depth 8 - 1'849'984 nodes, depth 10 - 27'370'459;
+With history + countermove+ followup:
+Startpos: depth 8 - 1'439'975 nodes, depth 10 - 21'792'585, fhf = 0.988
+Marginally improved quiet move ordering by adding a 
+bonus to quite TT move, that fails high. And yet another tiny improvement
+- PVS at root.
+
 

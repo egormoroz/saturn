@@ -201,6 +201,10 @@ enum MoveType : uint16_t {
     CASTLING = 3 << 14,
 };
 
+constexpr int from_to(Move m) {
+    return m & 0xFFF;
+}
+
 constexpr Square from_sq(Move m) {
     return Square((m >> 6) & 0x3F);
 }

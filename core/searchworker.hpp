@@ -6,6 +6,7 @@
 #include "../board/board.hpp"
 #include "search_common.hpp"
 #include "routine.hpp"
+#include "../movepicker.hpp"
 
 struct RootMove {
     Move move;
@@ -21,6 +22,8 @@ public:
 
     Move next();
     void update_last(int score, uint64_t nodes);
+
+    int num_moves() const;
 
     void complete_iter();
 
@@ -54,6 +57,9 @@ private:
     Stack stack_;
 
     RootMovePicker rmp_;
+    Histories hist_;
+    std::array<Move, 64 * 64> counters_;
+    std::array<Move, 64 * 64> followups_;
 
     TimeMan man_;
     SearchLimits limits_;

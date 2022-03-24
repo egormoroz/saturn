@@ -10,6 +10,7 @@ public:
     struct Entry {
         uint64_t key;
         Move move;
+        Move killers[2];
         int16_t eval;
     };
 
@@ -21,11 +22,13 @@ public:
     void push(uint64_t key, Move m = MOVE_NONE, int16_t eval = 0);
     void pop();
 
-    const Entry& top() const;
+    Entry &at(int ply);
+
     int height() const;
+    int total_height() const;
     bool capped() const;
 
-    bool is_repetition(int halfmoves) const;
+    bool is_repetition(uint64_t key, int halfmoves) const;
 
     int16_t mated_score() const;
 

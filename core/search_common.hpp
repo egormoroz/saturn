@@ -24,15 +24,6 @@ namespace timer {
     }
 }
 
-struct TimeMan {
-    TimePoint start;
-    TimePoint max_time;
-
-    bool out_of_time() const { 
-        return timer::now() - start >= max_time;
-    }
-};
-
 struct SearchLimits {
     int max_depth = MAX_DEPTH;
     int time[2]{}, inc[2]{};
@@ -42,6 +33,29 @@ struct SearchLimits {
     TimePoint start{};
 };
 
+struct TimeMan {
+    TimePoint start;
+    TimePoint max_time;
 
+    void init(const SearchLimits &limits, 
+            Color us, int ply) 
+    {
+        (void)(ply);
+        if (limits.infinite) return;
+        if (limits.move_time) {
+            max_time = limits.move_time;
+            return;
+        }
+
+        int time = limits.time[us] / 45 
+            + limits.inc[us];
+        time = std::min(time, limits.time[us] * 9 / 10);
+        max_time = time;
+    }
+
+    bool out_of_time() const { 
+        return timer::now() - start >= max_time;
+    }
+};
 
 #endif

@@ -189,7 +189,7 @@ bool Board::is_valid_move(Move m) const {
         default:
             return false;
         };
-    } else if (pt == KNIGHT) {
+    } else if (pt == KNIGHT && type_of(m) == NORMAL) {
         dsts = attacks_bb<KNIGHT>(from) & ~pieces(us);
     } else if (pt == KING) {
         ksq = to;
@@ -230,7 +230,7 @@ bool Board::is_valid_move(Move m) const {
         default:
             return false;
         };
-    } else { //sliders
+    } else if (type_of(m) == NORMAL) { //sliders
         dsts = attacks_bb(pt, from, combined_) & ~pieces(us);
         if (type_of(m) != NORMAL)
             return false;

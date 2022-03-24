@@ -71,6 +71,10 @@ void RootMovePicker::update_last(int score, uint64_t nodes) {
     last.score = score;
 }
 
+int RootMovePicker::num_moves() const {
+    return num_moves_;
+}
+
 void RootMovePicker::complete_iter() {
     std::sort(moves_.begin(), moves_.begin() + num_moves_,
         [](const RootMove &x, const RootMove &y)
@@ -102,6 +106,12 @@ void SearchWorker::go(const Board &root, const Stack &st,
     man_.max_time = limits_.move_time;
     stats_.reset();
     rmp_.reset(root_);
+    hist_.reset();
+
+    man_.init(limits, root.side_to_move(), st.total_height());
+
+    memset(counters_.data(), 0, sizeof(counters_));
+    memset(followups_.data(), 0, sizeof(followups_));
 
     loop_.resume();
 }
@@ -124,8 +134,14 @@ void SearchWorker::check_time() {
 
 void SearchWorker::iterative_deepening() {
     Move pv[MAX_DEPTH]{};
-    int pv_len = 0, score = 0;
+    int pv_len = 0, score = 0, prev_score, ebf = 1;
+    uint64_t prev_nodes, nodes = 0;
     std::ostringstream ss;
+
+    if (rmp_.num_moves() == 1) {
+        sync_cout() << "bestmove " << rmp_.next() << '\n';
+        return;
+    }
 
     auto report = [&](int d) {
         auto elapsed = timer::now() - limits_.start;
@@ -143,6 +159,7 @@ void SearchWorker::iterative_deepening() {
            << " time " << elapsed
            << " nps " << nps
            << " fhf " << fhf
+           << " ebf " << ebf
            << " pv ";
 
         for (int i = 0; i < pv_len; ++i)
@@ -150,15 +167,31 @@ void SearchWorker::iterative_deepening() {
         sync_cout() << ss.str() << '\n';
     };
 
+    prev_nodes = 1;
     score = search_root(-VALUE_MATE, VALUE_MATE, 1);
+    nodes = stats_.nodes;
     report(1);
     for (int d = 2; d <= limits_.max_depth; ++d) {
         g_tree.clear();
+        prev_nodes = nodes;
+        uint64_t before = stats_.nodes;
+        prev_score = score;
+        TimePoint start = timer::now();
+
         score = aspriration_window(score, d);
         if (!loop_.keep_going())
             break;
-
         report(d);
+
+        nodes = stats_.nodes - before;
+        ebf = static_cast<int>((nodes + prev_nodes - 1) 
+                / std::max(1ull, prev_nodes));
+
+        TimePoint now = timer::now(), 
+              time_left = man_.start + man_.max_time - now;
+        if (abs(score - prev_score) < 8 && !limits_.infinite
+                && !limits_.move_time && now - start >= time_left)
+            break; //assume we don't have enough time to go 1 ply deeper
 
         if (abs(score) >= VALUE_MATE - d)
             break;
@@ -170,7 +203,7 @@ int SearchWorker::aspriration_window(int score, int depth) {
     if (depth <= 5)
         return search_root(-VALUE_MATE, VALUE_MATE, depth);
 
-    int delta = 32, alpha = score - delta, 
+    int delta = 16, alpha = score - delta, 
         beta = score + delta;
     while (loop_.keep_going()) {
         score = search_root(alpha, beta, depth);
@@ -193,7 +226,7 @@ int SearchWorker::aspriration_window(int score, int depth) {
 int SearchWorker::search_root(int alpha, int beta, int depth) {
     if (root_.half_moves() >= 100 
         || (!root_.checkers() && root_.is_material_draw())
-        || stack_.is_repetition(root_.half_moves()))
+        || stack_.is_repetition(root_.key(), root_.half_moves()))
         return 0;
 
     TTEntry tte;
@@ -206,7 +239,8 @@ int SearchWorker::search_root(int alpha, int beta, int depth) {
     }
 
     Move best_move = MOVE_NONE;
-    int best_score = -VALUE_MATE, old_alpha = alpha;
+    int best_score = -VALUE_MATE, old_alpha = alpha,
+        moves_tried = 0;
     Board bb;
     for (Move m = rmp_.next(); m != MOVE_NONE; m = rmp_.next()) {
         uint64_t nodes_before = stats_.nodes;
@@ -214,8 +248,16 @@ int SearchWorker::search_root(int alpha, int beta, int depth) {
         bb = root_.do_move(m);
         stack_.push(root_.key(), m);
 
-        int score = -search(bb, -beta, -alpha, depth - 1);
+        int score;
+        if (!moves_tried || depth <= 6) {
+            score = -search(bb, -beta, -alpha, depth - 1);
+        } else {
+            score = -search(bb, -(alpha + 1), -alpha, depth - 1);
+            if (score > alpha && score < beta)
+                score = -search(bb, -beta, -alpha, depth - 1);
+        }
 
+        ++moves_tried;
         stack_.pop();
         g_tree.end_node(ndx, score);
         rmp_.update_last(score, stats_.nodes - nodes_before);
@@ -247,6 +289,7 @@ int SearchWorker::search(const Board &b, int alpha,
         int beta, int depth) 
 {
     const int ply = stack_.height();
+
     check_time();
     if (!loop_.keep_going())
         return 0;
@@ -268,17 +311,22 @@ int SearchWorker::search(const Board &b, int alpha,
     g_tt.prefetch(b.key());
     if (b.half_moves() >= 100 
         || (!b.checkers() && b.is_material_draw())
-        || stack_.is_repetition(b.half_moves()))
+        || stack_.is_repetition(b.key(), b.half_moves()))
         return 0;
 
     TTEntry tte;
     Move ttm = MOVE_NONE;
     if (g_tt.probe(b.key(), tte)) {
-        if (can_return_ttscore(tte, alpha, beta, 
-                    depth, ply))
-            return alpha;
         if (ttm = Move(tte.move16); !b.is_valid_move(ttm))
             ttm = MOVE_NONE;
+        
+        if (can_return_ttscore(tte, alpha, beta, 
+                    depth, ply))
+        {
+            if (ttm && b.is_quiet(ttm))
+                hist_.add_bonus(b, ttm, depth * depth);
+            return alpha;
+        }
     }
 
     if (!ttm && depth >= 5) {
@@ -288,15 +336,24 @@ int SearchWorker::search(const Board &b, int alpha,
             ttm = MOVE_NONE;
     }
 
-    Board bb;
-    MovePicker mp(b, ttm);
+    Move opp_move = stack_.at(ply - 1).move,
+         prev = MOVE_NONE, followup = MOVE_NONE;
+    if (ply >= 2) {
+        prev = stack_.at(ply - 2).move;
+        followup = followups_[from_to(prev)];
+    }
+    auto &entry = stack_.at(ply);
+    MovePicker mp(b, ttm, entry.killers, &hist_,
+            counters_[from_to(opp_move)],
+            followup);
+
     int best_score = -VALUE_MATE, moves_tried = 0,
         old_alpha = alpha;
     Move best_move = MOVE_NONE;
+    Board bb;
     for (Move m = mp.next<false>(); m != MOVE_NONE; 
             m = mp.next<false>()) 
     {
-        ++moves_tried;
         size_t ndx = g_tree.begin_node(m, alpha, beta, 
                 depth, ply);
         bb = b.do_move(m);
@@ -306,6 +363,7 @@ int SearchWorker::search(const Board &b, int alpha,
 
         stack_.pop();
         g_tree.end_node(ndx, score);
+        ++moves_tried;
 
         if (score > best_score) {
             best_score = score;
@@ -314,18 +372,32 @@ int SearchWorker::search(const Board &b, int alpha,
 
         if (score > alpha)
             alpha = score;
-        if (score >= beta) {
-            alpha = beta;
-            stats_.fail_high++;
-            stats_.fail_high_first += moves_tried == 1;
+        if (score >= beta)
             break;
-        }
     }
 
     if (!moves_tried) {
         if (b.checkers())
             return stack_.mated_score();
         return 0;
+    }
+
+    if (alpha >= beta) {
+        alpha = beta;
+        stats_.fail_high++;
+        stats_.fail_high_first += moves_tried == 1;
+        if (b.is_quiet(best_move)) {
+            if (entry.killers[0] != best_move) {
+                entry.killers[1] = entry.killers[0];
+                entry.killers[0] = best_move;
+            }
+
+            hist_.add_bonus(b, best_move, depth * depth);
+            counters_[from_to(opp_move)] = best_move;
+
+            if (prev)
+                followups_[from_to(prev)] = best_move;
+        }
     }
 
     if (loop_.keep_going()) {
@@ -337,10 +409,10 @@ int SearchWorker::search(const Board &b, int alpha,
     return alpha;
 }
 
-template int SearchWorker::quiescence<true>(
-        const Board &b, int alpha, int beta);
-template int SearchWorker::quiescence<false>(
-        const Board &b, int alpha, int beta);
+/* template int SearchWorker::quiescence<true>( */
+/*         const Board &b, int alpha, int beta); */
+/* template int SearchWorker::quiescence<false>( */
+/*         const Board &b, int alpha, int beta); */
 
 template<bool with_evasions>
 int SearchWorker::quiescence(const Board &b, 
@@ -349,7 +421,7 @@ int SearchWorker::quiescence(const Board &b,
     check_time();
     if (!loop_.keep_going() || b.half_moves() >= 100
         || b.is_material_draw()
-        || stack_.is_repetition(b.half_moves()))
+        || stack_.is_repetition(b.key(), b.half_moves()))
         return 0;
 
     if (stack_.capped())
@@ -379,9 +451,6 @@ int SearchWorker::quiescence(const Board &b,
     for (Move m = mp.next<only_tacticals>(); m != MOVE_NONE; 
             m = mp.next<only_tacticals>(), ++moves_tried)
     {
-        if (only_tacticals && !b.see_ge(m))
-            continue;
-
         size_t ndx = g_tree.begin_node(m, alpha, beta, 
                 0, stack_.height());
         bb = b.do_move(m);
