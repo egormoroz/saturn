@@ -4,6 +4,8 @@
 #include "primitives/common.hpp"
 #include <array>
 
+class Board;
+
 constexpr int MAX_PLIES = 512;
 class Stack {
 public:
@@ -28,7 +30,7 @@ public:
     int total_height() const;
     bool capped() const;
 
-    bool is_repetition(uint64_t key, int halfmoves) const;
+    bool is_repetition(const Board &b) const;
 
     int16_t mated_score() const;
 

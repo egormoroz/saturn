@@ -1,6 +1,7 @@
 #include "movepicker.hpp"
 #include "board/board.hpp"
 #include <algorithm>
+#include <cstring>
 
 namespace {
 

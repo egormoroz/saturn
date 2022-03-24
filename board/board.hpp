@@ -75,8 +75,7 @@ public:
 
     //returns number of moves since last capture/pawn move
     uint8_t half_moves() const;
-
-    int16_t material(Color c) const;
+    uint8_t plies_from_null() const;
 
 private:
     Bitboard pieces_[PIECE_TYPE_NB];
@@ -95,8 +94,7 @@ private:
     Color side_to_move_;
     Square en_passant_;
     uint8_t half_moves_;
-
-    int16_t material_[COLOR_NB];
+    uint8_t plies_from_null_;
 };
 
 std::ostream& operator<<(std::ostream& os, const Board &b);

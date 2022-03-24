@@ -95,6 +95,7 @@ Board Board::do_move(Move m) const {
     //this may possibly overflow only in quiescience
     //and there we don't care about half_moves
     result.half_moves_++;
+    result.plies_from_null_++;
     if (type_of(moved) == PAWN || captured != NO_PIECE)
         result.half_moves_ = 0;
 
@@ -115,6 +116,7 @@ Board Board::do_null_move() const {
     Board result = *this;
     result.side_to_move_ = ~side_to_move_;
     result.en_passant_ = SQ_NONE;
+    result.plies_from_null_ = 0;
     result.half_moves_++;
     result.update_pin_info();
 

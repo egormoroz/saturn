@@ -7,8 +7,12 @@
 #include "../tt.hpp"
 #include <algorithm>
 #include <sstream>
+#include <cstring>
+
 
 namespace {
+
+constexpr bool DO_NMP = true;
 
 bool can_return_ttscore(const TTEntry &tte, 
     int &alpha, int beta, int depth, int ply)
@@ -185,7 +189,7 @@ void SearchWorker::iterative_deepening() {
 
         nodes = stats_.nodes - before;
         ebf = static_cast<int>((nodes + prev_nodes - 1) 
-                / std::max(1ull, prev_nodes));
+                / std::max(uint64_t(1), prev_nodes));
 
         TimePoint now = timer::now(), 
               time_left = man_.start + man_.max_time - now;
@@ -226,7 +230,7 @@ int SearchWorker::aspriration_window(int score, int depth) {
 int SearchWorker::search_root(int alpha, int beta, int depth) {
     if (root_.half_moves() >= 100 
         || (!root_.checkers() && root_.is_material_draw())
-        || stack_.is_repetition(root_.key(), root_.half_moves()))
+        || stack_.is_repetition(root_))
         return 0;
 
     TTEntry tte;
@@ -304,17 +308,20 @@ int SearchWorker::search(const Board &b, int alpha,
     if (depth <= 0)
         return b.checkers() ? quiescence<true>(b, alpha, beta)
             : quiescence<false>(b, alpha, beta);
+
+    int16_t eval = evaluate(b);
     stats_.nodes++;
     if (stack_.capped())
-        return eval(b);
+        return eval;
 
     g_tt.prefetch(b.key());
     if (b.half_moves() >= 100 
         || (!b.checkers() && b.is_material_draw())
-        || stack_.is_repetition(b.key(), b.half_moves()))
+        || stack_.is_repetition(b))
         return 0;
 
     TTEntry tte;
+    bool avoid_null = false;
     Move ttm = MOVE_NONE;
     if (g_tt.probe(b.key(), tte)) {
         if (ttm = Move(tte.move16); !b.is_valid_move(ttm))
@@ -327,6 +334,30 @@ int SearchWorker::search(const Board &b, int alpha,
                 hist_.add_bonus(b, ttm, depth * depth);
             return alpha;
         }
+
+        avoid_null = tte.avoid_null;
+    }
+
+    if (DO_NMP && depth >= 3 && !b.checkers()
+        && b.plies_from_null() && !avoid_null
+        && b.has_nonpawns(b.side_to_move())
+        && eval >= beta)
+    {
+        int R = 3 + depth / 6, n_depth = depth - R - 1;
+        size_t ndx = g_tree.begin_node(MOVE_NULL, alpha, 
+                beta, n_depth, ply, NodeType::Null);
+        stack_.push(b.key(), MOVE_NULL, eval);
+
+        int score = -search(b.do_null_move(), -beta, 
+                -beta + 1, n_depth);
+
+        stack_.pop();
+        g_tree.end_node(ndx, score);
+
+        if (score >= beta)
+            return beta;
+
+        avoid_null = true;
     }
 
     if (!ttm && depth >= 5) {
@@ -357,7 +388,7 @@ int SearchWorker::search(const Board &b, int alpha,
         size_t ndx = g_tree.begin_node(m, alpha, beta, 
                 depth, ply);
         bb = b.do_move(m);
-        stack_.push(b.key(), m);
+        stack_.push(b.key(), m, eval);
 
         int score = -search(bb, -beta, -alpha, depth - 1);
 
@@ -403,7 +434,7 @@ int SearchWorker::search(const Board &b, int alpha,
     if (loop_.keep_going()) {
         g_tt.store(TTEntry(b.key(), alpha, 
             determine_bound(alpha, beta, old_alpha),
-            depth, best_move, ply, false));
+            depth, best_move, ply, avoid_null));
     }
 
     return alpha;
@@ -421,11 +452,11 @@ int SearchWorker::quiescence(const Board &b,
     check_time();
     if (!loop_.keep_going() || b.half_moves() >= 100
         || b.is_material_draw()
-        || stack_.is_repetition(b.key(), b.half_moves()))
+        || stack_.is_repetition(b))
         return 0;
 
     if (stack_.capped())
-        return eval(b);
+        return evaluate(b);
 
     stats_.nodes++;
     stats_.qnodes++;
@@ -437,9 +468,10 @@ int SearchWorker::quiescence(const Board &b,
     if (alpha >= beta)
         return alpha;
 
+    int16_t eval = 0;
     if constexpr (!with_evasions) {
-        int stand_pat = eval(b);
-        alpha = std::max(alpha, stand_pat);
+        eval = evaluate(b);
+        alpha = std::max(alpha, +eval);
         if (alpha >= beta)
             return beta;
     }
@@ -454,7 +486,7 @@ int SearchWorker::quiescence(const Board &b,
         size_t ndx = g_tree.begin_node(m, alpha, beta, 
                 0, stack_.height());
         bb = b.do_move(m);
-        stack_.push(b.key(), m);
+        stack_.push(b.key(), m, eval);
 
         //filter out perpetual checks
         bool gen_evasions = !with_evasions && bb.checkers();

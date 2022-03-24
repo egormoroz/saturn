@@ -19,11 +19,11 @@ std::ostream& operator<<(std::ostream& os, const Node &n) {
 void Tree::clear() { nodes.clear(); }
 
 size_t Tree::begin_node(Move prev, int16_t alpha, int16_t beta, 
-        uint8_t depth, uint8_t ply)
+        uint8_t depth, uint8_t ply, NodeType nt)
 {
 #ifdef TRACE
     nodes.push_back(Node{ prev, alpha, beta, 0, depth, 
-            ply, NodeType::NonTerminal, 0 });
+            ply, nt, 0 });
     return size() - 1;
 #else
     (void)(prev);
@@ -31,6 +31,7 @@ size_t Tree::begin_node(Move prev, int16_t alpha, int16_t beta,
     (void)(beta);
     (void)(depth);
     (void)(ply);
+    (void)(nt);
     return 0;
 #endif
 }

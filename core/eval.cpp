@@ -168,7 +168,7 @@ void init_ps_tables() {
     }
 }
 
-int16_t eval(const Board &b) {
+int16_t evaluate(const Board &b) {
     Color us = b.side_to_move(), them = ~us;
     int game_phase = 0;
     int16_t mg[COLOR_NB]{}, eg[COLOR_NB]{};

@@ -53,7 +53,7 @@ struct Tree {
     void clear();
 
     size_t begin_node(Move played, int16_t alpha, int16_t beta, 
-        uint8_t depth, uint8_t ply);
+        uint8_t depth, uint8_t ply, NodeType nt = NodeType::NonTerminal);
 
     void end_node(size_t node_idx, int16_t score);
 

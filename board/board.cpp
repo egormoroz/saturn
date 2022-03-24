@@ -128,7 +128,7 @@ void Board::put_piece(Piece p, Square s) {
     color_combined_[c] |= sbb;
     pieces_[pt] |= sbb;
     pieces_on_[s] = p;
-    material_[c] += mg_value[pt];
+    /* material_[c] += mg_value[pt]; */
     mat_key_ += PCKEY_INDEX[c][pt];
 
     key_ ^= ZOBRIST.psq[p][s];
@@ -146,7 +146,7 @@ void Board::remove_piece(Square s) {
     color_combined_[c] ^= sbb;
     pieces_[pt] ^= sbb;
     pieces_on_[s] = NO_PIECE;
-    material_[c] -= mg_value[pt];
+    /* material_[c] -= mg_value[pt]; */
     mat_key_ -= PCKEY_INDEX[c][pt];
 
     key_ ^= ZOBRIST.psq[p][s];
@@ -180,8 +180,7 @@ CastlingRights Board::castling() const { return castling_; }
 
 uint64_t Board::key() const { return key_; }
 uint8_t Board::half_moves() const { return half_moves_; }
-
-int16_t Board::material(Color c) const { return material_[c]; }
+uint8_t Board::plies_from_null() const { return plies_from_null_; }
 
 namespace {
     constexpr char PIECE_CHAR[PIECE_NB] = {
@@ -209,7 +208,7 @@ std::ostream& operator<<(std::ostream& os, const Board &b) {
 
     os << "\nSide to move: " << b.side_to_move();
     os << "\nCastling rights: " << b.castling();
-    os << "\nStatic evaluation: " << eval(b) << "\n";
+    os << "\nStatic evaluation: " << evaluate(b) << "\n";
 
     auto flags = os.flags();
     os << "Key: " << std::hex << b.key() << "\n";

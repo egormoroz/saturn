@@ -1,4 +1,6 @@
 #include "searchstack.hpp"
+#include "board/board.hpp"
+#include <cstring>
 
 void Stack::set_start(int start) { 
     start_ = start; 
@@ -31,13 +33,15 @@ int Stack::height() const { return height_ - start_; }
 bool Stack::capped() const { return height_ >= MAX_PLIES; }
 int Stack::total_height() const { return height_; }
 
-bool Stack::is_repetition(uint64_t key, int halfmoves) const {
+bool Stack::is_repetition(const Board &b) const {
     if (!height_)
         return false;
 
+    int halfmoves = std::min(b.half_moves(), 
+            b.plies_from_null());
     int k = std::max(0, height_ - halfmoves);
     for (int i = height_ - 2; i >= k; i -= 2)
-        if (entries_[i].key == key)
+        if (entries_[i].key == b.key())
             return true;
     return false;
 }
