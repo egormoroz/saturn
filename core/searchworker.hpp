@@ -68,4 +68,6 @@ private:
     Routine loop_;
 };
 
+void init_reduction_tables();
+
 #endif

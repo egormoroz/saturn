@@ -8,11 +8,12 @@
 #include <algorithm>
 #include <sstream>
 #include <cstring>
-
+#include <cmath>
 
 namespace {
 
 constexpr bool DO_NMP = true;
+uint8_t LMR[2][32][32];
 
 bool can_return_ttscore(const TTEntry &tte, 
     int &alpha, int beta, int depth, int ply)
@@ -41,8 +42,25 @@ Bound determine_bound(int alpha, int beta, int old_alpha) {
     return BOUND_ALPHA;
 }
 
+int lmr(bool is_quiet, int depth, int moves) {
+    return LMR[is_quiet][std::min(31, depth)]
+        [std::min(31, moves + 1)];
+}
+
 } //namespace
 
+void init_reduction_tables() {
+    for (int depth = 1; depth < 32; ++depth) {
+        for (int moves = 1; moves < 32; ++moves) {
+            LMR[0][depth][moves] = static_cast<uint8_t>(
+                log(depth) * log(moves) / 3.25
+            );
+            LMR[1][depth][moves] = static_cast<uint8_t>(
+                1.5 + log(depth) * log(moves) / 1.75
+            );
+        }
+    }
+}
 
 void RootMovePicker::reset(const Board &root){
     Move ttm = MOVE_NONE;
@@ -210,6 +228,9 @@ int SearchWorker::aspriration_window(int score, int depth) {
     int delta = 16, alpha = score - delta, 
         beta = score + delta;
     while (loop_.keep_going()) {
+        if (alpha <= -3000) alpha = -VALUE_MATE;
+        if (beta >= 3000) beta = VALUE_MATE;
+
         score = search_root(alpha, beta, depth);
 
         if (score <= alpha) {
@@ -248,12 +269,12 @@ int SearchWorker::search_root(int alpha, int beta, int depth) {
     Board bb;
     for (Move m = rmp_.next(); m != MOVE_NONE; m = rmp_.next()) {
         uint64_t nodes_before = stats_.nodes;
-        size_t ndx = g_tree.begin_node(m, alpha, beta, depth, 0);
+        size_t ndx = g_tree.begin_node(m, alpha, beta, depth - 1, 0);
         bb = root_.do_move(m);
         stack_.push(root_.key(), m);
 
         int score;
-        if (!moves_tried || depth <= 6) {
+        if (!moves_tried) {
             score = -search(bb, -beta, -alpha, depth - 1);
         } else {
             score = -search(bb, -(alpha + 1), -alpha, depth - 1);
@@ -293,6 +314,7 @@ int SearchWorker::search(const Board &b, int alpha,
         int beta, int depth) 
 {
     const int ply = stack_.height();
+    const bool pv = alpha != beta - 1;
 
     check_time();
     if (!loop_.keep_going())
@@ -310,6 +332,8 @@ int SearchWorker::search(const Board &b, int alpha,
             : quiescence<false>(b, alpha, beta);
 
     int16_t eval = evaluate(b);
+    bool improving = !b.checkers() && ply >= 2 
+        && stack_.at(ply - 2).eval < eval;
     stats_.nodes++;
     if (stack_.capped())
         return eval;
@@ -338,6 +362,11 @@ int SearchWorker::search(const Board &b, int alpha,
         avoid_null = tte.avoid_null;
     }
 
+    /* if (depth >= 4 && !ttm) */
+    /*     --depth; */
+    /* if (b.checkers()) */
+    /*     ++depth; */
+
     if (DO_NMP && depth >= 3 && !b.checkers()
         && b.plies_from_null() && !avoid_null
         && b.has_nonpawns(b.side_to_move())
@@ -361,7 +390,7 @@ int SearchWorker::search(const Board &b, int alpha,
     }
 
     if (!ttm && depth >= 5) {
-        search(b, alpha, beta, depth - 2);
+        search(b, alpha, beta, depth / 2);
         if (g_tt.probe(b.key(), tte) 
                 && !b.is_valid_move(ttm = Move(tte.move16)))
             ttm = MOVE_NONE;
@@ -378,22 +407,52 @@ int SearchWorker::search(const Board &b, int alpha,
             counters_[from_to(opp_move)],
             followup);
 
-    int best_score = -VALUE_MATE, moves_tried = 0,
-        old_alpha = alpha;
-    Move best_move = MOVE_NONE;
     Board bb;
+    auto search_move = [&](Move m, int depth, bool zw) {
+        size_t ndx = g_tree.begin_node(m, alpha, beta, 
+                depth, ply);
+        int t_beta = zw ? -(alpha + 1) : -beta;
+        int score = -search(bb, t_beta, -alpha, depth);
+        g_tree.end_node(ndx, score);
+        return score;
+    };
+
+    int best_score = -VALUE_MATE, moves_tried = 0,
+        old_alpha = alpha, score = 0;
+    Move best_move = MOVE_NONE;
     for (Move m = mp.next<false>(); m != MOVE_NONE; 
             m = mp.next<false>()) 
     {
-        size_t ndx = g_tree.begin_node(m, alpha, beta, 
-                depth, ply);
+        bool is_quiet = b.is_quiet(m);
+        int new_depth = depth - 1, r = 0;
+
+        if (depth > 2 && moves_tried > 1 + pv + !ttm) {
+            r = lmr(is_quiet, depth, moves_tried);
+            r -= pv;
+            r -= improving;
+            r -= entry.killers[0] == m || entry.killers[1] == m;
+
+            new_depth = std::clamp(new_depth - r, 1, new_depth);
+        }
+
         bb = b.do_move(m);
         stack_.push(b.key(), m, eval);
 
-        int score = -search(bb, -beta, -alpha, depth - 1);
+        //Zero-window search
+        if (!pv || moves_tried)
+            score = search_move(m, new_depth, true);
+
+        //Re-search if reduced move beats alpha
+        if (r && score > alpha) {
+            new_depth += r;
+            score = search_move(m, new_depth, true);
+        }
+
+        //(Re-)search with full window
+        if (pv && ((score > alpha && score < beta) || !moves_tried))
+            score = search_move(m, new_depth, false);
 
         stack_.pop();
-        g_tree.end_node(ndx, score);
         ++moves_tried;
 
         if (score > best_score) {
