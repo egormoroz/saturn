@@ -13,7 +13,7 @@
 namespace {
 
 constexpr bool DO_NMP = true;
-uint8_t LMR[2][32][32];
+uint8_t LMR[32][64];
 
 bool can_return_ttscore(const TTEntry &tte, 
     int &alpha, int beta, int depth, int ply)
@@ -42,24 +42,15 @@ Bound determine_bound(int alpha, int beta, int old_alpha) {
     return BOUND_ALPHA;
 }
 
-int lmr(bool is_quiet, int depth, int moves) {
-    return LMR[is_quiet][std::min(31, depth)]
-        [std::min(31, moves + 1)];
-}
-
 } //namespace
 
 void init_reduction_tables() {
-    for (int depth = 1; depth < 32; ++depth) {
-        for (int moves = 1; moves < 32; ++moves) {
-            LMR[0][depth][moves] = static_cast<uint8_t>(
-                log(depth) * log(moves) / 3.25
+    for (int depth = 1; depth < 32; ++depth)
+        for (int moves = 1; moves < 64; ++moves)
+            LMR[depth][moves] = static_cast<uint8_t>(
+                0.1 + log(depth) * log(moves) / 2
             );
-            LMR[1][depth][moves] = static_cast<uint8_t>(
-                1.5 + log(depth) * log(moves) / 1.75
-            );
-        }
-    }
+    LMR[0][0] = LMR[0][1] = LMR[1][0] = 0;
 }
 
 void RootMovePicker::reset(const Board &root){
@@ -397,15 +388,15 @@ int SearchWorker::search(const Board &b, int alpha,
     }
 
     Move opp_move = stack_.at(ply - 1).move,
-         prev = MOVE_NONE, followup = MOVE_NONE;
+         prev = MOVE_NONE, followup = MOVE_NONE,
+         counter = counters_[from_to(opp_move)];
     if (ply >= 2) {
         prev = stack_.at(ply - 2).move;
         followup = followups_[from_to(prev)];
     }
     auto &entry = stack_.at(ply);
     MovePicker mp(b, ttm, entry.killers, &hist_,
-            counters_[from_to(opp_move)],
-            followup);
+            counter, followup);
 
     Board bb;
     auto search_move = [&](Move m, int depth, bool zw) {
@@ -425,17 +416,21 @@ int SearchWorker::search(const Board &b, int alpha,
     {
         bool is_quiet = b.is_quiet(m);
         int new_depth = depth - 1, r = 0;
-
-        if (depth > 2 && moves_tried > 1 + pv + !ttm) {
-            r = lmr(is_quiet, depth, moves_tried);
-            r -= pv;
-            r -= improving;
-            r -= entry.killers[0] == m || entry.killers[1] == m;
-
-            new_depth = std::clamp(new_depth - r, 1, new_depth);
-        }
+        bool killer_or_counter = m == counter
+            || entry.killers[0] == m || entry.killers[1] == m;
 
         bb = b.do_move(m);
+
+        if (depth > 2 && moves_tried > 1 && is_quiet) {
+            if (!pv) ++r;
+            if (!improving) ++r;
+            if (killer_or_counter) r -= 2;
+            if (bb.checkers()) --r;
+
+            r = std::clamp(r, 0, new_depth - 1);
+            new_depth -= r;
+        }
+
         stack_.push(b.key(), m, eval);
 
         //Zero-window search
@@ -498,11 +493,6 @@ int SearchWorker::search(const Board &b, int alpha,
 
     return alpha;
 }
-
-/* template int SearchWorker::quiescence<true>( */
-/*         const Board &b, int alpha, int beta); */
-/* template int SearchWorker::quiescence<false>( */
-/*         const Board &b, int alpha, int beta); */
 
 template<bool with_evasions>
 int SearchWorker::quiescence(const Board &b, 
