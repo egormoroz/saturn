@@ -8,9 +8,11 @@
 struct SearchStats {
     uint64_t nodes{}, qnodes{};
     uint64_t fail_high{}, fail_high_first{};
+    int sel_depth{};
 
     void reset() {
         nodes = qnodes = fail_high = fail_high_first = 0;
+        sel_depth = 0;
     }
 };
 

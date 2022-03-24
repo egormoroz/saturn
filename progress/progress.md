@@ -69,3 +69,14 @@ bonus to quite TT move, that fails high. And yet another tiny improvement
 ## 7. Null move pruning
 Can go 1-2 plies deeper. 100 games @ 20+1.5 suggest it's 100+ elo, LOS = 100%.
 
+## 8. PVS + Late move reduction, check extension, IID -> IIR
+### 8.1 Late move reduction
+2-3 plies deeper, although that's somewhat misleading due to the nature of LMR.
+150 games @ 20 + 0.5 suggest it's 152 +/- 49.3 elo with LOS=100%.
+
+### 8.2 Check extension, IID -> IIR
+Check extension helps solving puzzles and deals with checking sequences
+that won't let us see the quiet position. Replaced IID w/ simple depth reduction
+by one ply if there is no TT move.
+620 games @ 20+0.5 -- 36.6 +/- 20.8 elo, LOS=100%
+

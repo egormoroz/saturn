@@ -13,6 +13,7 @@ public:
         uint64_t key;
         Move move;
         Move killers[2];
+        Move excluded;
         int16_t eval;
     };
 

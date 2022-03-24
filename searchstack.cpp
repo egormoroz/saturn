@@ -16,6 +16,7 @@ void Stack::push(uint64_t key, Move m, int16_t eval) {
     entries_[height_++] = { 
         key, m, 
         { MOVE_NONE, MOVE_NONE }, 
+        MOVE_NONE,
         eval 
     };
 }
