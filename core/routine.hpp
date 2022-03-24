@@ -12,6 +12,8 @@ public:
     Routine() = default;
 
     void start(std::function<void()> f) {
+        terminate_.store(false, std::memory_order_relaxed);
+        go_.store(false, std::memory_order_relaxed);
         thread_ = std::thread([this, f]() {
             while (!terminate_.load(std::memory_order_relaxed)) {
                 std::unique_lock<std::mutex> lock(mutex_);

@@ -66,4 +66,6 @@ Marginally improved quiet move ordering by adding a
 bonus to quite TT move, that fails high. And yet another tiny improvement
 - PVS at root.
 
+## 7. Null move pruning
+Can go 1-2 plies deeper. 100 games @ 20+1.5 suggest it's 100+ elo, LOS = 100%.
 
