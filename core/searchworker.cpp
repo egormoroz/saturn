@@ -325,7 +325,6 @@ int SearchWorker::search(const Board &b, int alpha,
 
     stats_.nodes++;
     stats_.sel_depth = std::max(stats_.sel_depth, ply);
-    stack_.at(ply + 1).excluded = MOVE_NONE;
 
     auto &entry = stack_.at(ply);
     g_tt.prefetch(b.key());
@@ -337,7 +336,7 @@ int SearchWorker::search(const Board &b, int alpha,
     TTEntry tte;
     bool avoid_null = false;
     Move ttm = MOVE_NONE;
-    if (!entry.excluded && g_tt.probe(b.key(), tte)) {
+    if (g_tt.probe(b.key(), tte)) {
         if (ttm = Move(tte.move16); !b.is_valid_move(ttm))
             ttm = MOVE_NONE;
         
@@ -352,11 +351,11 @@ int SearchWorker::search(const Board &b, int alpha,
         avoid_null = tte.avoid_null;
     }
 
-    int16_t eval = entry.excluded ? entry.eval : evaluate(b);
+    int16_t eval = evaluate(b);
     bool improving = !b.checkers() && ply >= 2 
         && stack_.at(ply - 2).eval < eval;
 
-    if (!entry.excluded && depth >= 4 && !ttm)
+    if (depth >= 4 && !ttm)
         --depth;
     if (b.checkers())
         ++depth;
@@ -364,8 +363,7 @@ int SearchWorker::search(const Board &b, int alpha,
     if (DO_NMP && depth >= 3 && !b.checkers()
         && b.plies_from_null() && !avoid_null
         && b.has_nonpawns(b.side_to_move())
-        && eval >= beta
-        && !entry.excluded)
+        && eval >= beta)
     {
         int R = 3 + depth / 6, n_depth = depth - R - 1;
         size_t ndx = g_tree.begin_node(MOVE_NULL, alpha, 
@@ -410,8 +408,6 @@ int SearchWorker::search(const Board &b, int alpha,
     for (Move m = mp.next<false>(); m != MOVE_NONE; 
             m = mp.next<false>()) 
     {
-        if (m == entry.excluded) continue;
-
         bool is_quiet = b.is_quiet(m);
         int new_depth = depth - 1, r = 0;
         bool killer_or_counter = m == counter
@@ -427,19 +423,6 @@ int SearchWorker::search(const Board &b, int alpha,
 
             r = std::clamp(r, 0, new_depth - 1);
             new_depth -= r;
-        }
-
-        if (depth > 7 && m == ttm && tte.depth8 >= depth - 3
-                && !entry.excluded && abs(tte.score16) < 10000 
-                && tte.bound8 == BOUND_ALPHA)
-        {
-            int threshold = tte.score16 - depth * 3 / 2;
-            entry.excluded = m;
-            score = search(b, threshold - 1, threshold, depth / 2 - 1);
-            entry.excluded = MOVE_NONE;
-
-            if (score < threshold)
-                new_depth++;
         }
 
         stack_.push(b.key(), m, eval);
@@ -496,7 +479,7 @@ int SearchWorker::search(const Board &b, int alpha,
         }
     }
 
-    if (!entry.excluded && loop_.keep_going()) {
+    if (loop_.keep_going()) {
         g_tt.store(TTEntry(b.key(), alpha, 
             determine_bound(alpha, beta, old_alpha),
             depth, best_move, ply, avoid_null));
