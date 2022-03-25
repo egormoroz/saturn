@@ -1,15 +1,4 @@
 # Progress records
-## Format
-
-The following info must be specified for each version:
-1. Test positions results (% correct, nodes, time, avg nps, avg depth)
-2. Self-play elo gain (w/ reasonable error)
-3. Previous opponents elo difference
-4. New opponents (if suitable) elo difference
-5. New elo = min(self play, other engines)
-
-## TODO
-Add tables w/ info!
 
 ## 1. Negamax
 Nothing special. Sucks because of big branching factor.
@@ -79,4 +68,15 @@ Check extension helps solving puzzles and deals with checking sequences
 that won't let us see the quiet position. Replaced IID w/ simple depth reduction
 by one ply if there is no TT move.
 620 games @ 20+0.5 -- 36.6 +/- 20.8 elo, LOS=100%
+
+## 9. Forward pruning
+### 9.1 Delta pruning
+1000 games @ 20+0.5 -- 18.8 +/- 16.1 elo, LOS 98.9%
+### 9.2 Reverse futility pruning
+174 games @ 20+0.5 -- 100.6 +/- 38 elo, LOS 100%
+### 9.3 Late move pruning
+210 games @ 20+0.5 -- 63.6 +/- 36.1 elo, LOS 100%
+
+### 9.4 Futility pruning and razoring
+Seemed to loose elo, although there was no serious testing involved.
 

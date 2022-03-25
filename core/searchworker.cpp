@@ -364,10 +364,17 @@ int SearchWorker::search(const Board &b, int alpha,
 
     if (depth >= 4 && !ttm)
         --depth;
-    if (b.checkers())
-        ++depth;
 
-    if (DO_NMP && depth >= 3 && !b.checkers()
+    if (pv || b.checkers())
+        goto move_loop; //skip pruning
+
+    //Reverse futility pruning
+    if (depth < 7 && eval - 175 * depth / (1 + improving) >= beta
+            && abs(beta) < MATE_BOUND)
+        return eval;
+
+    //Null move pruning
+    if (DO_NMP && depth >= 3
         && b.plies_from_null() && !avoid_null
         && b.has_nonpawns(b.side_to_move())
         && eval >= beta)
@@ -389,6 +396,7 @@ int SearchWorker::search(const Board &b, int alpha,
         avoid_null = true;
     }
 
+move_loop:
     Move opp_move = stack_.at(ply - 1).move,
          prev = MOVE_NONE, followup = MOVE_NONE,
          counter = counters_[from_to(opp_move)];
@@ -419,8 +427,15 @@ int SearchWorker::search(const Board &b, int alpha,
         int new_depth = depth - 1, r = 0;
         bool killer_or_counter = m == counter
             || entry.killers[0] == m || entry.killers[1] == m;
-
         bb = b.do_move(m);
+
+        if (bb.checkers() && b.see_ge(m))
+            new_depth++;
+
+        int lmp_threshold = (3 + 2 * depth * depth) / (2 - improving);
+        if (!pv && !bb.checkers() && is_quiet
+                && moves_tried > lmp_threshold) 
+            break;
 
         if (depth > 2 && moves_tried > 1 && is_quiet) {
             if (!pv) ++r;
