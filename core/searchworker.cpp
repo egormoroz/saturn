@@ -70,6 +70,10 @@ void RootMovePicker::reset(const Board &root){
     }
 }
 
+Move RootMovePicker::first() const {
+    return num_moves_ ? moves_[0].move : MOVE_NONE;
+}
+
 Move RootMovePicker::next() {
     if (cur_ >= num_moves_)
         return MOVE_NONE;
@@ -94,7 +98,6 @@ void RootMovePicker::complete_iter() {
     {
         if (x.score != y.score) return x.score > y.score;
         return x.prev_score > y.prev_score;
-        /* return x.nodes > y.nodes; */
     });
     cur_ = 0;
 }
@@ -152,7 +155,7 @@ void SearchWorker::iterative_deepening() {
     std::ostringstream ss;
 
     if (rmp_.num_moves() == 1) {
-        sync_cout() << "bestmove " << rmp_.next() << '\n';
+        sync_cout() << "bestmove " << rmp_.first() << '\n';
         return;
     }
 
@@ -160,7 +163,10 @@ void SearchWorker::iterative_deepening() {
         auto elapsed = timer::now() - limits_.start;
         uint64_t nps = stats_.nodes * 1000 / (elapsed + 1);
 
-        pv_len = g_tt.extract_pv(root_, pv, d);
+        if (pv_len = g_tt.extract_pv(root_, pv, d); !pv_len) {
+            pv_len = 1;
+            pv[0] = rmp_.first();
+        }
 
         ss.str("");
         ss.clear();
@@ -241,11 +247,6 @@ int SearchWorker::aspriration_window(int score, int depth) {
 }
 
 int SearchWorker::search_root(int alpha, int beta, int depth) {
-    if (root_.half_moves() >= 100 
-        || (!root_.checkers() && root_.is_material_draw())
-        || stack_.is_repetition(root_))
-        return 0;
-
     TTEntry tte;
     Move ttm = MOVE_NONE;
     if (g_tt.probe(root_.key(), tte)) {

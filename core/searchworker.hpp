@@ -20,6 +20,7 @@ public:
 
     void reset(const Board &root);
 
+    Move first() const;
     Move next();
     void update_last(int score, uint64_t nodes);
 
