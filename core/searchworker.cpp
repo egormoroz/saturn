@@ -42,6 +42,12 @@ Bound determine_bound(int alpha, int beta, int old_alpha) {
     return BOUND_ALPHA;
 }
 
+int16_t cap_value(const Board &b, Move m) {
+    if (type_of(m) == EN_PASSANT)
+        return mg_value[PAWN];
+    return mg_value[type_of(b.piece_on(to_sq(m)))];
+}
+
 } //namespace
 
 void init_reduction_tables() {
@@ -154,7 +160,7 @@ void SearchWorker::iterative_deepening() {
     uint64_t prev_nodes, nodes = 0;
     std::ostringstream ss;
 
-    if (rmp_.num_moves() == 1) {
+    if (rmp_.num_moves() == 1 || is_draw()) {
         sync_cout() << "bestmove " << rmp_.first() << '\n';
         return;
     }
@@ -524,6 +530,10 @@ int SearchWorker::quiescence(const Board &b,
     for (Move m = mp.next<only_tacticals>(); m != MOVE_NONE; 
             m = mp.next<only_tacticals>(), ++moves_tried)
     {
+        if (!with_evasions && type_of(m) != PROMOTION
+                && eval + cap_value(b, m) + 200 <= alpha) 
+            continue;
+
         size_t ndx = g_tree.begin_node(m, alpha, beta, 
                 0, stack_.height());
         bb = b.do_move(m);
@@ -547,5 +557,13 @@ int SearchWorker::quiescence(const Board &b,
         return stack_.mated_score();
 
     return alpha;
+}
+
+bool SearchWorker::is_draw() const {
+    if (root_.half_moves() >= 100 
+        || (!root_.checkers() && root_.is_material_draw())
+        || stack_.is_repetition(root_))
+        return true;
+    return false;
 }
 

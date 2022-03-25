@@ -54,6 +54,8 @@ private:
     template<bool with_evasions>
     int quiescence(const Board &b, int alpha, int beta);
 
+    bool is_draw() const;
+
     Board root_;
     Stack stack_;
 
