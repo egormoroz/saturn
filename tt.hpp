@@ -27,14 +27,11 @@ struct TTEntry {
         };
     };
 
-    TTEntry() = default;
-    TTEntry(uint64_t key, int score, Bound b, int depth, Move m,
-            bool avoid_null);
-};
+    int score(int ply) const;
 
-enum ProbeResult {
-    HASH_HIT,
-    HASH_MISS,
+    TTEntry() = default;
+    TTEntry(uint64_t key, int score, Bound b, int depth, 
+            Move m, int ply, bool avoid_null);
 };
 
 class TranspositionTable {
@@ -45,11 +42,12 @@ class TranspositionTable {
 public:
     TranspositionTable() = default;
 
-    void init(size_t mbs);
+    void resize(size_t mbs);
+    void clear();
 
     void new_search();
 
-    ProbeResult probe(uint64_t key, TTEntry &e) const;
+    bool probe(uint64_t key, TTEntry &e) const;
     void store(TTEntry entry);
 
     int extract_pv(Board b, Move *pv, int len);

@@ -11,7 +11,6 @@ constexpr int ENDGAME_MAT = mg_value[QUEEN] + mg_value[BISHOP];
 class Board;
 
 void init_ps_tables();
-int eval(const Board &b, int alpha = -VALUE_INFINITE, 
-        int beta = VALUE_INFINITE);
+int16_t evaluate(const Board &b);
 
 #endif

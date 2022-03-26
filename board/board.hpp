@@ -10,6 +10,8 @@ class Board {
 public:
     Board() = default;
 
+    static Board start_pos();
+
     bool load_fen(std::string_view fen);
 
     /*
@@ -36,6 +38,7 @@ public:
 
     uint64_t mat_key() const;
     bool is_material_draw() const;
+    bool has_nonpawns(Color c) const;
 
     Bitboard attackers_to(Color atk_side, Square s, Bitboard blockers) const;
     Bitboard attackers_to(Square s, Bitboard blockers) const;
@@ -44,8 +47,6 @@ public:
     Bitboard slider_blockers(Bitboard sliders, Square s,
             Bitboard &pinners, Bitboard *checkers = nullptr) const;
 
-    //so far put_piece and remove_piece are identical
-    //but that might change in the future
     void put_piece(Piece p, Square s);
     void remove_piece(Square s);
 
@@ -73,9 +74,8 @@ public:
     uint64_t key() const;
 
     //returns number of moves since last capture/pawn move
-    int fifty_rule() const;
-
-    int16_t material(Color c) const;
+    uint8_t half_moves() const;
+    uint8_t plies_from_null() const;
 
 private:
     Bitboard pieces_[PIECE_TYPE_NB];
@@ -93,9 +93,8 @@ private:
     CastlingRights castling_;
     Color side_to_move_;
     Square en_passant_;
-    int16_t material_[COLOR_NB];
-
-    int fifty_;
+    uint8_t half_moves_;
+    uint8_t plies_from_null_;
 };
 
 std::ostream& operator<<(std::ostream& os, const Board &b);

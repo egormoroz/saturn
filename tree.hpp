@@ -8,12 +8,28 @@
 #include <iosfwd>
 #include <limits>
 
+enum class NodeType : uint8_t {
+    NonTerminal,
+    Leaf,
+    NoReplies,
+
+    TTExact,
+    TTLower,
+    TTUpper,
+
+    Null,
+    Razoring,
+    Futility,
+    ReverseFutility,
+};
+
 struct Node {
-    Move prev_move;
+    Move played;
     int16_t alpha, beta;
     int16_t score;
     uint8_t depth;
     uint8_t ply;
+    NodeType ntp;
 
     uint32_t subtree_size;
 };
@@ -36,11 +52,12 @@ struct Tree {
 
     void clear();
 
-    size_t begin_node(Move prev, int16_t alpha, int16_t beta, 
-        uint8_t depth, uint8_t ply);
+    size_t begin_node(Move played, int16_t alpha, int16_t beta, 
+        uint8_t depth, uint8_t ply, NodeType nt = NodeType::NonTerminal);
 
-    void end_node(size_t node_idx, int16_t score,
-            size_t initial_size);
+    void end_node(size_t node_idx, int16_t score);
+
+    void set_last_type(NodeType ntp);
 
     size_t size() const;
 
@@ -59,9 +76,7 @@ struct Tree {
     void json(std::ostream &os, size_t parent) const;
 };
 
-#ifdef TRACE
 extern Tree g_tree;
-#endif
 
 std::ostream& operator<<(std::ostream& os, const Node &n);
 

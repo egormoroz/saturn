@@ -6,28 +6,48 @@
 
 TranspositionTable g_tt;
 
-TTEntry::TTEntry(uint64_t key, int s, 
-        Bound b, int depth, Move m, bool null) : key(key)
+int TTEntry::score(int ply) const {
+    int s = score16;
+    if (s > MATE_BOUND)
+        s -= ply;
+    else if (s < -MATE_BOUND)
+        s += ply;
+    return s;
+}
+
+TTEntry::TTEntry(uint64_t key, int s, Bound b, 
+    int depth, Move m, int ply, bool null) : key(key)
 {
     move16 = uint16_t(m);
-    score16 = int16_t(s);
     depth8 = uint8_t(depth);
     bound8 = uint8_t(b);
     avoid_null = null;
+
+    if (s > MATE_BOUND)
+        s += ply;
+    else if (s < -MATE_BOUND)
+        s -= ply;
+    score16 = int16_t(s);
 }
 
-void TranspositionTable::init(size_t mbs) {
-    assert(buckets_ == nullptr);
+void TranspositionTable::resize(size_t mbs) {
+    if (buckets_)
+        delete[] buckets_;
     size_ = mbs * 1024 * 1024 / sizeof(Bucket);
     buckets_ = new Bucket[size_];
     memset(buckets_, 0, size_ * sizeof(Bucket));
+}
+
+void TranspositionTable::clear() {
+    if (buckets_)
+        memset(buckets_, 0, size_ * sizeof(Bucket));
 }
 
 void TranspositionTable::new_search() {
     ++age_;
 }
 
-ProbeResult TranspositionTable::probe(uint64_t key, 
+bool TranspositionTable::probe(uint64_t key, 
         TTEntry &e) const 
 {
     Bucket &b = buckets_[key % size_];
@@ -35,11 +55,11 @@ ProbeResult TranspositionTable::probe(uint64_t key,
         e = b.entries[i];
         if ((e.key ^ e.data) == key) {
             e.age = age_;
-            return HASH_HIT;
+            return true;
         }
     }
 
-    return HASH_MISS;
+    return false;
 }
 
 void TranspositionTable::store(TTEntry new_entry) {
@@ -75,6 +95,7 @@ void TranspositionTable::store(TTEntry new_entry) {
     }
 
     new_entry.age = age_;
+
     replace->key = new_entry.key ^ new_entry.data;
     replace->data = new_entry.data;
 }
@@ -103,7 +124,7 @@ TranspositionTable::~TranspositionTable() {
 int TranspositionTable::extract_pv(Board b, Move *pv, int len) {
     int n = 0;
     TTEntry tte;
-    while (probe(b.key(), tte) == HASH_HIT && n < len) {
+    while (probe(b.key(), tte) && n < len) {
         Move m = Move(tte.move16);
         if (!b.is_valid_move(m))
             break;

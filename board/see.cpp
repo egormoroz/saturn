@@ -1,12 +1,13 @@
 #include "board.hpp"
 #include "../movgen/attack.hpp"
+#include "../core/eval.hpp"
 
 bool Board::see_ge(Move m, int threshold) const {
     if (type_of(m) != NORMAL)
         return threshold >= 0;
 
     auto value_on = [this](Square s) { 
-        return PIECE_VALUE[type_of(piece_on(s))];
+        return mg_value[type_of(piece_on(s))];
     };
 
     Square from = from_sq(m), to = to_sq(m);
@@ -42,33 +43,33 @@ bool Board::see_ge(Move m, int threshold) const {
         res ^= 1;
 
         if ((bb = stm_attackers & pieces(PAWN))) {
-            if ((balance = PAWN_VALUE - balance) < res)
+            if ((balance = mg_value[PAWN] - balance) < res)
                 break;
 
             occupied ^= lss_bb(bb);
             attackers |= attacks_bb<BISHOP>(to, occupied)
                 & pieces(BISHOP, QUEEN);
         } else if ((bb = stm_attackers & pieces(KNIGHT))) {
-            if ((balance = KNIGHT_VALUE - balance) < res)
+            if ((balance = mg_value[KNIGHT] - balance) < res)
                 break;
 
             occupied ^= lss_bb(bb);
         } else if ((bb = stm_attackers & pieces(BISHOP))) {
-            if ((balance = BISHOP_VALUE - balance) < res)
+            if ((balance = mg_value[BISHOP] - balance) < res)
                 break;
 
             occupied ^= lss_bb(bb);
             attackers |= attacks_bb<BISHOP>(to, occupied)
                 & pieces(BISHOP, QUEEN);
         } else if ((bb = stm_attackers & pieces(ROOK))) {
-            if ((balance = ROOK_VALUE - balance) < res)
+            if ((balance = mg_value[ROOK] - balance) < res)
                 break;
 
             occupied ^= lss_bb(bb);
             attackers |= attacks_bb<ROOK>(to, occupied)
                 & pieces(ROOK, QUEEN);
         } else if ((bb = stm_attackers & pieces(QUEEN))) {
-            if ((balance = QUEEN_VALUE - balance) < res)
+            if ((balance = mg_value[QUEEN] - balance) < res)
                 break;
 
             occupied ^= lss_bb(bb);

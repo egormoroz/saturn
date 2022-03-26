@@ -1,68 +1,69 @@
 #ifndef MOVEPICKER_HPP
 #define MOVEPICKER_HPP
 
-#include "primitives/common.hpp"
 #include "movgen/generate.hpp"
-#include <array>
+
+enum class Stage {
+    TT_MOVE = 0,
+
+    INIT_TACTICAL,
+    GOOD_TACTICAL,
+
+    KILLER_1,
+    KILLER_2,
+
+    COUNTER_MOVE,
+    FOLLOW_UP,
+
+    BAD_TACTICAL,
+
+    INIT_NONTACTICAL,
+    NON_TACTICAL,
+};
 
 class Board;
 
-enum Stage {
-    HASH,
-    INIT_CAPTURES,
-    GOOD_CAPTURES,
-    PICK_KILLERS1,
-    PICK_KILLERS2,
-    PICK_COUNTERS,
-    BAD_CAPTURES,
-    INIT_QUIETS,
-    PICK_QUIETS
+struct Histories {
+    std::array<std::array<int16_t, SQUARE_NB>, PIECE_NB> main;
+
+    void reset();
+    void add_bonus(const Board &b, Move m, int16_t bonus);
 };
-
-template<size_t N, size_t M>
-using Stats = std::array<std::array<Move, M>, N>;
-
-//using Killers = std::array<std::array<Move, MAX_DEPTH>, 2>;
-using Killers = Stats<2, MAX_DEPTH>;
-using CounterMoves = Stats<SQUARE_NB, SQUARE_NB>;
-using HistoryHeuristic = std::array<std::array<
-        std::array<uint16_t, SQUARE_NB>, SQUARE_NB>, COLOR_NB>;
 
 class MovePicker {
 public:
-    //usual search
-    MovePicker(const Board &b, Move ttm, int ply, Move prev,
-            const Killers &killers, const CounterMoves &counters,
-            const HistoryHeuristic &history);
-    //quiescence search
-    MovePicker(const Board &b);
+    MovePicker(const Board &board, Move ttm,
+        const Move *killers = nullptr,
+        const Histories *histories = nullptr,
+        Move counter = MOVE_NONE,
+        Move followup = MOVE_NONE);
+    //for quiescence
+    MovePicker(const Board &board);
 
+    template<bool qmoves>
     Move next();
-    Move qnext();
 
     Stage stage() const;
 
 private:
-    void score_captures();
-    void score_quiets();
+    void score_tactical();
+    void score_nontactical();
 
-    template<typename Pred>
-    Move select(Pred filter);
+    struct AnyMove {
+        bool operator()() const { return true; }
+    };
 
-    const Board &b_;
-    Move ttm_;
-    Stage stage_;
+    template<typename F = AnyMove>
+    Move select(F &&filter = AnyMove());
 
-    int ply_;
-    Move prev_{MOVE_NONE};
-    const Killers *killers_{};
-    const CounterMoves *counters_{};
-    const HistoryHeuristic *history_{};
-
+    const Board &board_;
     ExtMove moves_[MAX_MOVES];
-    ExtMove *cur_{}, *end_{}, *end_bad_caps_{};
+    ExtMove *cur_{}, *end_bad_caps_{}, *end_{};
 
-    Move excluded_[3];
+    Move ttm_{}, counter_{}, followup_{};
+    std::array<Move, 2> killers_;
+    const Histories *hist_{};
+    Stage stage_;
 };
 
 #endif

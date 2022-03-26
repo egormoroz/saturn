@@ -22,6 +22,16 @@ constexpr uint64_t pckey_v = pckey_v<p> | pckey_v<pcs...>;
 template<Piece p>
 constexpr uint64_t pckey_v<p> = PCKEY_INDEX[int(color_of(p))][type_of(p)];
 
+Board Board::start_pos() {
+    Board board;
+    bool b = board.load_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+
+    assert(b);
+    board.validate();
+
+    return board;
+}
+
 void Board::update_pin_info() {
     //could be cheaper, because we look up sliders 3(!) times
     Color us = side_to_move_, them = ~us;
@@ -53,6 +63,10 @@ bool Board::is_material_draw() const {
         return true;
     };
     return false;
+}
+
+bool Board::has_nonpawns(Color c) const {
+    return pieces(c) & ~pieces(c, PAWN, KING);
 }
 
 Bitboard Board::attackers_to(Color c, Square s, Bitboard blockers) const {
@@ -114,7 +128,7 @@ void Board::put_piece(Piece p, Square s) {
     color_combined_[c] |= sbb;
     pieces_[pt] |= sbb;
     pieces_on_[s] = p;
-    material_[c] += mg_value[pt];
+    /* material_[c] += mg_value[pt]; */
     mat_key_ += PCKEY_INDEX[c][pt];
 
     key_ ^= ZOBRIST.psq[p][s];
@@ -132,7 +146,7 @@ void Board::remove_piece(Square s) {
     color_combined_[c] ^= sbb;
     pieces_[pt] ^= sbb;
     pieces_on_[s] = NO_PIECE;
-    material_[c] -= mg_value[pt];
+    /* material_[c] -= mg_value[pt]; */
     mat_key_ -= PCKEY_INDEX[c][pt];
 
     key_ ^= ZOBRIST.psq[p][s];
@@ -165,9 +179,8 @@ Square Board::en_passant() const { return en_passant_; }
 CastlingRights Board::castling() const { return castling_; }
 
 uint64_t Board::key() const { return key_; }
-int Board::fifty_rule() const { return fifty_; }
-
-int16_t Board::material(Color c) const { return material_[c]; }
+uint8_t Board::half_moves() const { return half_moves_; }
+uint8_t Board::plies_from_null() const { return plies_from_null_; }
 
 namespace {
     constexpr char PIECE_CHAR[PIECE_NB] = {
@@ -195,7 +208,7 @@ std::ostream& operator<<(std::ostream& os, const Board &b) {
 
     os << "\nSide to move: " << b.side_to_move();
     os << "\nCastling rights: " << b.castling();
-    os << "\nStatic evaluation: " << eval(b) << "\n";
+    os << "\nStatic evaluation: " << evaluate(b) << "\n";
 
     auto flags = os.flags();
     os << "Key: " << std::hex << b.key() << "\n";

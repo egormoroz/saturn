@@ -1,6 +1,9 @@
 #include "movepicker.hpp"
 #include "board/board.hpp"
-#include "movgen/generate.hpp"
+#include <algorithm>
+#include <cstring>
+
+namespace {
 
 void insertion_sort(ExtMove *begin, ExtMove *end) {
     for (ExtMove *p = begin + 1; p < end; ++p) {
@@ -11,26 +14,7 @@ void insertion_sort(ExtMove *begin, ExtMove *end) {
     }
 }
 
-MovePicker::MovePicker(const Board &b, Move ttm, int ply, 
-        Move prev, const Killers &killers, const CounterMoves &counters,
-        const HistoryHeuristic &history)
-    : b_(b), ttm_(ttm), ply_(ply), prev_(prev), killers_(&killers), 
-      counters_(&counters), history_(&history)
-{
-    stage_ = ttm != MOVE_NONE ? Stage::HASH 
-        : INIT_CAPTURES;
-    excluded_[0] = MOVE_NONE;
-    excluded_[1] = MOVE_NONE;
-    excluded_[2] = MOVE_NONE;
-}
-
-MovePicker::MovePicker(const Board &b)
-    : b_(b), ttm_(MOVE_NONE), stage_(Stage::INIT_CAPTURES),
-      ply_(0)  
-{
-}
-
-constexpr int MVV_LVA[PIECE_TYPE_NB][PIECE_TYPE_NB] = {
+constexpr int16_t MVV_LVA[PIECE_TYPE_NB][PIECE_TYPE_NB] = {
     { 0,  0,  1,  1,  2,  3, 0 }, //noncapture promotions
     { 0,  7,  6,  6,  5,  4, 0 }, //?xPawn
     { 0, 11, 10, 10,  9,  8, 0 }, //?xKnight
@@ -40,144 +24,174 @@ constexpr int MVV_LVA[PIECE_TYPE_NB][PIECE_TYPE_NB] = {
     { 0,  0,  0,  0,  0,  0, 0 }, //?xKing - not used
 };
 
-void MovePicker::score_captures() {
-    ExtMove *ttm = nullptr;
-    for (auto it = cur_; it != end_; ++it) {
-        PieceType victim = type_of(b_.piece_on(to_sq(*it))),
-                  attacker = type_of(b_.piece_on(from_sq(*it)));
-        if (victim == NO_PIECE_TYPE)
-            victim = prom_type(*it);
-        if (*it == ttm_)
-            ttm = it;
+//http://www.talkchess.com/forum3/viewtopic.php?t=66312
+//This one is huuge
+constexpr int16_t SortingTypes[PIECE_TYPE_NB] = {0, 10, 8, 8, 4, 3, 1};
 
-        it->value = MVV_LVA[victim][attacker];
-    }
+constexpr int16_t SortingTable[SQUARE_NB] = {
+    0, 0, 0, 0, 0, 0, 0, 0,
+    1, 2, 2, 2, 2, 2, 2, 1,
+    1, 2, 4, 4, 4, 4, 2, 1,
+    1, 2, 4, 6, 6, 4, 2, 1,
+    1, 2, 4, 6, 6, 4, 2, 1,
+    1, 2, 4, 4, 4, 4, 2, 1,
+    1, 2, 2, 2, 2, 2, 2, 1,
+    0, 0, 0, 0, 0, 0, 0, 0,
+};
 
-    if (cur_ != end_ && ttm)
-        *ttm = *cur_++;
 }
 
-void MovePicker::score_quiets() {
-    Color us = b_.side_to_move();
-    for (auto it = cur_; it != end_; ++it) {
-        Square from = from_sq(*it), to = to_sq(*it);
-        it->value = 2 * (*history_)[us][from][to];
+void Histories::reset() {
+    memset(main.data(), 0, sizeof(main));
+}
+
+void Histories::add_bonus(const Board &b, Move m, int16_t bonus) {
+    Square from = from_sq(m), to = to_sq(m);
+    Piece p = b.piece_on(from);
+
+    int16_t &entry = main[p][to];
+    entry += 32 * bonus - entry * abs(bonus) / 512;
+}
+
+MovePicker::MovePicker(const Board &board, Move ttm,
+        const Move *killers, const Histories *histories,
+        Move counter, Move followup)
+    : board_(board), ttm_(ttm), counter_(counter), 
+      followup_(followup), hist_(histories),
+      stage_(ttm ? Stage::TT_MOVE : Stage::INIT_TACTICAL)
+{
+    if (killers) {
+        killers_[0] = killers[0];
+        killers_[1] = killers[1];
     }
 }
 
+MovePicker::MovePicker(const Board &board)
+    : board_(board), stage_(Stage::INIT_TACTICAL)
+{}
+
+template Move MovePicker::next<true>();
+template Move MovePicker::next<false>();
+
+template<bool qmoves>
 Move MovePicker::next() {
     Move m;
-
     switch (stage_) {
-    case Stage::HASH:
-        stage_ = Stage(stage_ + 1);
+    case Stage::TT_MOVE:
+        stage_ = Stage::INIT_TACTICAL;
         return ttm_;
-    case Stage::INIT_CAPTURES:
-        stage_ = Stage(stage_ + 1);
-        cur_ = moves_;
-        end_ = generate<CAPTURES>(b_, moves_);
-        end_bad_caps_ = end_;
-        score_captures();
+    case Stage::INIT_TACTICAL:
+        stage_ = Stage::GOOD_TACTICAL;
+        end_bad_caps_ = cur_ = moves_;
+        end_ = generate<TACTICAL>(board_, cur_);
+        score_tactical();
         insertion_sort(cur_, end_);
 
         [[fallthrough]];
-
-    case Stage::GOOD_CAPTURES:
-        if ((m = select([this]() { 
-            if (type_of(*cur_) != NORMAL || b_.see_ge(*cur_))
-                return true;
+    case Stage::GOOD_TACTICAL:
+        m = select([this]() {
+            if (board_.see_ge(*cur_)) return true;
             *end_bad_caps_++ = *cur_;
             return false;
-        })) != MOVE_NONE) 
-            return m;
-        stage_ = Stage(stage_ + 1);
-
-        [[fallthrough]];
-    case Stage::PICK_KILLERS1:
-        stage_ = Stage(stage_ + 1);
-        m = (*killers_)[0][ply_];
-        if (m != ttm_ && b_.is_valid_move(m)) {
-            excluded_[0] = m;
-            return m;
-        }
-
-        [[fallthrough]];
-    case Stage::PICK_KILLERS2:
-        stage_ = Stage(stage_ + 1);
-        m = (*killers_)[1][ply_];
-        if (m != ttm_ && b_.is_valid_move(m)) {
-            excluded_[1] = m;
-            return m;
-        }
-
-        [[fallthrough]];
-    case Stage::PICK_COUNTERS:
-        stage_ = Stage(stage_ + 1);
-        m = (*counters_)[from_sq(prev_)][to_sq(prev_)];
-        if (m != ttm_ && m != excluded_[0] && m != excluded_[1] 
-                && b_.is_valid_move(m)) 
-        {
-            excluded_[2] = m;
-            return m;
-        }
-
-        end_ = end_bad_caps_;
-        [[fallthrough]];
-
-    case Stage::BAD_CAPTURES:
-        if ((m = select([]() { return true; })) != MOVE_NONE)
-            return m;
-        stage_ = Stage(stage_ + 1);
-        [[fallthrough]];
-
-    case Stage::INIT_QUIETS:
-        stage_ = Stage(stage_ + 1);
-        cur_ = moves_;
-        end_ = generate<QUIET>(b_, moves_);
-        score_quiets();
-        insertion_sort(cur_, end_);
-
-        [[fallthrough]];
-    case Stage::PICK_QUIETS:
-        return select([this]() { 
-            return *cur_ != ttm_ 
-                && *cur_ != excluded_[0]
-                && *cur_ != excluded_[1]
-                && *cur_ != excluded_[2];
         });
+        if (m != MOVE_NONE) return m;
 
-    default:
-        //unreachable
-        return MOVE_NONE;
-    };
-}
+        if constexpr (qmoves)
+            return MOVE_NONE;
+        stage_ = Stage::KILLER_1;
 
-Move MovePicker::qnext() {
-    switch (stage_) {
-    case Stage::INIT_CAPTURES:
-        stage_ = Stage(stage_ + 1);
+        [[fallthrough]];
+    case Stage::KILLER_1:
+        stage_ = Stage::KILLER_2;
+        if (killers_[0] != ttm_ && 
+                board_.is_valid_move(killers_[0]))
+            return killers_[0];
+        [[fallthrough]];
+
+    case Stage::KILLER_2:
+        stage_ = Stage::COUNTER_MOVE;
+        if (killers_[1] != ttm_ && 
+                board_.is_valid_move(killers_[1]))
+            return killers_[1];
+        [[fallthrough]];
+
+    case Stage::COUNTER_MOVE:
+        stage_ = Stage::FOLLOW_UP;
+        if (counter_ != ttm_ 
+            && counter_ != killers_[0] 
+            && counter_ != killers_[1]
+            && board_.is_valid_move(counter_))
+            return counter_;
+        [[fallthrough]];
+
+    case Stage::FOLLOW_UP:
+        stage_ = Stage::BAD_TACTICAL;
         cur_ = moves_;
-        end_ = generate<CAPTURES>(b_, moves_);
-        score_captures();
+        end_ = end_bad_caps_;
+        if (followup_ != ttm_
+            && followup_ != killers_[0]
+            && followup_ != killers_[1]
+            && followup_ != counter_
+            && board_.is_valid_move(followup_))
+            return followup_;
+        [[fallthrough]];
+
+    case Stage::BAD_TACTICAL:
+        if ((m = select()) != MOVE_NONE)
+            return m;
+
+        stage_ = Stage::INIT_NONTACTICAL;
+        [[fallthrough]];
+    case Stage::INIT_NONTACTICAL:
+        stage_ = Stage::NON_TACTICAL;
+        cur_ = moves_;
+        end_ = generate<NON_TACTICAL>(board_, cur_);
+        score_nontactical();
         insertion_sort(cur_, end_);
 
         [[fallthrough]];
+    case Stage::NON_TACTICAL:
+        return select([this]() {
+            return *cur_ != killers_[0]
+                && *cur_ != killers_[1]
+                && *cur_ != counter_
+                && *cur_ != followup_;
+        });
+    };
 
-    case Stage::GOOD_CAPTURES:
-        return select([]() { return true; });
-
-    default:
-        //unreachable
-        return MOVE_NONE;
-    }
+    //unreachable
+    return MOVE_NONE;
 }
+
 
 Stage MovePicker::stage() const { return stage_; }
 
-template<typename Pred>
-Move MovePicker::select(Pred filter) {
+void MovePicker::score_tactical() {
+    for (auto it = cur_; it != end_; ++it) {
+        PieceType victim = type_of(board_.piece_on(to_sq(*it))),
+                  attacker = type_of(board_.piece_on(from_sq(*it)));
+        if (victim == NO_PIECE_TYPE)
+            victim = prom_type(*it);
+
+        it->value = MVV_LVA[victim][attacker];
+    }
+}
+
+void MovePicker::score_nontactical() {
+    for (auto it = cur_; it != end_; ++it) {
+        Square from = from_sq(*it), to = to_sq(*it);
+        Piece p = board_.piece_on(from);
+        int16_t k = SortingTypes[type_of(p)];
+        it->value = k * (SortingTable[to] - SortingTable[from]);
+        if (hist_)
+            it->value += hist_->main[p][to];
+    }
+}
+
+template<typename F>
+Move MovePicker::select(F &&filter) {
     for (; cur_ != end_; ++cur_) {
-        if (filter())
+        if (*cur_ != ttm_ && filter())
             return *cur_++;
     }
 

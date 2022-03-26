@@ -41,7 +41,7 @@ ExtMove* pawn_legals(const Board &b, ExtMove *moves) {
     Color us = b.side_to_move(), them = ~us;
     Square ksq = b.king_square(us);
     Bitboard our_pawns = b.pieces(us, PAWN);
-    if (!(T & CAPTURES))
+    if (!(T & TACTICAL))
         our_pawns &= ~relative_rank_bb(us, RANK_7);
 
     Bitboard my_r3 = relative_rank_bb(us, RANK_3),
@@ -61,22 +61,22 @@ ExtMove* pawn_legals(const Board &b, ExtMove *moves) {
         Square from = pop_lsb(pawns);
 
         Bitboard dsts = pawn_pushes_bb(us, from) & ~b.pieces();
-        if (!(T & QUIET))
+        if (!(T & NON_TACTICAL))
             dsts &= my_r8;
-        if (T & QUIET) {
+        if (T & NON_TACTICAL) {
             Bitboard bb = (my_r3 & b.pieces()) & ~square_bb(from);
             bb = (bb << 8) | (bb >> 8);
             dsts &= ~bb;
         }
 
-        if (T & CAPTURES)
+        if (T & TACTICAL)
             dsts |= pawn_attacks_bb(us, from) & b.pieces(them);
 
         if (IN_CHECK)
             dsts &= check_mask;
 
         Bitboard bb = dsts & my_r8;
-        while ((T & CAPTURES) && bb)
+        while ((T & TACTICAL) && bb)
             moves = make_proms(from, pop_lsb(bb), moves);
 
         bb = dsts & ~my_r8;
@@ -90,20 +90,20 @@ ExtMove* pawn_legals(const Board &b, ExtMove *moves) {
             Square from = pop_lsb(pawns);
 
             Bitboard dsts = 0;
-            if (T & QUIET) {
+            if (T & NON_TACTICAL) {
                 dsts |= pawn_pushes_bb(us, from) & ~b.pieces();
                 Bitboard bb = (my_r3 & b.pieces()) & ~square_bb(from);
                 bb = (bb << 8) | (bb >> 8);
                 dsts &= ~bb;
             }
 
-            if (T & CAPTURES)
+            if (T & TACTICAL)
                 dsts |= pawn_attacks_bb(us, from) & b.pieces(them);
 
             dsts &= line_bb(ksq, from);
             
             Bitboard bb = dsts & my_r8;
-            while ((T & CAPTURES) && bb)
+            while ((T & TACTICAL) && bb)
                 moves = make_proms(from, pop_lsb(bb), moves);
 
             bb = dsts & ~my_r8;
@@ -114,7 +114,7 @@ ExtMove* pawn_legals(const Board &b, ExtMove *moves) {
 
     //branchy boiii
     Square ep = b.en_passant();
-    if ((T & CAPTURES) && ep != SQ_NONE) {
+    if ((T & TACTICAL) && ep != SQ_NONE) {
         Square to = ep;
         Bitboard rbb = relative_rank_bb(us, RANK_5),
             fbb = adjacent_files_bb(file_of(to));
@@ -143,9 +143,9 @@ ExtMove* knight_legals(const Board &b, ExtMove *moves) {
     Square ksq = b.king_square(us);
 
     Bitboard mask = 0;
-    if (T & CAPTURES)
+    if (T & TACTICAL)
         mask |= b.pieces(them);
-    if (T & QUIET)
+    if (T & NON_TACTICAL)
         mask |= ~b.pieces();
     if (IN_CHECK)
         mask &= between_bb(ksq, lsb(b.checkers()))
@@ -178,9 +178,9 @@ ExtMove* slider_legals(const Board &b, ExtMove *moves) {
     Bitboard pinned = b.blockers_for_king(us);
 
     Bitboard mask = 0;
-    if (T & CAPTURES)
+    if (T & TACTICAL)
         mask |= b.pieces(them);
-    if (T & QUIET)
+    if (T & NON_TACTICAL)
         mask |= ~b.pieces();
     if (IN_CHECK)
         mask &= between_bb(ksq, lsb(b.checkers()))
@@ -229,9 +229,9 @@ ExtMove* king_legals(const Board &b, ExtMove *moves) {
     Square from = b.king_square(us);
 
     Bitboard mask = 0;
-    if (T & CAPTURES)
+    if (T & TACTICAL)
         mask |= b.pieces(them);
-    if (T & QUIET)
+    if (T & NON_TACTICAL)
         mask |= ~b.pieces();
 
     Bitboard bb = attacks_bb<KING>(from) & mask;
@@ -243,7 +243,7 @@ ExtMove* king_legals(const Board &b, ExtMove *moves) {
 
     if (IN_CHECK)
         return moves;
-    if (!(T & QUIET))
+    if (!(T & NON_TACTICAL))
         return moves;
 
     CastlingRights cr = b.castling();
@@ -269,8 +269,8 @@ ExtMove* king_legals(const Board &b, ExtMove *moves) {
 
 } //namespace
 
-template ExtMove* generate<CAPTURES>(const Board&, ExtMove*);
-template ExtMove* generate<QUIET>(const Board&, ExtMove*);
+template ExtMove* generate<TACTICAL>(const Board&, ExtMove*);
+template ExtMove* generate<NON_TACTICAL>(const Board&, ExtMove*);
 template ExtMove* generate<LEGAL>(const Board&, ExtMove*);
 
 template<GenType T>
