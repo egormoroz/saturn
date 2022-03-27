@@ -80,11 +80,12 @@ by one ply if there is no TT move.
 ### 9.4 Futility pruning and razoring
 Seemed to loose elo, although there was no serious testing involved.
 
-## 10.1 History heuristic improvements
+## 10. History improvement and LMR fix
+### 10.1 History heuristic improvements
 Switched [Piece, To] -> [Color, From, To] + added penalty for quiet moves
 that failed to cause a cutoff. 1000 games @ 20+0.5 -- 32.4 +/- 16.3 elo, LOS 100%
 
-## 10.2 LMR Fix
+### 10.2 LMR Fix
 Accidentaly removed main LMR reduction, and all this time
 only adjacements were applied. Returning it resulted in elo gain.
 1000 games @ 20+0.5 -- 73.3 +/- 16.2, LOS: 100.0 %
