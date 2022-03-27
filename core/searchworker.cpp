@@ -417,6 +417,8 @@ move_loop:
         return score;
     };
 
+    std::array<Move, 64> quiets;
+    int num_quiets{};
     int best_score = -VALUE_MATE, moves_tried = 0,
         old_alpha = alpha, score = 0;
     Move best_move = MOVE_NONE;
@@ -471,6 +473,9 @@ move_loop:
             best_move = m;
         }
 
+        if (b.is_quiet(m) && num_quiets < 64)
+            quiets[num_quiets++] = m;
+
         if (score > alpha)
             alpha = score;
         if (score >= beta)
@@ -487,13 +492,14 @@ move_loop:
         alpha = beta;
         stats_.fail_high++;
         stats_.fail_high_first += moves_tried == 1;
+        hist_.update(b, best_move, depth, 
+                quiets.data(), num_quiets);
         if (b.is_quiet(best_move)) {
             if (entry.killers[0] != best_move) {
                 entry.killers[1] = entry.killers[0];
                 entry.killers[0] = best_move;
             }
 
-            hist_.add_bonus(b, best_move, depth * depth);
             counters_[from_to(opp_move)] = best_move;
 
             if (prev)

@@ -24,10 +24,16 @@ enum class Stage {
 class Board;
 
 struct Histories {
-    std::array<std::array<int16_t, SQUARE_NB>, PIECE_NB> main;
+    std::array<
+        std::array<
+            std::array<int16_t, SQUARE_NB>, 
+            SQUARE_NB>,
+        COLOR_NB> main;
 
     void reset();
     void add_bonus(const Board &b, Move m, int16_t bonus);
+    void update(const Board &b, Move bm, int depth,
+            const Move *quiets, int nq);
 };
 
 class MovePicker {

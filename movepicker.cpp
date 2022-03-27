@@ -49,9 +49,23 @@ void Histories::add_bonus(const Board &b, Move m, int16_t bonus) {
     Square from = from_sq(m), to = to_sq(m);
     Piece p = b.piece_on(from);
 
-    int16_t &entry = main[p][to];
+    int16_t &entry = main[color_of(p)][from][to];
     entry += 32 * bonus - entry * abs(bonus) / 512;
 }
+
+void Histories::update(const Board &b, Move bm, 
+        int depth, const Move *quiets, int nq)
+{
+    int inc = std::min(depth * depth, 576);
+    bool quiet = b.is_quiet(bm);
+    if (quiet) {
+        add_bonus(b, bm, inc);
+
+        for (int i = 0; i < nq - 1; ++i)
+            add_bonus(b, quiets[i], -inc);
+    }
+}
+
 
 MovePicker::MovePicker(const Board &board, Move ttm,
         const Move *killers, const Histories *histories,
@@ -184,7 +198,7 @@ void MovePicker::score_nontactical() {
         int16_t k = SortingTypes[type_of(p)];
         it->value = k * (SortingTable[to] - SortingTable[from]);
         if (hist_)
-            it->value += hist_->main[p][to];
+            it->value += hist_->main[color_of(p)][from][to];
     }
 }
 
