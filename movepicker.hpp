@@ -34,6 +34,8 @@ struct Histories {
     void add_bonus(const Board &b, Move m, int16_t bonus);
     void update(const Board &b, Move bm, int depth,
             const Move *quiets, int nq);
+
+    int16_t get_score(const Board &b, Move m) const;
 };
 
 class MovePicker {

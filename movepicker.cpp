@@ -66,6 +66,12 @@ void Histories::update(const Board &b, Move bm,
     }
 }
 
+int16_t Histories::get_score(const Board &b, Move m) const {
+    Square from = from_sq(m), to = to_sq(m);
+    Piece p = b.piece_on(from);
+    return main[color_of(p)][from][to];
+}
+
 
 MovePicker::MovePicker(const Board &board, Move ttm,
         const Move *killers, const Histories *histories,

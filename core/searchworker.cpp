@@ -440,10 +440,13 @@ move_loop:
             break;
 
         if (depth > 2 && moves_tried > 1 && is_quiet) {
+            r = LMR[std::min(31, depth)][std::min(63, moves_tried)];
             if (!pv) ++r;
             if (!improving) ++r;
             if (killer_or_counter) r -= 2;
             if (bb.checkers()) --r;
+
+            r -= hist_.get_score(b, m) / 8192;
 
             r = std::clamp(r, 0, new_depth - 1);
             new_depth -= r;
