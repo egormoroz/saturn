@@ -8,7 +8,7 @@ Passes all mate2 tests. Absence of quiescence search hurts a lot as well...
 In the starting position the effective branching factor (EBF)
 got from ~20 to ~10 (20 -> 428 -> 4438 -> 44802 -> 
 334973 -> 3073695 -> 19273822 @ ~6mnps).
-This is huge, especially considering the fact
+This is a huge gain, especially considering the fact
 that we now do some extra work (quiescence search).
 Quiescence search handles checks, now it is possible to find
 forced checkmate in N in fewer than N depth, and overall thanks
@@ -87,6 +87,6 @@ that failed to cause a cutoff. 1000 games @ 20+0.5 -- 32.4 +/- 16.3 elo, LOS 100
 
 ### 10.2 LMR Fix
 Accidentaly removed main LMR reduction, and all this time
-only adjacements were applied. Returning it resulted in elo gain.
+only adjustments were applied. Returning it resulted in elo gain.
 1000 games @ 20+0.5 -- 73.3 +/- 16.2, LOS: 100.0 %
 
