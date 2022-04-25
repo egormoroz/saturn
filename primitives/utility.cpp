@@ -113,6 +113,20 @@ Move move_from_str(const Board &b, std::string_view sv) {
     return b.is_valid_move(m) ? m : MOVE_NONE;
 }
 
+File file_from_ch(char ch) {
+    ch = to_lower(ch);
+    if (ch >= 'a' && ch <= 'h')
+        return File(ch - 'a');
+    return FILE_NONE;
+}
+
+Rank rank_from_ch(char ch) {
+    ch = to_lower(ch);
+    if (ch >= '1' && ch <= '8')
+        return Rank(ch - '1');
+    return RANK_NONE;
+}
+
 std::ostream& operator<<(std::ostream& os, Square s) {
     if (!is_ok(s)) {
         os << "SQ_NONE";

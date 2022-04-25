@@ -58,6 +58,7 @@ private:
     Board board_;
     Stack st_;
     SearchWorker search_;
+    StateInfo si_;
 };
 
 int enter_cli(int argc, char **argv);

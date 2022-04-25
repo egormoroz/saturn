@@ -1,10 +1,15 @@
-#include "cli.hpp"
-#include "primitives/utility.hpp"
+#include <thread>
+#include <fstream>
 #include <algorithm>
 #include <cstring>
 #include <sstream>
+#include "learn/evalbook.hpp"
+
+#include "cli.hpp"
+#include "primitives/utility.hpp"
 #include "tree.hpp"
 #include "tt.hpp"
+#include "nnue/evaluate.hpp"
 
 namespace {
 
@@ -105,12 +110,14 @@ std::istream& operator>>(std::istream& is, UciOption &opt) {
     return is;
 }
 
-UCIContext::UCIContext() {
+UCIContext::UCIContext() : board_(&si_) {
     options_["hash"] = UciSpin { 4, 1024, 128 };
 }
 
 void UCIContext::enter_loop() {
-    board_ = Board::start_pos();
+    board_ = Board::start_pos(&si_);
+    nnue::refresh_accumulator(board_, si_.acc, WHITE);
+    nnue::refresh_accumulator(board_, si_.acc, BLACK);
     st_.reset();
 
     std::string s, cmd;
@@ -149,7 +156,7 @@ void UCIContext::parse_position(std::istream &is) {
         bool result = board_.load_fen(fen);
         assert(result);
     } else if (s == "startpos") {
-        board_ = Board::start_pos();
+        board_ = Board::start_pos(&si_);
         is >> s; //consume "moves"
     } else {
         return;
@@ -163,7 +170,7 @@ void UCIContext::parse_position(std::istream &is) {
         if (m == MOVE_NONE)
             break;
         st_.push(board_.key(), m);
-        board_ = board_.do_move(m);
+        board_ = board_.do_move(m, &si_);
     }
     st_.set_start(st_.height());
 }
@@ -234,6 +241,22 @@ void UCIContext::print_info() {
 }
 
 int enter_cli(int argc, char **argv) {
+    if (argc >= 2) {
+        if (!_strcmpi(argv[1], "evalbook")) {
+            if (argc != 7) {
+                printf("usage: evalbook <book_file> <output_file> "
+                    "<depth> <time> <threads>\n");
+                return 1;
+            }
+
+            return eval_book(argv[2], argv[3], atoi(argv[4]), 
+                    atoi(argv[5]), atoi(argv[6]));
+        }
+
+        printf("invalid command line arguments\n");
+        return 1;
+    }
+
     (void)(argc);
     (void)(argv);
 

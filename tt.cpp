@@ -124,11 +124,12 @@ TranspositionTable::~TranspositionTable() {
 int TranspositionTable::extract_pv(Board b, Move *pv, int len) {
     int n = 0;
     TTEntry tte;
+    StateInfo si;
     while (probe(b.key(), tte) && n < len) {
         Move m = Move(tte.move16);
         if (!b.is_valid_move(m))
             break;
-        b = b.do_move(m);
+        b = b.do_move(m, &si);
         *pv++ = m;
         ++n;
     }

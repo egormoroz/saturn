@@ -1,12 +1,15 @@
 #ifndef SEARCHWORKER_HPP
 #define SEARCHWORKER_HPP
 
+#include <memory>
+
 #include "../primitives/common.hpp"
 #include "../searchstack.hpp"
 #include "../board/board.hpp"
 #include "search_common.hpp"
 #include "routine.hpp"
 #include "../movepicker.hpp"
+#include "../evalcache.hpp"
 
 struct RootMove {
     Move move;
@@ -37,6 +40,8 @@ class SearchWorker {
 public:
     SearchWorker();
 
+    void set_silent(bool s);
+
     void go(const Board &root, const Stack &st,
             const SearchLimits &limits);
 
@@ -56,6 +61,9 @@ private:
 
     bool is_draw() const;
 
+    int16_t evaluate(const Board &b);
+
+    StateInfo root_si_;
     Board root_;
     Stack stack_;
 
@@ -69,6 +77,9 @@ private:
     SearchStats stats_;
 
     Routine loop_;
+
+    std::unique_ptr<EvalCache> ev_cache_;
+    bool silent_ = false;
 };
 
 void init_reduction_tables();

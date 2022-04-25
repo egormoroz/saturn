@@ -22,8 +22,12 @@ constexpr uint64_t pckey_v = pckey_v<p> | pckey_v<pcs...>;
 template<Piece p>
 constexpr uint64_t pckey_v<p> = PCKEY_INDEX[int(color_of(p))][type_of(p)];
 
-Board Board::start_pos() {
-    Board board;
+Board::Board(StateInfo *si)
+    : si_(si) {}
+
+
+Board Board::start_pos(StateInfo *si) {
+    Board board(si);
     bool b = board.load_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
 
     assert(b);
@@ -31,6 +35,9 @@ Board Board::start_pos() {
 
     return board;
 }
+
+void Board::set_stateinfo(StateInfo *si) { si_ = si; }
+StateInfo* Board::get_stateinfo() const { return si_; }
 
 void Board::update_pin_info() {
     //could be cheaper, because we look up sliders 3(!) times
@@ -214,6 +221,10 @@ std::ostream& operator<<(std::ostream& os, const Board &b) {
     os << "Key: " << std::hex << b.key() << "\n";
     os << "Material draw: " << std::boolalpha << b.is_material_draw() << "\n";
     os.flags(flags);
+
+    char buf[128];
+    b.get_fen(buf);
+    os << "Fen: " << buf << '\n';
 
     os << "Checkers: ";
     Bitboard bb = b.checkers();

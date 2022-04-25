@@ -5,14 +5,22 @@
 #include "../primitives/bitboard.hpp"
 #include <string_view>
 #include <iosfwd>
+#include "../nnue/nnue_state.hpp"
 
 class Board {
 public:
-    Board() = default;
+    Board(StateInfo *si);
 
-    static Board start_pos();
+    static Board start_pos(StateInfo *si);
 
+    char* get_fen(char *buffer) const;
     bool load_fen(std::string_view fen);
+
+    Move parse_lan(std::string_view lan) const;
+    Move parse_san(std::string_view san) const;
+
+    void set_stateinfo(StateInfo *si);
+    StateInfo* get_stateinfo() const;
 
     /*
      * Check that the board contains valid information
@@ -20,8 +28,8 @@ public:
      * */
     void validate() const;
 
-    Board do_move(Move m) const;
-    Board do_null_move() const;
+    Board do_move(Move m, StateInfo *newst) const;
+    Board do_null_move(StateInfo *newst) const;
 
     /*
      * Used for:
@@ -93,8 +101,12 @@ private:
     CastlingRights castling_;
     Color side_to_move_;
     Square en_passant_;
+
     uint8_t half_moves_;
     uint8_t plies_from_null_;
+    uint8_t full_moves_;
+
+    StateInfo *si_;
 };
 
 std::ostream& operator<<(std::ostream& os, const Board &b);

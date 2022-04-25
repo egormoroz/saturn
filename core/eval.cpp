@@ -198,6 +198,7 @@ int16_t evaluate(const Board &b) {
     int mg_phase = game_phase;
     if (mg_phase > 24) mg_phase = 24;
     int eg_phase = 24 - mg_phase;
+
     return (mg_score * mg_phase + eg_score * eg_phase) / 24;
 }
 
