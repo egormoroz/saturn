@@ -1,51 +1,47 @@
-#include <fstream>
-#include <string_view>
-#include <deque>
-#include <thread>
-#include <mutex>
-#include <condition_variable>
-#include <cstring>
-#include <string>
-#include <charconv>
-
 #include "evalbook.hpp"
+
+#include <cstdint>
+#include <fstream>
+#include <string>
+#include <iostream>
+#include <iomanip>
+#include <vector>
+#include <deque>
+#include <array>
+#include <cstring>
+
+#include "../board/board.hpp"
 #include "../core/searchworker.hpp"
-#include "../cli.hpp"
 #include "../tt.hpp"
+#include "../movgen/generate.hpp"
+#include "../cli.hpp"
 
-struct FenBatch {
-    void push(std::string_view line) {
-        int outcome;
-        auto [ptr, ec] = std::from_chars(
-            line.data(), line.data() + line.length(), outcome);
+struct Position {
+    char fen[128];
+    int16_t score;
+    int8_t outcome;
+    bool filtered_out;
+};
 
-        if (ec != std::errc()) {
-            sync_cout() << "you fool " << line;
-            std::abort();
-        }
-        ++ptr;
+using std::string;
+using std::endl;
+using std::cerr;
+using std::quoted;
 
-        size_t len = line.length() - (ptr - line.data());
-        std::string_view fen(ptr, len);
+bool filter_out_pos(const Board &b, const TTEntry &tte) {
+    Move m = Move(tte.move16);
+    if (abs(tte.score16) >= 6666
+        || b.is_material_draw()
+        || !b.is_valid_move(m)
+        || !b.is_quiet(m))
+        return true;
+    return false;
+}
 
-        memcpy(end, fen.data(), fen.length());
-        end += fen.length();
-        *end++ = 0;
-        outcomes[n_fens] = outcome;
-        lens[n_fens++] = fen.length();
-    }
-
-    bool full() const {
-        return n_fens == 64;
-    }
-
-    int n_fens = 0;
-    size_t lens[64];
-    char buffer[8192];
-    char* end = buffer;
-
-    int8_t outcomes[64];
-    int16_t scores[64];
+constexpr int BATCH_SIZE = 64;
+struct Batch {
+    std::array<Position, BATCH_SIZE> pos;
+    int n = 0;
 };
 
 int eval_book(
@@ -55,120 +51,144 @@ int eval_book(
 {
     std::ifstream fin(book_file);
     if (!fin.is_open()) {
-        printf("failed to open book file\n");
+        cerr << "failed to open book file " 
+            << quoted(book_file) << endl;
         return 1;
     }
 
     std::mutex fout_mutex;
-    int fens_done = 0;
-    TimePoint start = timer::now();
     std::ofstream fout(output_file);
     if (!fout.is_open()) {
-        printf("failed to open output file\n");
+        cerr << "failed to create output book file " 
+            << quoted(output_file) << endl;
         return 1;
     }
 
-    Stack dummy_stack;
-    std::deque<FenBatch> fen_queue;
-    std::mutex queue_mutex;
-    std::condition_variable cv;
-    bool working = true;
+    TimePoint start = timer::now();
+    int64_t fens_done = 0;
+    bool done = false;
+    std::condition_variable batch_ready_cv;
+    std::mutex q_mutex;
+    std::deque<Batch> batches;
 
     auto eval_routine = [&]() {
-        SearchWorker worker;
-        worker.set_silent(true);
         StateInfo si;
         Board board(&si);
-        TTEntry tte;
+        SearchWorker search;
+        search.set_silent(true);
         SearchLimits limits;
         limits.max_depth = depth;
         limits.move_time = time;
-        limits.infinite = false;
 
+        ExtMove move_buf[MAX_MOVES];
+
+        TTEntry tte;
         while (true) {
-            std::unique_lock<std::mutex> lock(queue_mutex);
-            cv.wait(lock, [&]() {
-                return !working || !fen_queue.empty();
+            std::unique_lock<std::mutex> lock(q_mutex);
+            batch_ready_cv.wait(lock, [&]() {
+                return done || batches.size();
             });
 
-            if (fen_queue.empty()) break;
-
-            FenBatch batch = fen_queue.front();
-            fen_queue.pop_front();
+            if (batches.empty()) break;
+            Batch b = batches.front();
+            batches.pop_front();
             lock.unlock();
 
-            const char *ptr = batch.buffer;
-            for (int i = 0; i < batch.n_fens; ++i) {
-                std::string_view fen(ptr, batch.lens[i]);
-                if (!board.load_fen(fen)) {
-                    sync_cout() << "[ error ] invalid fen: "
-                        << fen << ", aborting\n";
-                    std::abort();
+            for (int i = 0; i < b.n; ++i) {
+                Position &pos = b.pos[i];
+                if (!board.load_fen(pos.fen)) {
+                    sync_cout() << "invalid fen \""
+                        << pos.fen << "\", skipping...\n";
+                    pos.filtered_out = true;
+                    continue;
                 }
 
-                //do {
-                    limits.start = timer::now();
-                    worker.go(board, dummy_stack, limits);
-                    worker.wait_for_completion();
-                //} while (!g_tt.probe(board.key(), tte));
-                assert(g_tt.probe(board.key(), tte));
-                batch.scores[i] = tte.score16;
+                //no legal moves
+                if (generate<LEGAL>(board, move_buf) == move_buf) {
+                    pos.filtered_out = true;
+                    continue;
+                }
 
-                ptr += fen.length() + 1;
+                limits.start = timer::now();
+                search.go(board, limits);
+                search.wait_for_completion();
+
+                if (!g_tt.probe(board.key(), tte)) {
+                    sync_cout() << "failed to probe result"
+                        << " from tt, skipping\n";
+                    pos.filtered_out = true;
+                    continue;
+                }
+
+                pos.score = tte.score16;
+                pos.filtered_out = filter_out_pos(board, tte);
             }
 
             std::lock_guard<std::mutex> fout_lock(fout_mutex);
-            ptr = batch.buffer;
-            for (int i = 0; i < batch.n_fens; ++i) {
-                std::string_view fen(ptr, batch.lens[i]);
-                fout << batch.scores[i] << ' ' 
-                     << (int)batch.outcomes[i] << ' '
-                     << fen << '\n';
-                ptr += fen.length() + 1;
+            for (int i = 0; i < b.n; ++i) {
+                const Position &pos = b.pos[i];
+                if (pos.filtered_out)  continue;
+                fout << pos.score << ' ' 
+                     << int(pos.outcome) << ' '
+                     << pos.fen << '\n';
+                ++fens_done;
             }
 
-            fens_done += batch.n_fens;
-            TimePoint elapsed = timer::now() - start;
-            int fens_per_sec = fens_done 
-                / (elapsed / 1000 + 1);
-
+            int64_t fens_per_sec = fens_done * 1000 
+                / (timer::now() - start);
             sync_cout() << fens_done << ", " << fens_per_sec
-                << " fens/s\n";
+                << " fens/s" << '\n';
         }
     };
 
     std::vector<std::thread> threads;
-    threads.reserve(nb_threads);
     for (int i = 0; i < nb_threads; ++i)
         threads.emplace_back(eval_routine);
 
     std::string line;
-    FenBatch batch;
-    while (std::getline(fin, line)) {
-        batch.push(line);
+    line.reserve(256);
 
-        if (!batch.full())  continue;
+    Batch b;
 
-        {
-            std::lock_guard<std::mutex> lock(queue_mutex);
-            fen_queue.push_back(batch);
+    int outcome;
+    while (fin >> outcome) {
+        //consume whitespace
+        if (!std::getline(fin, line)) {
+            cerr << "unexpected eof" << endl;
+            return 1;
         }
+        std::string_view fen(line);
+        fen = fen.substr(1);
 
-        cv.notify_one();
-        batch.n_fens = 0;
-        batch.end = batch.buffer;
+        Position &pos = b.pos[b.n++];
+        pos.outcome = static_cast<int8_t>(outcome);
+
+        memcpy(pos.fen, fen.data(), fen.length());
+        pos.fen[fen.length()] = 0;
+
+        if (b.n >= BATCH_SIZE) {
+            std::unique_lock<std::mutex> q_lock(q_mutex);
+            while (batches.size() >= 64) {
+                q_lock.unlock();
+                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                q_lock.lock();
+            }
+            batches.push_back(b);
+
+            q_lock.unlock();
+            batch_ready_cv.notify_one();
+            b.n = 0;
+        }
     }
 
-    if (batch.n_fens) {
-        {
-            std::lock_guard<std::mutex> lock(queue_mutex);
-            fen_queue.push_back(batch);
-            working = false;
-        }
-
-        cv.notify_one();
+    {
+        std::lock_guard<std::mutex> lock(q_mutex);
+        if (b.n)
+            batches.push_back(b);
+        done = true;
     }
 
+    batch_ready_cv.notify_all();
     for (auto &th: threads)
         th.join();
 

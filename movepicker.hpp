@@ -69,7 +69,7 @@ private:
     ExtMove *cur_{}, *end_bad_caps_{}, *end_{};
 
     Move ttm_{}, counter_{}, followup_{};
-    std::array<Move, 2> killers_;
+    std::array<Move, 2> killers_{};
     const Histories *hist_{};
     Stage stage_;
 };

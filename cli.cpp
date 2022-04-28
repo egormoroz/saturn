@@ -194,7 +194,8 @@ void UCIContext::parse_go(std::istream &is) {
             && !limits.move_time)
         limits.infinite = true;
 
-    search_.go(board_, st_, limits);
+    search_.go(board_, limits,
+            st_.total_height() ? &st_ : nullptr);
 }
 
 void UCIContext::parse_setopt(std::istream &is) {

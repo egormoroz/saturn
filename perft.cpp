@@ -29,16 +29,12 @@ uint64_t perft(const Board &b, int depth) {
     ExtMove begin[MAX_MOVES], *end;
     end = generate<LEGAL>(b, begin);
 
-    if (depth == 0)
-        return 1;
     if (depth == 1)
         return end - begin;
 
     uint64_t n = 0;
     StateInfo si;
     for (auto it = begin; it != end; ++it) {
-        if (!b.is_valid_move(*it))
-            return 0;
         n += perft(b.do_move(*it, &si), depth - 1);
     }
 

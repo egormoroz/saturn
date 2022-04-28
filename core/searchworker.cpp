@@ -123,14 +123,14 @@ void SearchWorker::set_silent(bool s) {
     silent_ = s;
 }
 
-void SearchWorker::go(const Board &root, const Stack &st, 
-        const SearchLimits &limits)
+void SearchWorker::go(const Board &root,  
+        const SearchLimits &limits,
+        const Stack *st)
 {
     loop_.pause();
     loop_.wait_for_completion();
 
     root_ = root;
-    stack_ = st;
     limits_ = limits;
     man_.start = limits.start;
     man_.max_time = limits_.move_time;
@@ -138,12 +138,17 @@ void SearchWorker::go(const Board &root, const Stack &st,
     rmp_.reset(root_);
     hist_.reset();
 
+    if (st)
+        stack_ = *st;
+    else
+        stack_.reset();
+
     root_.set_stateinfo(&root_si_);
     root_si_.previous = nullptr;
     nnue::refresh_accumulator(root_, root_si_.acc, WHITE);
     nnue::refresh_accumulator(root_, root_si_.acc, BLACK);
 
-    man_.init(limits, root.side_to_move(), st.total_height());
+    man_.init(limits, root.side_to_move(), stack_.total_height());
 
     memset(counters_.data(), 0, sizeof(counters_));
     memset(followups_.data(), 0, sizeof(followups_));

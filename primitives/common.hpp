@@ -2,7 +2,7 @@
 #define PRIMITIVES_COMMON_HPP
 
 #include <cstdint>
-#undef NDEBUG
+//#undef NDEBUG
 #include <cassert>
 
 /*---------Square, file and rank definitions---------*/

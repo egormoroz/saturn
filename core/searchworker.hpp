@@ -42,8 +42,8 @@ public:
 
     void set_silent(bool s);
 
-    void go(const Board &root, const Stack &st,
-            const SearchLimits &limits);
+    void go(const Board &root, const SearchLimits &limits,
+            const Stack *st = nullptr);
 
     void stop();
     void wait_for_completion();
