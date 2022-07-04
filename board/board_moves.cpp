@@ -181,7 +181,8 @@ bool Board::is_valid_move(Move m) const {
         case EN_PASSANT:
         {
             if (en_passant() != SQ_NONE)
-                dsts = square_bb(en_passant());
+                dsts = square_bb(en_passant())
+                    & pawn_attacks_bb(us, from);
             Bitboard cap_bb = square_bb(make_square(
                         file_of(to), rank_of(from)));
             occupied ^= cap_bb;
