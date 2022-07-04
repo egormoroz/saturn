@@ -13,6 +13,7 @@ The progress information is located in progress/progress.md
 
 ## Building using cmake
 Requires C++17 and popcnt intrisincs.
+Go into source folder.
 ```
 mkdir build
 cd build
@@ -20,7 +21,6 @@ cmake ../
 ```
 Then either:
 ```
-cd build
 cmake --build .
 ```
 or go to the build folder and open the generated visual studio solution.
