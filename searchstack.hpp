@@ -6,7 +6,7 @@
 
 class Board;
 
-constexpr int MAX_PLIES = 512;
+constexpr int MAX_PLIES = 1024;
 class Stack {
 public:
     struct Entry {
