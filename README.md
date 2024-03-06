@@ -1,6 +1,5 @@
 ## About
-This is a uci chess engine, currently estimated to be around 3000 elo w/ the latest NNUE version at fast time control. The version with a simple PSQT eval is 2706 elo at CCRL at the time of writing.
-The selfplay training data, nets and so on are coming soon on a separate repo.
+This is a uci chess engine, currently estimated to be around 3000 elo w/ the latest NNUE version at fast time control. The version with a simple PSQT eval is 2706 elo at CCRL at the time of writing. NNNUE weights and selfplay data can be found [here](https://huggingface.co/hrtdind).
 
 ## TODO
 - Refactor this utter mess, add comments and such.
