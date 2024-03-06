@@ -1,15 +1,18 @@
-#include <thread>
-#include <fstream>
 #include <algorithm>
-#include <cstring>
 #include <sstream>
-#include "learn/evalbook.hpp"
+#include <cctype>
 
 #include "cli.hpp"
 #include "primitives/utility.hpp"
 #include "tree.hpp"
 #include "tt.hpp"
 #include "nnue/evaluate.hpp"
+#include "scout.hpp"
+
+#include "selfplay.hpp"
+#include "pack.hpp"
+
+#include "perft.hpp"
 
 namespace {
 
@@ -77,41 +80,10 @@ void tree_walker() {
 
 } //namespace
 
-std::ostream& operator<<(std::ostream &os, const UciSpin &spin) {
-    return os << spin.value << " min " 
-        << spin.min << " max " << spin.max;
-}
-
-std::istream& operator>>(std::istream &is, UciSpin &spin) {
-    int64_t value;
-    is >> value;
-    spin.value = std::clamp(value, spin.min, spin.max);
-    return is;
-}
-
-std::ostream& operator<<(std::ostream &os, const UciOption &opt) {
-    auto flags = os.flags();
-
-    os << std::boolalpha;
-    std::visit([&os](auto &&arg) { os << arg; }, opt);
-
-    os.flags(flags);
-
-    return os;
-}
-
-std::istream& operator>>(std::istream& is, UciOption &opt) {
-    auto flags = is.flags();
-    is >> std::boolalpha;
-
-    std::visit([&is](auto &&arg) { is >> arg; }, opt);
-
-    is.flags(flags);
-    return is;
-}
-
-UCIContext::UCIContext() : board_(&si_) {
-    options_["hash"] = UciSpin { 4, 1024, 128 };
+UCIContext::UCIContext()
+    : board_(&si_)
+{
+    cfg_.multipv = defopts::MULTIPV;
 }
 
 void UCIContext::enter_loop() {
@@ -173,6 +145,7 @@ void UCIContext::parse_position(std::istream &is) {
         board_ = board_.do_move(m, &si_);
     }
     st_.set_start(st_.height());
+    si_.reset();
 }
 
 void UCIContext::parse_go(std::istream &is) {
@@ -188,82 +161,253 @@ void UCIContext::parse_go(std::istream &is) {
         else if (token == "movetime") is >> limits.move_time;
         else if (token == "infinite") limits.infinite = true;
         else if (token == "depth") is >> limits.max_depth;
+        else if (token == "nodes") is >> limits.max_nodes;
+        else if (token == "perft") {
+            parse_go_perft(is);
+            return;
+        }
     }
 
     if (!limits.time[WHITE] && !limits.time[BLACK]
             && !limits.move_time)
         limits.infinite = true;
 
-    search_.go(board_, limits,
+    search_.go(board_, limits, cfg_,
             st_.total_height() ? &st_ : nullptr);
 }
 
-void UCIContext::parse_setopt(std::istream &is) {
-    std::string name, op;
-    is >> name >> name >> op;
-    std::transform(name.begin(), name.end(), name.begin(),
-        [](char ch) { return std::tolower(ch); });
-    if (auto it = options_.find(name); it != options_.end()) {
-        is >> it->second;
-        update_option(name, op, it->second);
-    }
+void UCIContext::parse_go_perft(std::istream &is) {
+    int depth = 1;
+    if ((is >> depth) && depth < 1)
+        return;
+
+    auto start = timer::now();
+    uint64_t nodes = perft(board_, depth);
+    auto delta = timer::now() - start;
+
+    // (nodes / (delta_ms / 1000) / 1'000'000
+    uint64_t mnps = nodes / (delta * 1'000);
+
+    sync_cout() << nodes << " nodes @ " << mnps << " mn/s\n";
 }
 
-void UCIContext::update_option(std::string_view name, 
-        std::string_view op, const UciOption &opt)
-{
+void UCIContext::parse_setopt(std::istream &is) {
+    std::string name, t;
+    is >> t >> name;
+
+    if (t != "name") return;
+
+    std::transform(name.begin(), name.end(), name.begin(),
+        [](char ch) { return std::tolower(ch); });
+
+    auto inrange = [](int x, int a, int b) { return x >= a && x <= b; };
+
+    namespace d = defopts;
+
     if (name == "hash") {
-        if (op == "value") {
-            if (auto spin = std::get_if<UciSpin>(&opt); spin 
-                    && spin->value >= spin->min
-                    && spin->value <= spin->max) 
-            {
-                search_.stop();
-                search_.wait_for_completion();
-                g_tt.resize(spin->value);
-            }
-        } else if (op == "clear") {
-            g_tt.clear();
+        if (is >> t; t != "value")
+            return;
+        int value = -1;
+        if (is >> value && inrange(value, d::TT_SIZE_MIN, d::TT_SIZE_MAX)) {
+            search_.stop();
+            search_.wait_for_completion();
+            g_tt.resize(value);
         }
+    } else if (name == "clear") {
+        if (is >> t; t != "hash")
+            return;
+        g_tt.clear();
+    } else if (name == "multipv") {
+        if (is >> t; t != "value")
+            return;
+        int value = -1;
+        if (is >> value && inrange(value, d::MULTIPV_MIN, d::MULTIPV_MAX))
+            cfg_.multipv = value;
+    } else if (name == "evalfile") {
+        if (is >> t; t != "value")
+            return;
+        if (!std::getline(is, t))
+            return;
+
+        const char* path = t.c_str();
+        while (*path && std::isspace(*path))
+            ++path;
+
+        if (nnue::load_parameters(path)) {
+            printf("NNUE initialized from file %s\n", path);
+            nnue::refresh_accumulator(board_, si_.acc, WHITE);
+            nnue::refresh_accumulator(board_, si_.acc, BLACK);
+        } else {
+            printf("Failed to initialize NNUE from file %s\n", path);
+        }
+    } else if (name == "aspdelta") {
+        if (is >> t; t != "value")
+            return;
+        int value = -1;
+        if (is >> value && inrange(value, d::ASP_INIT_MIN, d::ASP_INIT_MAX))
+            cfg_.asp_init_delta = value;
+    } else if (name == "aspmindepth") {
+        if (is >> t; t != "value")
+            return;
+        int value = -1;
+        if (is >> value && inrange(value, d::ASP_MIN_DEPTH_MIN, d::ASP_MIN_DEPTH_MAX))
+            cfg_.asp_min_depth = value;
     }
 }
 
 void UCIContext::print_info() {
     sync_cout() << "id name saturn\nid author asdf\n";
 
-    static const char *opt_type[] = { "check", "spin", "string" };
-    for (auto &[name, opt]: options_) {
-        sync_cout() << "option name " << name
-            << " type " << opt_type[opt.index()]
-            << " default " << opt << '\n';
-    }
+    char buf[1024];
 
+    snprintf(buf, sizeof(buf), 
+            "option name Hash type spin default %d min %d max %d\n"
+            "option name clear hash type button\n"
+            "option name multipv type spin default %d min %d max %d\n"
+            "option name aspdelta type spin default %d min %d max %d\n"
+            "option name aspmindepth type spin default %d min %d max %d\n"
+            "option name evalfile type string default %s\n",
+            defopts::TT_SIZE, defopts::TT_SIZE_MIN, defopts::TT_SIZE_MAX,
+            defopts::MULTIPV, defopts::MULTIPV_MIN, defopts::MULTIPV_MAX,
+            defopts::ASP_INIT_DELTA, defopts::ASP_INIT_MIN, defopts::ASP_INIT_MAX,
+            defopts::ASP_MIN_DEPTH, defopts::ASP_MIN_DEPTH_MIN, defopts::ASP_MIN_DEPTH_MAX,
+            defopts::NNUE_PATH
+    );
+
+    sync_cout() << buf;
     sync_cout() << "uciok\n";
 }
 
 int enter_cli(int argc, char **argv) {
-    if (argc >= 2) {
-        if (!_strcmpi(argv[1], "evalbook")) {
-            if (argc != 7) {
-                printf("usage: evalbook <book_file> <output_file> "
-                    "<depth> <time> <threads>\n");
-                return 1;
-            }
+    if (argc < 2) {
+        (void)(argc);
+        (void)(argv);
 
-            return eval_book(argv[2], argv[3], atoi(argv[4]), 
-                    atoi(argv[5]), atoi(argv[6]));
-        }
+        UCIContext uci;
+        uci.enter_loop();
 
-        printf("invalid command line arguments\n");
-        return 1;
+        return 0;
     }
 
-    (void)(argc);
-    (void)(argv);
+    if (!strcmp(argv[1], "selfplay")) {
+        if (argc != 9) {
+            printf("usage: selfplay <out_name> <num_pos> <min_depth> "
+                   "<move_time> <n_psv> <max_ld_moves> <n_threads>\n");
+            return 1;
+        }
+        
+        const char *out_name = argv[2];
+        int num_pos = atol(argv[3]);
+        int min_depth = atol(argv[4]);
+        int move_time = atol(argv[5]);
+        int n_pv = atol(argv[6]);
+        int max_ld_moves = atol(argv[7]);
+        int n_threads = atol(argv[8]);
 
-    UCIContext uci;
-    uci.enter_loop();
+        selfplay(out_name, min_depth, move_time, num_pos, 
+                n_pv, max_ld_moves, n_threads);
 
-    return 0;
+        return 0;
+    } else if (!strcmp(argv[1], "packval")) {
+        if (argc < 3 || argc % 2 != 0) {
+            printf("usage: packval <games_file_1> <games_hashfile_1>...\n");
+            return 1;
+        }
+
+        int pass = 0;
+        for (int i = 2; i < argc; i += 2) {
+            printf("%d. %s\t%s\n", i / 2, argv[i], argv[i + 1]);
+            if (!validate_packed_games(argv[i], argv[i + 1])) {
+                printf("..FAIL\n");
+            } else {
+                printf("..PASS\n");
+                ++pass;
+            }
+        }
+
+        int total = argc / 2 - 1;
+        printf("%d pass, %d fail, %d total\n", pass, total-pass, total);
+
+        return 0;
+    } else if (!strcmp(argv[1], "packmerge")) {
+        if (argc < 5) {
+            printf("usage: packmerge <fout_bin> <fout_hash> <n_files> "
+                   "<fbin1> <fhash1>...\n");
+            return 1;
+        }
+
+        const char *fout_games = argv[2];
+        const char *fout_hash = argv[3];
+        int n_files = atol(argv[4]);
+
+        if (argc != n_files * 2 + 5) {
+            printf("not enough files provided\n");
+            printf("usage: packmerge <fout_bin> <fout_hash> <n_files> "
+                   "<fbin1> <fhash1>...\n");
+            return 1;
+        }
+
+        std::vector<const char*> fgames(n_files), fhashes(n_files);
+        for (int i = 0; i < n_files; ++i) {
+            fgames[i] = argv[5 + 2*i];
+            fhashes[i] = argv[5 + 2*i + 1];
+        }
+
+        merge_packed_games(fgames.data(), fhashes.data(),
+                n_files, fout_games, fout_hash);
+
+        if (validate_packed_games(fout_games, fout_hash))
+            printf("merge is valid\n");
+        else
+            printf("[!] merge is invalid\n");
+
+        return 0;
+    } else if (!strcmp(argv[1], "repack")) {
+        if (argc != 4) {
+            printf("usage: repack <old_pack_file> <new_pack_file>\n");
+            return 1;
+        }
+
+        repack_games(argv[2], argv[3]);
+
+        return 0;
+    } else if (!strcmp(argv[1], "packtest")) {
+        // check that the binpack is at least readable...
+        if (argc != 3) {
+            printf("usage: packtest <pack_file>\n");
+            return 1;
+        }
+
+        if (validate_packed_games(argv[2]))
+            printf("looks good\n");
+        else
+            printf("something aint right\n");
+        return 0;
+    } else if (!strcmp(argv[1], "packrecover")) {
+        if (argc != 4) {
+            printf("usage: packrecover <pack_in> <name_out>\n");
+            return 1;
+        }
+
+        std::string name_out = argv[3];
+        int n = recover_pack(argv[2], (name_out + ".bin").c_str(), (name_out + ".hash").c_str());
+        printf("recovered %d positions\n", n);
+        return 0;
+    } else if (!strcmp(argv[1], "packindex")) {
+        if (argc != 4) {
+            printf("usage: packindex <pack_fin> <index_fout>\n");
+            return 1;
+        }
+
+        if (!create_index(argv[2], argv[3])) {
+            printf("something went wrong, make sure the pack is valid\n");
+            return 1;
+        }
+
+        return 0;
+    }
+
+    printf("invalid command line arguments\n");
+    return 1;
 }
 

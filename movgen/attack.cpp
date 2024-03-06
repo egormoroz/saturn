@@ -12,56 +12,9 @@ Bitboard PAWN_PUSHES[COLOR_NB][SQUARE_NB];
 Bitboard LINE[SQUARE_NB][SQUARE_NB];
 Bitboard BETWEEN[SQUARE_NB][SQUARE_NB];
 
-
-/* size_t Magic::rook_index(Bitboard blockers) const { */
-/*     uint64_t index = (blockers & mask) * factor; */
-/*     return (index >> (64 - 12)) + offset; */
-/* } */
-
-/* size_t Magic::bishop_index(Bitboard blockers) const { */
-/*     uint64_t index = (blockers & mask) * factor; */
-/*     return (index >> (64 - 9)) + offset; */
-/* } */
-
 } //namespace attack_tables
 
 namespace atta = attack_tables;
-
-/* Bitboard attacks_bb(PieceType pt, Square sq, Bitboard blockers) { */
-/*     assert(pt > PAWN && pt <= KING && is_ok(sq)); */
-/*     switch (pt) { */
-/*     case BISHOP: */
-/*         return attacks_bb<BISHOP>(sq, blockers); */
-/*     case ROOK: */
-/*         return attacks_bb<ROOK>(sq, blockers); */
-/*     case QUEEN: */
-/*         return attacks_bb<QUEEN>(sq, blockers); */
-/*     default: //KING */
-/*         return attacks_bb<KING>(sq);; */
-/*     }; */
-/* } */
-
-/* Bitboard pawn_attacks_bb(Color c, Square sq) { */
-/*     assert(is_ok(c) && is_ok(sq)); */
-/*     return atta::PAWN_ATTACKS[c][sq]; */
-
-/* } */
-
-/* Bitboard pawn_pushes_bb(Color c, Square sq) { */
-/*     assert(is_ok(c) && is_ok(sq)); */
-/*     return atta::PAWN_PUSHES[c][sq]; */
-/* } */
-
-/* Bitboard line_bb(Square s1, Square s2) { */
-/*     assert(is_ok(s1) && is_ok(s2)); */
-/*     return atta::LINE[s1][s2]; */
-/* } */
-
-/* Bitboard between_bb(Square s1, Square s2) { */
-/*     assert(is_ok(s1) && is_ok(s2)); */
-/*     return atta::BETWEEN[s1][s2]; */
-/* } */
-
 
 class Dir {
 public:

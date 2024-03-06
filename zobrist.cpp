@@ -11,7 +11,7 @@ void init_zobrist() {
         for (Square s = SQ_A1; s <= SQ_H8; ++s)
             ZOBRIST.psq[p][s] = dist(rng);
 
-    for (CastlingRights cr = NO_CASTLING; cr <= CASTLING_RIGHTS_NB; 
+    for (CastlingRights cr = NO_CASTLING; cr < CASTLING_RIGHTS_NB; 
             cr = CastlingRights(cr + 1))
         ZOBRIST.castling[cr] = dist(rng);
 

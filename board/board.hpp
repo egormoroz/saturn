@@ -13,11 +13,13 @@ public:
 
     static Board start_pos(StateInfo *si);
 
+    [[nodiscard]] bool setup(Bitboard mask, const Piece *pieces, Color stm, 
+            CastlingRights cr, Square en_passant);
+
     char* get_fen(char *buffer) const;
     bool load_fen(std::string_view fen);
 
     Move parse_lan(std::string_view lan) const;
-    Move parse_san(std::string_view san) const;
 
     void set_stateinfo(StateInfo *si);
     StateInfo* get_stateinfo() const;
@@ -26,7 +28,7 @@ public:
      * Check that the board contains valid information
      * and everyting is synchronized
      * */
-    void validate() const;
+    [[nodiscard]] bool is_valid() const;
 
     Board do_move(Move m, StateInfo *newst) const;
     Board do_null_move(StateInfo *newst) const;

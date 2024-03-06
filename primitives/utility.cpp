@@ -1,7 +1,8 @@
 #include "utility.hpp"
-#include <ostream>
 #include "../parse_helpers.hpp"
 #include "../board/board.hpp"
+#include <cstdio>
+#include <ostream>
 
 Square square_from_str(std::string_view sv) {
     if (sv.size() < 2)
@@ -111,6 +112,48 @@ Move move_from_str(const Board &b, std::string_view sv) {
         m = make<EN_PASSANT>(from, to);
         
     return b.is_valid_move(m) ? m : MOVE_NONE;
+}
+
+int score_to_str(char *buf, int n_buf, int score) {
+    assert(n_buf >= 16);
+    if (abs(score) > MATE_BOUND) {
+        int moves = (VALUE_MATE - abs(score) + 1) 
+            * (score > 0 ? 1 : -1);
+        moves /= 2;
+        return snprintf(buf, n_buf, "mate %d", moves);
+    } else {
+        return snprintf(buf, n_buf, "cp %d", score);
+    }
+}
+
+int move_to_str(char *buf, int n_buf, Move m) {
+    assert(n_buf >= 8);
+    if (!is_ok(m))
+        return snprintf(buf, n_buf, "NOMOVE");
+
+    // we know the squares are valid
+    square_to_str(buf, 8, from_sq(m));
+    square_to_str(buf+2, 8, to_sq(m));
+    if (type_of(m) == PROMOTION) {
+        const char proms[] = { 'n', 'b', 'r', 'q' };
+        buf[4] = proms[prom_type(m) - KNIGHT];
+        buf[5] = 0;
+        return 5;
+    } else {
+        buf[4] = 0;
+        return 4;
+    }
+}
+
+int square_to_str(char *buf, int n_buf, Square sq) {
+    assert(n_buf >= 8);
+    if (!is_ok(sq))
+        return snprintf(buf, n_buf, "SQ_NONE");
+
+    buf[0] = file_of(sq) + 'a';
+    buf[1] = rank_of(sq) + '1';
+    buf[2] = 0;
+    return 2;
 }
 
 File file_from_ch(char ch) {

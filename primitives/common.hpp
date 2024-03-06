@@ -1,8 +1,10 @@
 #ifndef PRIMITIVES_COMMON_HPP
 #define PRIMITIVES_COMMON_HPP
 
+#include "../config.hpp"
+
 #include <cstdint>
-//#undef NDEBUG
+#include <cstddef>
 #include <cassert>
 
 /*---------Square, file and rank definitions---------*/

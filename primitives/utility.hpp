@@ -28,6 +28,10 @@ Move move_from_str(std::string_view sv);
 //extracts move and tests if it is valid
 Move move_from_str(const Board &b, std::string_view sv);
 
+int score_to_str(char *buf, int n_buf, int score);
+int move_to_str(char *buf, int n_buf, Move m);
+int square_to_str(char *buf, int n_buf, Square sq);
+
 File file_from_ch(char ch);
 Rank rank_from_ch(char ch);
 

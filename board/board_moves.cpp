@@ -2,7 +2,6 @@
 #include "../zobrist.hpp"
 #include "../movgen/attack.hpp"
 
-
 /*
  * FILE: board_moves.cpp
  * Here goes all the stuff to do with (un)doing moves
@@ -23,10 +22,8 @@ Board Board::do_move(Move m, StateInfo *newst) const {
     result.checkers_ = 0;
 
     result.si_ = newst;
+    newst->reset();
     newst->previous = si_;
-    newst->acc.computed[WHITE] = false;
-    newst->acc.computed[BLACK] = false;
-    newst->nb_deltas = 0;
 
     Square from = from_sq(m), to = to_sq(m);
     Color us = side_to_move_, them = ~us;
@@ -142,8 +139,8 @@ Board Board::do_null_move(StateInfo *newst) const {
     result.update_pin_info();
 
     result.si_ = newst;
+    newst->reset();
     newst->previous = si_;
-    newst->nb_deltas = 0;
 
     result.key_ ^= ZOBRIST.side
         ^ (ZOBRIST.enpassant[file_of(en_passant_)] 

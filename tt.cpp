@@ -1,7 +1,6 @@
 #include "tt.hpp"
 #include <cstring>
 #include "board/board.hpp"
-#include <algorithm>
 #include <xmmintrin.h>
 
 TranspositionTable g_tt;
@@ -15,12 +14,15 @@ int TTEntry::score(int ply) const {
     return s;
 }
 
-TTEntry::TTEntry(uint64_t key, int s, Bound b, 
+TTEntry::TTEntry(uint64_t key, int s, int e, Bound b, 
     int depth, Move m, int ply, bool null) : key(key)
 {
+    //assert(depth < MAX_DEPTH);
+    assert(int(b) < BOUND_NUM);
+
     move16 = uint16_t(m);
-    depth8 = uint8_t(depth);
-    bound8 = uint8_t(b);
+    depth5 = uint8_t(std::min(depth, 63));
+    bound2 = uint8_t(b);
     avoid_null = null;
 
     if (s > MATE_BOUND)
@@ -28,6 +30,7 @@ TTEntry::TTEntry(uint64_t key, int s, Bound b,
     else if (s < -MATE_BOUND)
         s -= ply;
     score16 = int16_t(s);
+    eval16 = int16_t(e);
 }
 
 void TranspositionTable::resize(size_t mbs) {
@@ -77,18 +80,18 @@ void TranspositionTable::store(TTEntry new_entry) {
         int replace_depth = 9999;
         for (int i = 0; i < Bucket::N; ++i) {
             TTEntry &e = b.entries[i];
-            if (e.age != age_ && e.depth8 < replace_depth) {
+            if (e.age != age_ && e.depth5 < replace_depth) {
                 replace = &e;
-                replace_depth = e.depth8;
+                replace_depth = e.depth5;
             }
         }
 
         if (!replace) {
             for (int i = 0; i < Bucket::N; ++i) {
                 TTEntry &e = b.entries[i];
-                if (e.depth8 < replace_depth) {
+                if (e.depth5 < replace_depth) {
                     replace = &e;
-                    replace_depth = e.depth8;
+                    replace_depth = e.depth5;
                 }
             }
         }
@@ -109,7 +112,7 @@ uint64_t TranspositionTable::hashfull() const {
     uint64_t cnt = 0;
     for (size_t i = 0; i < 1000; ++i) {
         for (auto &e: buckets_[i].entries)
-            cnt += e.depth8 && e.age == age_;
+            cnt += e.depth5 && e.age == age_;
     }
 
     return cnt / Bucket::N;
@@ -135,4 +138,30 @@ int TranspositionTable::extract_pv(Board b, Move *pv, int len) {
     }
     return n;
 }
+
+void TranspositionTable::extract_pv(Board b, PVLine &pv, 
+        int max_len, Move first_move) 
+{
+    TTEntry tte;
+    StateInfo si;
+
+    max_len = std::min(max_len, PVLine::MAX_LEN);
+
+    if (is_ok(first_move)) {
+        pv.len = 1;
+        pv.moves[0] = first_move;
+        b = b.do_move(first_move, &si);
+    } else {
+        pv.len = 0;
+    }
+
+    while (pv.len < max_len && probe(b.key(), tte)) {
+        Move m = Move(tte.move16);
+        if (!b.is_valid_move(m))
+            break;
+        b = b.do_move(m, &si);
+        pv.moves[pv.len++] = m;
+    }
+}
+
 

@@ -2,7 +2,6 @@
 
 #include "../primitives/common.hpp"
 #include "accumulator.hpp"
-#include <vector>
 
 struct Delta {
     Piece piece;
@@ -11,10 +10,10 @@ struct Delta {
 };
 
 struct StateInfo {
-    Accumulator acc;
+    alignas(SIMD_ALIGN) Accumulator acc;
 
-    int nb_deltas = 0;
     Delta deltas[3];
+    int nb_deltas = 0;
 
     StateInfo *previous = nullptr;
 
@@ -29,6 +28,13 @@ struct StateInfo {
 
     void remove_piece(Piece p, Square s) {
         move_piece(p, s, SQ_NONE);
+    }
+
+    void reset() {
+        previous = nullptr;
+        nb_deltas = 0;
+        acc.computed[WHITE] = false;
+        acc.computed[BLACK] = false;
     }
 };
 
