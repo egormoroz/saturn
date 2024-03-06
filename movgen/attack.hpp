@@ -13,15 +13,15 @@ struct Magic {
     size_t offset;
 
 
-size_t rook_index(Bitboard blockers) const {
-    uint64_t index = (blockers & mask) * factor;
-    return (index >> (64 - 12)) + offset;
-}
+    size_t rook_index(Bitboard blockers) const {
+        uint64_t index = (blockers & mask) * factor;
+        return (index >> (64 - 12)) + offset;
+    }
 
-size_t bishop_index(Bitboard blockers) const {
-    uint64_t index = (blockers & mask) * factor;
-    return (index >> (64 - 9)) + offset;
-}
+    size_t bishop_index(Bitboard blockers) const {
+        uint64_t index = (blockers & mask) * factor;
+        return (index >> (64 - 9)) + offset;
+    }
 
 };
 
@@ -49,6 +49,7 @@ Bitboard attacks_bb(Square sq) {
     return attack_tables::PSEUDO_ATTACKS[pt][sq];
 }
 
+// TODO: implement alternative version using BMI2
 template<PieceType pt>
 Bitboard attacks_bb(Square sq, Bitboard blockers) {
     namespace at = attack_tables;
@@ -68,15 +69,7 @@ Bitboard attacks_bb(Square sq, Bitboard blockers) {
     };
 }
 
-/* Bitboard attacks_bb(PieceType pt, Square sq, Bitboard blockers); */
-
-/* Bitboard pawn_attacks_bb(Color c, Square sq); */
-/* Bitboard pawn_pushes_bb(Color c, Square sq); */
-
-/* Bitboard line_bb(Square s1, Square s2); */
-/* Bitboard between_bb(Square s1, Square s2); */
-
-
+// TODO: implement alternative version using BMI2
 inline Bitboard attacks_bb(PieceType pt, Square sq, Bitboard blockers) {
     assert(pt > PAWN && pt <= KING && is_ok(sq));
     switch (pt) {

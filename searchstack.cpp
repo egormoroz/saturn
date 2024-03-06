@@ -33,17 +33,17 @@ int Stack::height() const { return height_ - start_; }
 bool Stack::capped() const { return height_ >= MAX_PLIES; }
 int Stack::total_height() const { return height_; }
 
-bool Stack::is_repetition(const Board &b) const {
+bool Stack::is_repetition(const Board &b, int fold) const {
     if (!height_)
         return false;
 
     int halfmoves = std::min(b.half_moves(), 
             b.plies_from_null());
     int k = std::max(0, height_ - halfmoves);
-    for (int i = height_ - 2; i >= k; i -= 2)
+    for (int i = height_ - 2; i >= k && fold; i -= 2)
         if (entries_[i].key == b.key())
-            return true;
-    return false;
+            --fold; //return true;
+    return fold == 0; //return false;
 }
 
 int16_t Stack::mated_score() const {

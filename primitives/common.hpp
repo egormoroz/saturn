@@ -1,8 +1,10 @@
 #ifndef PRIMITIVES_COMMON_HPP
 #define PRIMITIVES_COMMON_HPP
 
+#include "../config.hpp"
+
 #include <cstdint>
-//#undef NDEBUG
+#include <cstddef>
 #include <cassert>
 
 /*---------Square, file and rank definitions---------*/
@@ -22,13 +24,13 @@ enum Square : uint8_t {
 enum File : uint8_t {
     FILE_A, FILE_B, FILE_C, FILE_D, 
     FILE_E, FILE_F, FILE_G, FILE_H,
-    FILE_NB
+    FILE_NB, FILE_NONE = FILE_NB
 };
 
 enum Rank : uint8_t {
     RANK_1, RANK_2, RANK_3, RANK_4,
     RANK_5, RANK_6, RANK_7, RANK_8,
-    RANK_NB
+    RANK_NB, RANK_NONE = RANK_NB
 };
 
 constexpr File file_of(Square sq) { return File(sq & 7); }
@@ -39,7 +41,6 @@ constexpr Square make_square(File f, Rank r) {
 }
 
 constexpr bool is_ok(Square sq) { return sq >= SQ_A1 && sq <= SQ_H8; }
-
 
 /*------End of square, file and rank definitions-----*/
 
@@ -183,6 +184,16 @@ constexpr Rank relative_rank(Color c, Square s) {
 constexpr Square relative_square(Color c, Square s) {
     return Square(s ^ (c * 56));
 }
+
+constexpr Square sq_forward(Color c, Square s) {
+    return Square(c == WHITE ? s + 8 : s - 8);
+}
+
+constexpr Square sq_backward(Color c, Square s) {
+    return sq_forward(~c, s);
+}
+
+constexpr Square sq_mirror(Square s) { return Square(s ^ 56); }
 
 /*----------End of some operation definitions--------*/
 

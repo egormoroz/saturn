@@ -2,3 +2,4 @@
 -Wpedantic
 -Wall
 -Wextra
+-march=native

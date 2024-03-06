@@ -11,8 +11,11 @@ enum Bound {
     BOUND_ALPHA = 1,
     BOUND_BETA = 2,
     BOUND_EXACT = 3,
+
+    BOUND_NUM = 4,
 };
 
+// TODO: store evaluation score as well
 struct TTEntry {
     uint64_t key;
     union {
@@ -20,9 +23,12 @@ struct TTEntry {
         struct {
             uint16_t move16;
             int16_t score16;
-            uint8_t depth8;
-            uint8_t bound8;
-            bool avoid_null;
+            int16_t eval16;
+
+            uint8_t depth5 : 5;
+            uint8_t bound2: 2;
+            uint8_t avoid_null: 1;
+
             uint8_t age;
         };
     };
@@ -30,8 +36,16 @@ struct TTEntry {
     int score(int ply) const;
 
     TTEntry() = default;
-    TTEntry(uint64_t key, int score, Bound b, int depth, 
+    TTEntry(uint64_t key, int score, int eval, Bound b, int depth, 
             Move m, int ply, bool avoid_null);
+};
+
+struct PVLine {
+    static constexpr int MAX_LEN = MAX_DEPTH;
+
+    Move moves[MAX_LEN];
+    int score;
+    int len=0;
 };
 
 class TranspositionTable {
@@ -51,6 +65,9 @@ public:
     void store(TTEntry entry);
 
     int extract_pv(Board b, Move *pv, int len);
+
+    void extract_pv(Board b, PVLine &pv, int max_len, 
+            Move first_move = MOVE_NONE);
 
     void prefetch(uint64_t key) const;
 
