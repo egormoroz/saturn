@@ -202,3 +202,15 @@ int16_t evaluate(const Board &b) {
     return (mg_score * mg_phase + eg_score * eg_phase) / 24;
 }
 
+int16_t material_advantage(const Board &b) {
+    int16_t score = 0;
+    Color us = b.side_to_move(), them = ~us;
+
+    for (PieceType pt = PAWN; pt < KING; ++pt) {
+        score += mg_value[pt] * popcnt(b.pieces(us, pt));
+        score -= mg_value[pt] * popcnt(b.pieces(them, pt));
+    }
+
+    return score;
+}
+

@@ -12,13 +12,66 @@
 #include "../nnue/nnue_state.hpp"
 #include "../scout.hpp"
 
-#define DO_NMP
-#define DO_RFP
-#define DO_LMR
 
-/* #define EVAL_NOISE */
+template<bool is_root>
+struct AutoMovePicker {
+    template<bool>
+    Move next();
+    Stage stage() const;
+    int num_excluded_moves() const;
+    void complete_iter(int best_move_idx);
+};
 
-/* #define SOFT_LMR */
+template<>
+struct AutoMovePicker<true> {
+    AutoMovePicker(
+        RootMovePicker &rmp,
+        const Board &board, Move ttm,
+        const Move *killers = nullptr,
+        const Histories *histories = nullptr,
+        Move counter = MOVE_NONE,
+        Move followup = MOVE_NONE)
+            : rmp_(rmp)
+            
+    {
+        (void)(board);
+        (void)(ttm);
+        (void)(killers);
+        (void)(histories);
+        (void)(counter);
+        (void)(followup);
+    }
+
+    template<bool b>
+    Move next() { return rmp_.next(); }
+
+    // dummy 
+    Stage stage() const { return Stage::TT_MOVE; }
+
+    int num_excluded_moves() const { return rmp_.num_excluded_moves(); }
+    void complete_iter(int best_move_idx) { rmp_.complete_iter(best_move_idx); }
+
+private:
+    RootMovePicker &rmp_;
+};
+
+template<>
+struct AutoMovePicker<false> : public MovePicker {
+    AutoMovePicker(
+        RootMovePicker &rmp,
+        const Board &board, Move ttm,
+        const Move *killers = nullptr,
+        const Histories *histories = nullptr,
+        Move counter = MOVE_NONE,
+        Move followup = MOVE_NONE)
+            : MovePicker(board, ttm, killers, histories, counter, followup)
+    {
+        (void)(rmp);
+    }
+
+    int num_excluded_moves() const { return 0; }
+    void complete_iter(int best_move_idx) { (void)best_move_idx; }
+};
 
 namespace {
 
@@ -105,16 +158,6 @@ void RootMovePicker::complete_iter(int best_move_idx) {
         std::swap(moves_[i], moves_[i - 1]);
 
     cur_ = mpv_start_;
-}
-
-void RootMovePicker::complete_iter(Move m) {
-    for (int i = mpv_start_; i < num_moves_; ++i) {
-        if (moves_[i].move == m) {
-            complete_iter(i - mpv_start_);
-            return;
-        }
-    }
-    assert(false);
 }
 
 void RootMovePicker::mpv_reset() {
@@ -210,7 +253,7 @@ void Search::iterative_deepening() {
         n_pvs_ = 0;
     }
 
-    if ((rmp_.num_moves() == 1 || is_draw()) && !silent_) {
+    if ((rmp_.num_moves() == 1 || is_board_drawn(root_)) && !silent_) {
         RootMove m = rmp_.best_move();
         sync_cout() << "bestmove " << m.move << '\n';
         return;
@@ -219,7 +262,7 @@ void Search::iterative_deepening() {
     stats_.id_detph = 1;
     rmp_.mpv_reset();
     for (int i = 0; i < n_pvs; ++i) {
-        score = search_root(-VALUE_MATE, VALUE_MATE, 1);
+        score = search<true>(root_, -VALUE_MATE, VALUE_MATE, 1);
         rmp_.exclude_top_move(score);
     }
     extract_pvmoves();
@@ -276,7 +319,7 @@ int Search::num_pvs() const { return n_pvs_; }
 
 int Search::aspiration_window(int score, int depth) {
     if (depth < uci_cfg_.asp_min_depth)
-        return search_root(-VALUE_MATE, VALUE_MATE, depth);
+        return search<true>(root_, -VALUE_MATE, VALUE_MATE, depth);
 
     int delta = uci_cfg_.asp_init_delta, alpha = score - delta, 
         beta = score + delta;
@@ -284,7 +327,8 @@ int Search::aspiration_window(int score, int depth) {
         if (alpha <= -3000) alpha = -VALUE_MATE;
         if (beta >= 3000) beta = VALUE_MATE;
 
-        score = search_root(alpha, beta, depth);
+        /* score = search_root(alpha, beta, depth); */
+        score = search<true>(root_, alpha, beta, depth);
 
         if (score <= alpha) {
             beta = (alpha + beta) / 2;
@@ -301,85 +345,30 @@ int Search::aspiration_window(int score, int depth) {
     return score;
 }
 
-int Search::search_root(int alpha, int beta, int depth) {
-    Move best_move = MOVE_NONE;
-    int best_score = -VALUE_MATE, old_alpha = alpha,
-        moves_tried = 0, best_move_idx = 0;
-    StateInfo si;
-    Board bb(&si);
-    for (Move m = rmp_.next(); m != MOVE_NONE; m = rmp_.next()) {
-        size_t ndx = g_tree.begin_node(m, alpha, beta, depth - 1, 0);
-        bb = root_.do_move(m, &si);
-        stack_.push(root_.key(), m);
+template int Search::search<true>(const Board &b, int alpha, int beta, int depth);
+template int Search::search<false>(const Board &b, int alpha, int beta, int depth);
 
-        int score;
-        if (!moves_tried) {
-            score = -search(bb, -beta, -alpha, depth - 1);
-        } else {
-
-            int new_depth = depth - 1;
-            int r = 0;
-
-            // let's try mini LMR at the root
-            // Allright, this tiny change made engine a lot stronger, huh...
-            if (!bb.checkers() && root_.is_quiet(m) && moves_tried > 10
-                    && depth > 6)
-                ++r;
-
-            new_depth = std::max(1, new_depth - r);
-
-            score = -search(bb, -(alpha + 1), -alpha, new_depth);
-            if (score > alpha && score < beta)
-                score = -search(bb, -beta, -alpha, depth - 1);
-        }
-
-        ++moves_tried;
-        stack_.pop();
-        g_tree.end_node(ndx, score);
-
-        if (score > best_score) {
-            best_score = score;
-            best_move = m;
-            best_move_idx = moves_tried - 1;
-        }
-
-        if (score > alpha)
-            alpha = score;
-        if (score >= beta) {
-            alpha = beta;
-            break;
-        }
-    }
-    
-
-    if (keep_going()) {
-        if (rmp_.num_excluded_moves() == 0)  {
-            g_tt.store(TTEntry(root_.key(), alpha, evaluate(root_),
-                determine_bound(alpha, beta, old_alpha),
-                depth, best_move, 0, false));
-        }
-
-        rmp_.complete_iter(best_move_idx);
-    }
-
-    return alpha;
-}
-
+template<bool is_root>
 int Search::search(const Board &b, int alpha, 
         int beta, int depth) 
 {
     const int ply = stack_.height();
-    const bool pv = alpha != beta - 1;
+    const bool pv_node = alpha != beta - 1;
 
     if (!keep_going())
         return 0;
 
     //Mate distance pruning
-    int mated_score = stack_.mated_score();
-    alpha = std::max(alpha, mated_score);
-    beta = std::min(beta, -mated_score - 1);
-    if (alpha >= beta)
-        return alpha;
+    if (!is_root) {
+        int mated_score = stack_.mated_score();
+        alpha = std::max(alpha, mated_score);
+        beta = std::min(beta, -mated_score - 1);
+        if (alpha >= beta)
+            return alpha;
+
+        if (is_board_drawn(b))
+            return 0;
+    }
 
     if (depth <= 0)
         return b.checkers() ? quiescence<true>(b, alpha, beta)
@@ -390,10 +379,6 @@ int Search::search(const Board &b, int alpha,
 
     auto &entry = stack_.at(ply);
     g_tt.prefetch(b.key());
-    if (b.half_moves() >= 100 
-        || (!b.checkers() && b.is_material_draw())
-        || stack_.is_repetition(b))
-        return 0;
 
     TTEntry tte;
     bool avoid_null = false;
@@ -418,26 +403,21 @@ int Search::search(const Board &b, int alpha,
     }
 
     StateInfo si;
-    /* int16_t eval = evaluate(b); */
-    bool improving = !b.checkers() && ply >= 2 
-        && stack_.at(ply - 2).eval < eval;
+    bool improving = !b.checkers() && ply >= 2 && stack_.at(ply - 2).eval < eval;
 
     if (depth >= 4 && !ttm)
         --depth;
 
-    if (pv || b.checkers())
+    if (pv_node || b.checkers())
         goto move_loop; //skip pruning
 
     //Reverse futility pruning
-#ifdef DO_RFP
-    if (depth < 7 && eval - 175 * depth / (1 + improving) >= beta
+    if (!pv_node && depth < 7 && eval - 175 * depth / (1 + improving) >= beta
             && abs(beta) < MATE_BOUND)
         return eval;
-#endif
 
     //Null move pruning
-#ifdef DO_NMP
-    if (depth >= 3
+    if (!pv_node && depth >= 3
         && b.plies_from_null() && !avoid_null
         && b.has_nonpawns(b.side_to_move())
         && eval >= beta)
@@ -458,18 +438,17 @@ int Search::search(const Board &b, int alpha,
 
         avoid_null = true;
     }
-#endif
 
 move_loop:
-    Move opp_move = stack_.at(ply - 1).move,
+    Move opp_move = is_root ? MOVE_NONE : stack_.at(ply - 1).move,
          prev = MOVE_NONE, followup = MOVE_NONE,
-         counter = counters_[from_to(opp_move)];
+         counter = is_root ? MOVE_NONE : counters_[from_to(opp_move)];
     if (ply >= 2) {
         prev = stack_.at(ply - 2).move;
         followup = followups_[from_to(prev)];
     }
-    MovePicker mp(b, ttm, entry.killers, &hist_,
-            counter, followup);
+
+    AutoMovePicker<is_root> amp(rmp_, b, ttm, entry.killers, &hist_, counter, followup);
 
     Board bb(&si);
     auto search_move = [&](Move m, int depth, bool zw) {
@@ -484,10 +463,10 @@ move_loop:
     std::array<Move, 64> quiets;
     int num_quiets{};
     int best_score = -VALUE_MATE, moves_tried = 0,
-        old_alpha = alpha, score = 0;
+        old_alpha = alpha, score = 0, best_move_idx = 0;
     Move best_move = MOVE_NONE;
-    for (Move m = mp.next<false>(); m != MOVE_NONE; 
-            m = mp.next<false>()) 
+    for (Move m = amp.template next<false>(); m != MOVE_NONE; 
+            m = amp.template next<false>()) 
     {
         bool is_quiet = b.is_quiet(m);
         int new_depth = depth - 1, r = 0;
@@ -499,14 +478,13 @@ move_loop:
             new_depth++;
 
         int lmp_threshold = (3 + 2 * depth * depth) / (2 - improving);
-        if (!pv && !bb.checkers() && is_quiet
+        if (!pv_node && !bb.checkers() && is_quiet
                 && moves_tried > lmp_threshold) 
             break;
 
-#ifdef DO_LMR
         if (depth > 2 && moves_tried > 1 && is_quiet) {
             r = LMR[std::min(31, depth)][std::min(63, moves_tried)];
-            if (!pv) ++r;
+            if (!pv_node) ++r;
             if (!improving) ++r;
             if (killer_or_counter) r -= 2;
             if (bb.checkers()) --r;
@@ -515,13 +493,16 @@ move_loop:
 
             r = std::clamp(r, 0, new_depth - 1);
             new_depth -= r;
+
+            // no extensions when searching root moves
+            if (is_root)
+                new_depth = std::min(new_depth, depth - 1);
         }
-#endif
 
         stack_.push(b.key(), m, eval);
 
         //Zero-window search
-        if (!pv || moves_tried)
+        if (!pv_node || moves_tried)
             score = search_move(m, new_depth, true);
 
         //Re-search if reduced move beats alpha
@@ -531,7 +512,7 @@ move_loop:
         }
 
         //(Re-)search with full window
-        if (pv && ((score > alpha && score < beta) || !moves_tried))
+        if (pv_node && ((score > alpha && score < beta) || !moves_tried))
             score = search_move(m, new_depth, false);
 
         stack_.pop();
@@ -540,6 +521,7 @@ move_loop:
         if (score > best_score) {
             best_score = score;
             best_move = m;
+            best_move_idx = moves_tried - 1;
         }
 
         if (b.is_quiet(m) && num_quiets < 64)
@@ -554,9 +536,10 @@ move_loop:
     if (!moves_tried) {
         if (b.checkers())
             return stack_.mated_score();
-        return 0;
+        return 0; //stalemate
     }
 
+    // remember the move that cuased beta cutoff
     if (alpha >= beta) {
         alpha = beta;
         stats_.fail_high++;
@@ -577,9 +560,13 @@ move_loop:
     }
 
     if (keep_going()) {
-        g_tt.store(TTEntry(b.key(), alpha, eval,
-            determine_bound(alpha, beta, old_alpha),
-            depth, best_move, ply, avoid_null));
+        if (!is_root || (is_root && amp.num_excluded_moves() == 0)) {
+            g_tt.store(TTEntry(b.key(), alpha, eval,
+                determine_bound(alpha, beta, old_alpha),
+                depth, best_move, ply, avoid_null));
+        }
+
+        amp.complete_iter(best_move_idx);
     }
 
     return alpha;
@@ -589,10 +576,7 @@ template<bool with_evasions>
 int Search::quiescence(const Board &b, 
         int alpha, int beta) 
 {
-    keep_going();
-    if (!keep_going() || b.half_moves() >= 100
-        || b.is_material_draw()
-        || stack_.is_repetition(b))
+    if (!keep_going() || is_board_drawn(b))
         return 0;
 
     stats_.nodes++;
@@ -650,16 +634,19 @@ int Search::quiescence(const Board &b,
     return alpha;
 }
 
-bool Search::is_draw() const {
-    if (root_.half_moves() >= 100 
-        || (!root_.checkers() && root_.is_material_draw())
-        || stack_.is_repetition(root_))
+bool Search::is_board_drawn(const Board &b) const {
+    if (b.half_moves() >= 100 
+        || (!b.checkers() && b.is_material_draw())
+        || stack_.is_repetition(b))
         return true;
     return false;
 }
 
 int16_t Search::evaluate(const Board &b) {
-#ifndef NONNUE
+    /* int simple_eval = material_advantage(b); */
+    /* if (abs(simple_eval) > 2000) */
+    /*     return simple_eval; */
+
     int16_t result;
     if (!ev_cache_.probe(b.key(), result)) {
         result = static_cast<int16_t>(nnue::evaluate(b));
@@ -667,13 +654,6 @@ int16_t Search::evaluate(const Board &b) {
     }
 
     return result;
-#else
-    int16_t score = ::evaluate(b);
-#ifdef EVAL_NOISE
-    score += stats_.nodes % 8;
-#endif
-    return score;
-#endif
 }
 
 void Search::extract_pvmoves() {
@@ -701,7 +681,6 @@ void Search::uci_report() const {
     Board b = root_;
 
     for (int i = 0; i < n_pvs_; ++i) {
-        /* const RootMove &rm = rmp_.get_move(i); */
         const RootMove &rm = pv_moves_[i];
 
         score_to_str(buf, sizeof(buf), rm.score);

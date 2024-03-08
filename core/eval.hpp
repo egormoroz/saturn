@@ -13,4 +13,6 @@ class Board;
 void init_ps_tables();
 int16_t evaluate(const Board &b);
 
+int16_t material_advantage(const Board &b);
+
 #endif

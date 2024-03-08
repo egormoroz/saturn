@@ -8,8 +8,6 @@
 
 #include "crelu.hpp"
 
-// #define NNUE_DEBUG
-
 namespace {
 
 bool NNUE_INITIALIZED = false;
@@ -26,9 +24,6 @@ void refresh_accumulator(
         Accumulator &acc,
         Color perspective) 
 {
-#ifdef NONNUE
-    return;
-#else
     Square ksq = b.king_square(perspective);
     ksq = orient(perspective, ksq);
 
@@ -45,7 +40,6 @@ void refresh_accumulator(
 
     transformer.refresh_accumulator(acc, 
         FtSpan(features, features + n_features), perspective);
-#endif
 }
 
 // ksq must be relative
@@ -54,9 +48,6 @@ bool update_accumulator(
         Color side,
         Square ksq) 
 {
-#ifdef NONNUE
-    return true;
-#else
     if (si->acc.computed[side])
         return true;
 
@@ -102,15 +93,10 @@ bool update_accumulator(
     );
 
     return true;
-#endif
 }
 
 
 int32_t evaluate(const Board &b) {
-#ifdef NONNUE
-    return VALUE_MATE;
-#else
-
     if (!NNUE_INITIALIZED) {
         printf("NNUE not initialized, aborting...\n");
         std::abort();
@@ -133,14 +119,9 @@ int32_t evaluate(const Board &b) {
     scale_and_clamp<nnspecs::HALFKP>(si->acc.v[~stm], transformed + nnspecs::HALFKP);
 
     return net.propagate(transformed);
-#endif
 }
 
 bool load_parameters(const char *path) {
-#ifdef NONNUE
-    return true;
-#else
-
     std::ifstream fin(path, std::ios::binary);
     if (!fin.is_open()) {
         printf("failed to open parameters file\n");
@@ -164,7 +145,6 @@ bool load_parameters(const char *path) {
 
     NNUE_INITIALIZED = true;
     return true;
-#endif
 }
 
 } //nnue

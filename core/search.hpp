@@ -25,7 +25,6 @@ public:
 
     RootMove best_move() const;
     void complete_iter(int best_move_idx);
-    void complete_iter(Move m);
 
     // For multipv search. Excluded move == first pv move
     void mpv_reset();
@@ -68,13 +67,13 @@ private:
     bool keep_going();
     int aspiration_window(int score, int depth);
 
-    int search_root(int alpha, int beta, int depth);
+    template<bool is_root = false>
     int search(const Board &b, int alpha, int beta, int depth);
 
     template<bool with_evasions>
     int quiescence(const Board &b, int alpha, int beta);
 
-    bool is_draw() const;
+    bool is_board_drawn(const Board &b) const;
 
     int16_t evaluate(const Board &b);
 

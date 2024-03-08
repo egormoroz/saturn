@@ -106,7 +106,7 @@ private:
 
     uint8_t half_moves_;
     uint8_t plies_from_null_;
-    uint8_t full_moves_;
+    uint16_t full_moves_;
 
     StateInfo *si_;
 };

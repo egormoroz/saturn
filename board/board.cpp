@@ -250,11 +250,7 @@ std::ostream& operator<<(std::ostream& os, const Board &b) {
 
     os << "\nSide to move: " << b.side_to_move();
     os << "\nCastling rights: " << b.castling();
-#ifdef NONNUE
-    os << "\nStatic evaluation: " << evaluate(b) << "\n";
-#else
     os << "\nStatic evaluation: " << nnue::evaluate(b) << "\n";
-#endif
 
     auto flags = os.flags();
     os << "Key: " << std::hex << b.key() << "\n";
