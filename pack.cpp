@@ -236,7 +236,7 @@ bool PosSeq::load_from_stream(std::istream &is) {
 
     result = len_and_result & 3;
     n_moves = len_and_result >> 2;
-    assert(n_moves <= MAX_SEQ_LEN);
+    assert(n_moves <= MAX_PLIES);
 
     for (int i = 0; i < (int)n_moves; ++i) {
         if (!is.read((char*)buf, 3))
@@ -463,7 +463,7 @@ static int16_t read_int(BitReader &br) {
 }
 
 void PosChain::write_to_stream(std::ostream &os) const {
-    uint8_t buf[MAX_SEQ_LEN * 2];
+    uint8_t buf[MAX_PLIES * 2];
 
     unsigned_to_bytes(start.pc_mask, buf);
     os.write((const char*)buf, sizeof(start.pc_mask));
@@ -508,7 +508,7 @@ void PosChain::write_to_stream(std::ostream &os) const {
 }
 
 bool PosChain::load_from_stream(std::istream &is) {
-    uint8_t buf[MAX_SEQ_LEN * 2];
+    uint8_t buf[MAX_PLIES * 2];
     if (!is.read((char*)buf, sizeof(start.pc_mask)))
         return false;
     start.pc_mask = bytes_to_unsigned<uint64_t>(buf);
@@ -522,7 +522,7 @@ bool PosChain::load_from_stream(std::istream &is) {
 
     result = len_and_result & 3;
     n_moves = len_and_result >> 2;
-    assert(n_moves <= MAX_SEQ_LEN);
+    assert(n_moves <= MAX_PLIES);
 
     StateInfo si;
     Board b(&si);
@@ -726,7 +726,7 @@ PackResult ChainReader::start_new_chain(std::istream &is) {
     move = MOVE_NONE;
     score = 0;
 
-    if (n_moves > PosChain::MAX_SEQ_LEN)
+    if (n_moves > MAX_PLIES)
         return PackResult::INVALID_HEADER;
     if (result > 2)
         return PackResult::INVALID_HEADER;
@@ -861,7 +861,7 @@ bool PackIndex::load_from_stream(std::istream &is) {
     return true;
 }
 
-bool create_index(const char *fname_pack, const char *fname_index) {
+bool create_index(const char *fname_pack, PackIndex &pi) {
     constexpr size_t min_block_size = 1024 * 1024; // 1MB
 
     std::ifstream fin(fname_pack, std::ios::binary);
@@ -874,8 +874,7 @@ bool create_index(const char *fname_pack, const char *fname_index) {
 
     ChainReader cr;
     PackResult pr;
-    PackIndex pi;
-
+    pi.n_blocks = 0;
     size_t off_begin = 0, n_pos = 0;
 
     while (is_ok(pr = cr.start_new_chain(fin))) {
@@ -885,7 +884,7 @@ bool create_index(const char *fname_pack, const char *fname_index) {
             return false;
 
         n_pos += cr.n_moves;
-        size_t off_end = fin.tellg();
+        size_t off_end = std::min(size_t(fin.tellg()), n_file_size);
 
         if (off_end - off_begin >= n_block_size) {
             PackIndex::Block &blk = pi.blocks[pi.n_blocks++];
@@ -904,13 +903,20 @@ bool create_index(const char *fname_pack, const char *fname_index) {
     if (n_pos) {
         PackIndex::Block &blk = pi.blocks[pi.n_blocks++];
         blk.off_begin = off_begin;
-        blk.off_end = fin.tellg();
+        blk.off_end = n_file_size;
         blk.n_pos = n_pos;
     }
 
+    return true;
+}
+
+bool create_index(const char *fname_pack, const char *fname_index) {
+    PackIndex pi;
+    if (!create_index(fname_pack, pi))
+        return false;
+
     std::ofstream fout(fname_index, std::ios::binary);
     pi.write_to_stream(fout);
-
     return bool(fout);
 }
 
