@@ -302,21 +302,6 @@ int Search::aspiration_window(int score, int depth) {
 }
 
 int Search::search_root(int alpha, int beta, int depth) {
-    TTEntry tte;
-    int16_t eval;
-    if (!limits_.min_depth && g_tt.probe(root_.key(), tte)) {
-        Move ttm = Move(tte.move16);
-        if (root_.is_valid_move(ttm) && !rmp_.is_excluded(ttm)
-                && can_return_ttscore(tte, alpha, beta, depth, 0))
-        {
-            rmp_.complete_iter(ttm);
-            return alpha;
-        }
-        eval = tte.eval16;
-    } else {
-        eval = evaluate(root_);
-    }
-
     Move best_move = MOVE_NONE;
     int best_score = -VALUE_MATE, old_alpha = alpha,
         moves_tried = 0, best_move_idx = 0;
@@ -357,7 +342,7 @@ int Search::search_root(int alpha, int beta, int depth) {
 
     if (keep_going()) {
         if (rmp_.num_excluded_moves() == 0)  {
-            g_tt.store(TTEntry(root_.key(), alpha, eval,
+            g_tt.store(TTEntry(root_.key(), alpha, evaluate(root_),
                 determine_bound(alpha, beta, old_alpha),
                 depth, best_move, 0, false));
         }

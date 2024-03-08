@@ -15,6 +15,7 @@
 #include "core/eval.hpp"
 #include "core/search.hpp"
 #include "pack.hpp"
+#include "primitives/utility.hpp"
 
 
 static std::mt19937& get_thread_local_rng() {
@@ -74,6 +75,17 @@ private:
 };
 
 struct Judge {
+    enum Reason {
+        NO_REASON = 0,
+        SCORE_THRESHOLD,
+        CHECKMATE,
+        STALEMATE,
+        REPEATED_DRAW_SCORE,
+        FIFTY_MOVE_RULE,
+        MATERIAL_DRAW,
+        MAX_PLY_REACHED,
+    };
+
     void adjudicate(const Board &b, const Stack &st, 
             Move m, int16_t score, int ply) 
     {
@@ -85,31 +97,74 @@ struct Judge {
             ++draw_score_plies;
 
         if (!is_ok(m)) {
-            result = b.checkers() ? ~stm : GameOutcome::DRAW;
+            if (b.checkers()) {
+                result = ~stm;
+                reason = CHECKMATE;
+            } else {
+                result = GameOutcome::DRAW;
+                reason = STALEMATE;
+            }
             return;
         }
 
         if (abs(score) > 10000) {
             result = score > 0 ? stm : ~stm;
+            reason = SCORE_THRESHOLD;
             return;
         }
 
-        if (b.half_moves() >= 100 || (!b.checkers() && b.is_material_draw())
-                /*|| st.is_repetition(b, 3) */|| draw_score_plies >= 8 
-                || ply + 1 >= MAX_PLIES)
-        {
+        if (b.half_moves() >= 100) {
             result = GameOutcome::DRAW;
+            reason = FIFTY_MOVE_RULE;
+            return;
+        }
+
+        if (!b.checkers() && b.is_material_draw()) {
+            result = GameOutcome::DRAW;
+            reason = MATERIAL_DRAW;
+            return;
+        }
+
+        if (draw_score_plies >= 8) {
+            result = GameOutcome::DRAW;
+            reason = REPEATED_DRAW_SCORE;
+            return;
+        }
+
+        if (draw_score_plies >= 8) {
+            result = GameOutcome::DRAW;
+            reason = MAX_PLY_REACHED;
             return;
         }
     }
 
     int draw_score_plies = 0;
     int result = -1;
+    Reason reason = NO_REASON;
 };
+
+static const char* reason_to_str(Judge::Reason r) {
+    if (r < 0 || r > Judge::MAX_PLY_REACHED)
+        return "res_inv";
+
+    const char* strs[Judge::MAX_PLY_REACHED + 1] = {
+        "no_reason",
+        "score_thresh",
+        "checkmate",
+        "stalemate",
+        "rep_draw_score",
+        "fifty",
+        "mat_draw",
+        "max_ply",
+    };
+
+    return strs[r];
+}
 
 struct Entry {
     PosChain pc;
     uint64_t hash;
+    Judge::Reason reason;
 };
 
 using PosQueue = Queue<Entry>;
@@ -141,14 +196,12 @@ private:
         usc.multipv = num_pvs_;
 
         PosChain pc;
-
         while (keep_going_) {
             SearchLimits limits = limits_;
             Judge judge;
 
             stack_.reset();
             board_ = Board::start_pos(si_stack_);
-            /* int start_ply = make_random_moves(2, 0.5f); */
             int start_ply = setup_board();
 
             pc.n_moves = 0;
@@ -170,7 +223,8 @@ private:
 
                 // record the position score, but take possibly not the best move
                 int16_t score = search_.get_pv_start(0).score;
-                Move move = search_.get_pv_start(choose_pv(100)).move;
+                int pv_idx = choose_pv(100);
+                Move move = search_.get_pv_start(pv_idx).move;
 
                 judge.adjudicate(board_, stack_, move, score, ply);
                 assert(board_.is_valid_move(move));
@@ -191,7 +245,7 @@ private:
                 printf("[WARN] selfplay worker: empty sequence???\n");
                 continue;
             }
-            q_.push({ pc, hash });
+            q_.push({ pc, hash, judge.reason });
         }
     }
 
@@ -353,11 +407,13 @@ void selfplay(const char *out_name, int min_depth, int move_time,
                 outcome_int[e.pc.result], e.pc.seq[e.pc.n_moves-1].score, 
                 pos_per_sec);
         if (eta > 3600.f)
-            printf("%.2f eta hr\n", eta / 3600);
+            printf("%.2f eta hr ", eta / 3600);
         else if (eta > 60.f)
-            printf("%.2f eta min\n", eta / 60);
+            printf("%.2f eta min ", eta / 60);
         else
-            printf("%.2f eta sec\n", eta);
+            printf("%.2f eta sec ", eta);
+
+        printf("%s\n", reason_to_str(e.reason));
 
         if (pos_cnt % n_flush_every)
             fout.flush();
