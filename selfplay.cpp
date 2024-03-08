@@ -82,6 +82,7 @@ struct Judge {
         STALEMATE,
         REPEATED_DRAW_SCORE,
         FIFTY_MOVE_RULE,
+        FIFTY_SHITTY_WORKAOUND,
         MATERIAL_DRAW,
         MAX_PLY_REACHED,
     };
@@ -114,6 +115,13 @@ struct Judge {
         }
 
         if (b.half_moves() >= 100) {
+            // TODO: fixme
+            if (abs(score) > 700) {
+                result = score > 0 ? stm : ~stm;
+                reason = FIFTY_SHITTY_WORKAOUND;
+                return;
+            }
+
             result = GameOutcome::DRAW;
             reason = FIFTY_MOVE_RULE;
             return;
@@ -154,6 +162,7 @@ static const char* reason_to_str(Judge::Reason r) {
         "stalemate",
         "rep_draw_score",
         "fifty",
+        "fifty_workaround",
         "mat_draw",
         "max_ply",
     };
