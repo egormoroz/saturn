@@ -316,7 +316,19 @@ int Search::search_root(int alpha, int beta, int depth) {
         if (!moves_tried) {
             score = -search(bb, -beta, -alpha, depth - 1);
         } else {
-            score = -search(bb, -(alpha + 1), -alpha, depth - 1);
+
+            int new_depth = depth - 1;
+            int r = 0;
+
+            // let's try mini LMR at the root
+            // Allright, this tiny change made engine a lot stronger, huh...
+            if (!bb.checkers() && root_.is_quiet(m) && moves_tried > 10
+                    && depth > 6)
+                ++r;
+
+            new_depth = std::max(1, new_depth - r);
+
+            score = -search(bb, -(alpha + 1), -alpha, new_depth);
             if (score > alpha && score < beta)
                 score = -search(bb, -beta, -alpha, depth - 1);
         }

@@ -3,6 +3,7 @@ This is a uci chess engine, currently estimated to be around 3000 elo w/ the lat
 
 ## TODO
 - Refactor this utter mess, add comments and such.
+- Merge search_root and search into a single function to benefit from reductions and such (e.g. reducing late moves in root by 1 gains a decent amount of elo).
 - Investigate TT aging and its effect on the playing strength. A very brief test so far resulted in 0 elo difference.
 - Better NNUE architecture
 - Better NNUE eval range (currently it's soft capped to [-1500; 1500] or something like that)
