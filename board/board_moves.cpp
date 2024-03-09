@@ -275,4 +275,27 @@ bool Board::is_quiet(Move m) const {
         & pieces())) || mt == CASTLING;
 }
 
+bool Board::gives_check(Move m) const {
+    PieceType pt = type_of(piece_on(from_sq(m)));
+    Bitboard from = square_bb(from_sq(m));
+    Bitboard to = square_bb(to_sq(m));
+    Color us = side_to_move(), them = ~us;
+    Square ksq = king_square(them);
+
+    Bitboard blockers = pieces() ^ to ^ from;
+
+    switch (pt) {
+    case PAWN:
+        return pawn_attacks_bb(them, ksq) & to;
+    case KNIGHT:
+        return attacks_bb<KNIGHT>(ksq) & to;
+    case BISHOP:
+    case ROOK:
+    case QUEEN:
+        return attacks_bb(pt, ksq, blockers) & to;
+    default:
+        return false;
+    };
+}
+
 

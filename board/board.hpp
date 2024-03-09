@@ -43,6 +43,8 @@ public:
     bool see_ge(Move m, int threshold = 0) const;
 
     bool is_quiet(Move m) const;
+    
+    bool gives_check(Move m) const;
 
     void update_pin_info();
 

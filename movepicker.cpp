@@ -205,6 +205,9 @@ void MovePicker::score_nontactical() {
         it->value = k * (SortingTable[to] - SortingTable[from]);
         if (hist_)
             it->value += hist_->main[color_of(p)][from][to];
+
+        if (board_.gives_check(it->move))
+            it->value += 10000;
     }
 }
 

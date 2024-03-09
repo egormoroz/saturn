@@ -245,9 +245,9 @@ bool Search::keep_going() {
 
 void Search::iterative_deepening() {
     int score = 0, prev_score;
-    int n_pvs = std::min(uci_cfg_.multipv, rmp_.num_moves());
+    n_pvs_ = std::min(uci_cfg_.multipv, rmp_.num_moves());
 
-    if (!n_pvs){ 
+    if (!n_pvs_){ 
         if (!silent_)
             sync_cout() << "no legal moves\n";
         n_pvs_ = 0;
@@ -261,7 +261,7 @@ void Search::iterative_deepening() {
 
     stats_.id_detph = 1;
     rmp_.mpv_reset();
-    for (int i = 0; i < n_pvs; ++i) {
+    for (int i = 0; i < n_pvs_; ++i) {
         score = search<true>(root_, -VALUE_MATE, VALUE_MATE, 1);
         rmp_.exclude_top_move(score);
     }
@@ -276,7 +276,7 @@ void Search::iterative_deepening() {
         TimePoint start = timer::now();
 
         rmp_.mpv_reset();
-        for (int i = 0; i < n_pvs; ++i) {
+        for (int i = 0; i < n_pvs_; ++i) {
             score = aspiration_window(score, d);
             if (!keep_going())
                 break;
@@ -287,7 +287,7 @@ void Search::iterative_deepening() {
         if (!keep_going())
             break;
 
-        assert(rmp_.num_excluded_moves() == n_pvs);
+        assert(rmp_.num_excluded_moves() == n_pvs_);
         extract_pvmoves();
         uci_report();
 
@@ -384,13 +384,11 @@ int Search::search(const Board &b, int alpha,
     bool avoid_null = false;
     Move ttm = MOVE_NONE;
     int16_t eval;
-    if (g_tt.probe(b.key(), tte)) {
+    if (n_pvs_ == 1 && g_tt.probe(b.key(), tte)) {
         if (ttm = Move(tte.move16); !b.is_valid_move(ttm))
             ttm = MOVE_NONE;
         
-        if (can_return_ttscore(tte, alpha, beta, 
-                    depth, ply))
-        {
+        if (can_return_ttscore(tte, alpha, beta, depth, ply)) {
             if (ttm && b.is_quiet(ttm))
                 hist_.add_bonus(b, ttm, depth * depth);
             return alpha;
@@ -412,12 +410,12 @@ int Search::search(const Board &b, int alpha,
         goto move_loop; //skip pruning
 
     //Reverse futility pruning
-    if (!pv_node && depth < 7 && eval - 175 * depth / (1 + improving) >= beta
+    if (depth < 7 && eval - 175 * depth / (1 + improving) >= beta
             && abs(beta) < MATE_BOUND)
         return eval;
 
     //Null move pruning
-    if (!pv_node && depth >= 3
+    if (depth >= 3
         && b.plies_from_null() && !avoid_null
         && b.has_nonpawns(b.side_to_move())
         && eval >= beta)
@@ -468,6 +466,9 @@ move_loop:
     for (Move m = amp.template next<false>(); m != MOVE_NONE; 
             m = amp.template next<false>()) 
     {
+        const Square from = from_sq(m);
+        const Square to = to_sq(m);
+
         bool is_quiet = b.is_quiet(m);
         int new_depth = depth - 1, r = 0;
         bool killer_or_counter = m == counter
@@ -637,7 +638,7 @@ int Search::quiescence(const Board &b,
 bool Search::is_board_drawn(const Board &b) const {
     if (b.half_moves() >= 100 
         || (!b.checkers() && b.is_material_draw())
-        || stack_.is_repetition(b))
+        || stack_.is_repetition(b, 3))
         return true;
     return false;
 }
@@ -657,8 +658,9 @@ int16_t Search::evaluate(const Board &b) {
 }
 
 void Search::extract_pvmoves() {
-    for (n_pvs_ = 0; n_pvs_ < rmp_.num_excluded_moves(); ++n_pvs_)
-        pv_moves_[n_pvs_] = rmp_.get_move(n_pvs_);
+    assert(n_pvs_ == rmp_.num_excluded_moves());
+    for (int i = 0; i < n_pvs_; ++i)
+        pv_moves_[i] = rmp_.get_move(i);
     std::stable_sort(pv_moves_, pv_moves_ + n_pvs_,
         [](const RootMove &x, const RootMove &y) { return x.score > y.score; });
 }
