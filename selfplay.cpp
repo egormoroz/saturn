@@ -271,9 +271,10 @@ private:
 
         constexpr int stop_score_thresh = 500;
         constexpr int max_pv_diff = 50;
+        constexpr int ld_multipv = 20;
 
         UCISearchConfig ld_usc;
-        ld_usc.multipv = std::max(3, num_pvs_);
+        ld_usc.multipv = std::max(ld_multipv, num_pvs_);
 
         // Make several low depth moves. This results in okay-ish positions 
         // and (hopefully) fixes the issue with not generating *any* endgame positions.

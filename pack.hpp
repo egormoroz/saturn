@@ -80,7 +80,7 @@ struct ChainReader {
 
 private:
     uint16_t move_idx = 0;
-    uint8_t buf[512 * 2];
+    uint8_t buf[MAX_PLIES * 2];
     BitReader br;
     size_t is_off_start = 0, is_bytes_read = 0;
 

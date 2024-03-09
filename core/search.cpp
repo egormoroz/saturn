@@ -327,7 +327,6 @@ int Search::aspiration_window(int score, int depth) {
         if (alpha <= -3000) alpha = -VALUE_MATE;
         if (beta >= 3000) beta = VALUE_MATE;
 
-        /* score = search_root(alpha, beta, depth); */
         score = search<true>(root_, alpha, beta, depth);
 
         if (score <= alpha) {
@@ -384,7 +383,10 @@ int Search::search(const Board &b, int alpha,
     bool avoid_null = false;
     Move ttm = MOVE_NONE;
     int16_t eval;
-    if (n_pvs_ == 1 && g_tt.probe(b.key(), tte)) {
+    // probing tt at root on low depth searches used for selfplay really hurts diversity
+    // In general, we are looking for diversity if multipv is enabled
+    bool avoid_probing = is_root && n_pvs_ > 1;
+    if (!avoid_probing && g_tt.probe(b.key(), tte)) {
         if (ttm = Move(tte.move16); !b.is_valid_move(ttm))
             ttm = MOVE_NONE;
         
@@ -466,9 +468,6 @@ move_loop:
     for (Move m = amp.template next<false>(); m != MOVE_NONE; 
             m = amp.template next<false>()) 
     {
-        const Square from = from_sq(m);
-        const Square to = to_sq(m);
-
         bool is_quiet = b.is_quiet(m);
         int new_depth = depth - 1, r = 0;
         bool killer_or_counter = m == counter
