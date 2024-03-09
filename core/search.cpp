@@ -672,8 +672,8 @@ void Search::uci_report() const {
     char buf[32];
     char mpv_str[64];
 
-    int64_t elapsed = timer::now() - limits_.start;
-    uint64_t nps = stats_.nodes * 1000 / (elapsed + 1);
+    long long elapsed = timer::now() - limits_.start;
+    unsigned long long nps = stats_.nodes * 1000 / (elapsed + 1);
 
     float fhf = stats_.fail_high_first / (stats_.fail_high + 1.f);
 
@@ -691,7 +691,8 @@ void Search::uci_report() const {
                 "info score %s depth %d seldepth %d %snodes %llu time %lld "
                 "nps %llu fhf %.4f pv ",
                 buf, stats_.id_detph, stats_.sel_depth, 
-                uci_cfg_.multipv > 1 ? mpv_str : "", stats_.nodes, elapsed, nps, fhf);
+                uci_cfg_.multipv > 1 ? mpv_str : "", 
+                (unsigned long long)stats_.nodes, elapsed, nps, fhf);
 
         Move m = rm.move;
         b = root_;
