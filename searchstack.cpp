@@ -2,6 +2,11 @@
 #include "board/board.hpp"
 #include <cstring>
 
+Stack::Stack() 
+    : entries_(MAX_PLIES)
+{
+}
+
 void Stack::set_start(int start) { 
     start_ = start; 
 }

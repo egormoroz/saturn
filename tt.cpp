@@ -14,11 +14,12 @@ int TTEntry::score(int ply) const {
     return s;
 }
 
-TTEntry::TTEntry(uint64_t key, int s, int e, Bound b, 
-    int depth, Move m, int ply, bool null) : key(key)
+TTEntry::TTEntry(uint16_t key16, int s, int e, Bound b, 
+    int depth, Move m, int ply, bool null, uint8_t age)
 {
-    //assert(depth < MAX_DEPTH);
     assert(int(b) < BOUND_NUM);
+
+    this->key16 = key16;
 
     move16 = uint16_t(m);
     depth5 = uint8_t(std::min(depth, 63));
@@ -31,6 +32,8 @@ TTEntry::TTEntry(uint64_t key, int s, int e, Bound b,
         s -= ply;
     score16 = int16_t(s);
     eval16 = int16_t(e);
+
+    this->age = age;
 }
 
 void TranspositionTable::resize(size_t mbs) {
@@ -50,13 +53,13 @@ void TranspositionTable::new_search() {
     ++age_;
 }
 
-bool TranspositionTable::probe(uint64_t key, 
-        TTEntry &e) const 
-{
-    Bucket &b = buckets_[key % size_];
+bool TranspositionTable::probe(uint64_t key, TTEntry &e) const {
+    uint64_t key16 = uint16_t(key);
+
+    Bucket &b = buckets_[bucket_by_key(key)];
     for (int i = 0; i < Bucket::N; ++i) {
         e = b.entries[i];
-        if ((e.key ^ e.data) == key) {
+        if (e.key16 == key16) {
             e.age = age_;
             return true;
         }
@@ -65,12 +68,16 @@ bool TranspositionTable::probe(uint64_t key,
     return false;
 }
 
-void TranspositionTable::store(TTEntry new_entry) {
-    Bucket &b = buckets_[new_entry.key % size_];
+void TranspositionTable::store(uint64_t key, int score, int eval, 
+        Bound bnd, int depth, Move m, int ply, bool avoid_null)
+{
+    uint16_t key16 = uint16_t(key);
+    Bucket &b = buckets_[bucket_by_key(key)];
+
     TTEntry *replace = nullptr;
     for (int i = 0; i < Bucket::N; ++i) {
         TTEntry &e = b.entries[i];
-        if ((e.key ^ e.data) == new_entry.key) {
+        if (e.key16 == key16) {
             replace = &e;
             break;
         }
@@ -97,10 +104,7 @@ void TranspositionTable::store(TTEntry new_entry) {
         }
     }
 
-    new_entry.age = age_;
-
-    replace->key = new_entry.key ^ new_entry.data;
-    replace->data = new_entry.data;
+    *replace = TTEntry(key16, score, eval, bnd, depth, m, ply, avoid_null, age_);
 }
 
 void TranspositionTable::prefetch(uint64_t key) const {
@@ -162,6 +166,27 @@ void TranspositionTable::extract_pv(Board b, PVLine &pv,
         b = b.do_move(m, &si);
         pv.moves[pv.len++] = m;
     }
+}
+
+// Multiply a and b as though they are 128bit and return the high 64 bits
+constexpr inline uint64_t mul_hi64(uint64_t a, uint64_t b) {
+#if defined(__GNUC__) && defined(IS_64BIT)
+    __extension__ using uint128 = unsigned __int128;
+    return (uint128(a) * uint128(b)) >> 64;
+#else
+    uint64_t aL = uint32_t(a), aH = a >> 32;
+    uint64_t bL = uint32_t(b), bH = b >> 32;
+    uint64_t c1 = (aL * bL) >> 32;
+    uint64_t c2 = aH * bL + c1;
+    uint64_t c3 = aL * bH + uint32_t(c2);
+    return aH * bH + (c2 >> 32) + (c3 >> 32);
+#endif
+}
+
+uint64_t TranspositionTable::bucket_by_key(uint64_t key) const {
+    // A cool idea from Stockfish to use upper bits of the key as the bucket index.
+    // 0 <= key/2^64 < 1, so 0 <= key/2^64 * size_ < size
+    return mul_hi64(key, size_);
 }
 
 

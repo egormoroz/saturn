@@ -30,6 +30,8 @@ struct Histories {
             SQUARE_NB>,
         COLOR_NB> main;
 
+    Histories() noexcept;
+
     void reset();
     void add_bonus(const Board &b, Move m, int16_t bonus);
     void update(const Board &b, Move bm, int depth,

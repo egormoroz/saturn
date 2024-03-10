@@ -194,7 +194,9 @@ RootMove RootMovePicker::best_move() const {
 }
 
 Search::Search() 
-    : root_(Board::start_pos(&root_si_))
+    : root_(Board::start_pos(&root_si_)),
+      counters_({MOVE_NONE}),
+      followups_({MOVE_NONE})
 {
 }
 
@@ -527,10 +529,6 @@ move_loop:
 
             r = std::clamp(r, 0, new_depth - 1);
             new_depth -= r;
-
-            // no extensions when searching root moves
-            if (is_root)
-                new_depth = std::min(new_depth, depth - 1);
         }
 
         stack_.push(b.key(), m, eval);
@@ -552,9 +550,8 @@ move_loop:
         stack_.pop();
         ++moves_tried;
 
-        // TODO: make sure this doesn't break anything
-        /* if (!keep_going()) */
-        /*     return 0; */
+        if (!keep_going())
+            return 0;
 
         if (score > best_score) {
             best_score = score;
@@ -597,11 +594,11 @@ move_loop:
         }
     }
 
-    if (!excluded && keep_going()) {
+    if (!excluded) {
         if (!is_root || (is_root && amp.num_excluded_moves() == 0)) {
-            g_tt.store(TTEntry(b.key(), alpha, eval,
+            g_tt.store(b.key(), alpha, eval,
                 determine_bound(alpha, beta, old_alpha),
-                depth, best_move, ply, avoid_null));
+                depth, best_move, ply, avoid_null);
         }
 
         amp.complete_iter(best_move_idx);

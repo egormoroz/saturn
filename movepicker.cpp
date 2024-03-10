@@ -41,6 +41,12 @@ constexpr int16_t SortingTable[SQUARE_NB] = {
 
 }
 
+Histories::Histories() noexcept {
+    for (auto &h: main)
+        for (auto &i: h)
+            i.fill(0);
+}
+
 void Histories::reset() {
     memset(main.data(), 0, sizeof(main));
 }

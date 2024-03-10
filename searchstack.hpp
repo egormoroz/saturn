@@ -2,7 +2,7 @@
 #define SEARCHSTACK_HPP
 
 #include "primitives/common.hpp"
-#include <array>
+#include <vector>
 
 class Board;
 
@@ -17,7 +17,7 @@ public:
         int16_t eval;
     };
 
-    Stack() = default;
+    Stack();
 
     void set_start(int start);
     void reset();
@@ -36,7 +36,8 @@ public:
     int16_t mated_score() const;
 
 private:
-    std::array<Entry, MAX_PLIES> entries_;
+    std::vector<Entry> entries_;
+    //std::array<Entry, MAX_PLIES> entries_;
     int height_{}, start_{};
 };
 

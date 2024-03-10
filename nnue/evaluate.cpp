@@ -51,10 +51,11 @@ bool update_accumulator(
     if (si->acc.computed[side])
         return true;
 
-    if (si->deltas[0].piece == make_piece(side, KING))
+    if (!si->previous || si == si->previous)
         return false;
 
-    if (!si->previous || si == si->previous)
+    // deltas aren't initialized, so an extra check is needed
+    if (si->nb_deltas && si->deltas[0].piece == make_piece(side, KING))
         return false;
 
     if (!update_accumulator(si->previous, side, ksq))

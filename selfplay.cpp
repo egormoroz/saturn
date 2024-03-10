@@ -189,12 +189,12 @@ public:
 
     void stop() {
         keep_going_ = false;
+        if (th_.joinable())
+            th_.join();
     }
 
     ~Session() {
         stop();
-        if (th_.joinable())
-            th_.join();
     }
 
 

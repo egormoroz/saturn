@@ -41,8 +41,8 @@ struct SearchLimits {
 };
 
 struct TimeMan {
-    TimePoint start;
-    TimePoint max_time;
+    TimePoint start = 0;
+    TimePoint max_time = 0;
 
     void init(const SearchLimits &limits, 
             Color us, int ply) 
