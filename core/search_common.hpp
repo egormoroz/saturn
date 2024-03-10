@@ -11,12 +11,12 @@ struct SearchStats {
     uint64_t fail_high{}, fail_high_first{};
     int sel_depth{};
     // keep track of iteradtive deepening depth
-    int id_detph{};
+    int id_depth{};
 
     void reset() {
         nodes = qnodes = fail_high = fail_high_first = 0;
         sel_depth = 0;
-        id_detph = 0;
+        id_depth = 0;
     }
 };
 

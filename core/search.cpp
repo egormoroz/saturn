@@ -133,6 +133,7 @@ void RootMovePicker::reset(const Board &root){
             ttm = MOVE_NONE;
     }
 
+    // TODO: consider ordering quiet moves with NNUE evaluation / qsearch
     MovePicker mp(root, ttm);
     mpv_start_ = cur_ = num_moves_ = 0;
     for (Move m = mp.next<false>(); m != MOVE_NONE; 
@@ -236,7 +237,7 @@ void Search::setup(const Board &root,
 bool Search::keep_going() {
     if (stats_.nodes % 2048 == 0 && keep_going_) {
         keep_going_ = limits_.infinite || !man_.out_of_time()
-            || stats_.id_detph <= limits_.min_depth;
+            || stats_.id_depth <= limits_.min_depth;
         if (limits_.max_nodes)
             keep_going_ = keep_going_ && stats_.nodes < limits_.max_nodes;
     }
@@ -259,7 +260,7 @@ void Search::iterative_deepening() {
         return;
     }
 
-    stats_.id_detph = 1;
+    stats_.id_depth = 1;
     rmp_.mpv_reset();
     for (int i = 0; i < n_pvs_; ++i) {
         score = search<true>(root_, -VALUE_MATE, VALUE_MATE, 1);
@@ -270,7 +271,7 @@ void Search::iterative_deepening() {
 
 
     for (int d = 2; d <= limits_.max_depth; ++d) {
-        stats_.id_detph = d;
+        stats_.id_depth = d;
         g_tree.clear();
         prev_score = score;
         TimePoint start = timer::now();
@@ -294,7 +295,8 @@ void Search::iterative_deepening() {
         TimePoint now = timer::now(), 
               time_left = man_.start + man_.max_time - now;
         if (abs(score - prev_score) < 8 && !limits_.infinite
-                && !limits_.move_time && now - start >= time_left)
+                && !limits_.move_time && now - start >= time_left
+                && d >= limits_.min_depth)
             break; //assume we don't have enough time to go 1 ply deeper
 
         if (uci_cfg_.multipv == 1 && abs(score) >= VALUE_MATE - d)
@@ -353,6 +355,8 @@ int Search::search(const Board &b, int alpha,
 {
     const int ply = stack_.height();
     const bool pv_node = alpha != beta - 1;
+    // Used for Singular Extension. Excluded move is the TT move.
+    const Move excluded = ply > 0 ? stack_.at(ply).excluded : MOVE_NONE;
 
     if (!keep_going())
         return 0;
@@ -390,7 +394,8 @@ int Search::search(const Board &b, int alpha,
         if (ttm = Move(tte.move16); !b.is_valid_move(ttm))
             ttm = MOVE_NONE;
         
-        if (can_return_ttscore(tte, alpha, beta, depth, ply)) {
+        // TODO: consider not returning when in PV node
+        if (!excluded && can_return_ttscore(tte, alpha, beta, depth, ply)) {
             if (ttm && b.is_quiet(ttm))
                 hist_.add_bonus(b, ttm, depth * depth);
             return alpha;
@@ -408,6 +413,7 @@ int Search::search(const Board &b, int alpha,
     if (depth >= 4 && !ttm)
         --depth;
 
+    // TODO: check if forward pruning makes sense in a singularity search
     if (pv_node || b.checkers())
         goto move_loop; //skip pruning
 
@@ -417,7 +423,7 @@ int Search::search(const Board &b, int alpha,
         return eval;
 
     //Null move pruning
-    if (depth >= 3
+    if (depth >= 3 && !excluded
         && b.plies_from_null() && !avoid_null
         && b.has_nonpawns(b.side_to_move())
         && eval >= beta)
@@ -468,26 +474,54 @@ move_loop:
     for (Move m = amp.template next<false>(); m != MOVE_NONE; 
             m = amp.template next<false>()) 
     {
+        if (m == excluded) continue;
+
         bool is_quiet = b.is_quiet(m);
         int new_depth = depth - 1, r = 0;
         bool killer_or_counter = m == counter
             || entry.killers[0] == m || entry.killers[1] == m;
         bb = b.do_move(m, &si);
 
-        if (bb.checkers() && b.see_ge(m))
-            new_depth++;
+        // Check extension
+        int extension = 0;
+        if (bb.checkers() && b.see_ge(m)) 
+            extension = 1;
+
+        // Singular move extension (+10 elo)
+        // Extend if TT move is so good it causes a beta cutoff, whereas all other moves don't.
+        if (!is_root && m == ttm && !excluded && depth >= 8 
+                && tte.depth5 >= depth - 3 && tte.bound2 & BOUND_BETA) 
+        {
+            int rbeta = tte.score16 - depth;
+
+            entry.excluded = ttm;
+            int score = search<false>(b, rbeta - 1, rbeta, (depth - 1) / 2);
+            entry.excluded = MOVE_NONE;
+
+            if (score < rbeta - 16)
+                extension += 2;
+            else if (score < rbeta)
+                extension += 1;
+        }
+
+        extension = std::min(extension, 2);
+        new_depth += is_root ? 0 : extension;
 
         int lmp_threshold = (3 + 2 * depth * depth) / (2 - improving);
-        if (!pv_node && !bb.checkers() && is_quiet
-                && moves_tried > lmp_threshold) 
+        if (!pv_node && !bb.checkers() && is_quiet && moves_tried > lmp_threshold) 
             break;
 
+        // Late more reductions
         if (depth > 2 && moves_tried > 1 && is_quiet) {
             r = LMR[std::min(31, depth)][std::min(63, moves_tried)];
             if (!pv_node) ++r;
             if (!improving) ++r;
             if (killer_or_counter) r -= 2;
-            if (bb.checkers()) --r;
+
+            // We are implicitly kind of double-extending SEE>0 checks... Is it a good idea?
+            // I don't have the hardware to test it for like 8k games, 
+            // but a few hundred @ 10+0.1 show it doesn't lose any elo
+            //if (bb.checkers()) --r; 
 
             r -= hist_.get_score(b, m) / 8192;
 
@@ -518,6 +552,10 @@ move_loop:
         stack_.pop();
         ++moves_tried;
 
+        // TODO: make sure this doesn't break anything
+        /* if (!keep_going()) */
+        /*     return 0; */
+
         if (score > best_score) {
             best_score = score;
             best_move = m;
@@ -533,7 +571,7 @@ move_loop:
             break;
     }
 
-    if (!moves_tried) {
+    if (!moves_tried && !excluded) {
         if (b.checkers())
             return stack_.mated_score();
         return 0; //stalemate
@@ -559,7 +597,7 @@ move_loop:
         }
     }
 
-    if (keep_going()) {
+    if (!excluded && keep_going()) {
         if (!is_root || (is_root && amp.num_excluded_moves() == 0)) {
             g_tt.store(TTEntry(b.key(), alpha, eval,
                 determine_bound(alpha, beta, old_alpha),
@@ -690,13 +728,13 @@ void Search::uci_report() const {
         int n = snprintf(output, sizeof(output), 
                 "info score %s depth %d seldepth %d %snodes %llu time %lld "
                 "nps %llu fhf %.4f pv ",
-                buf, stats_.id_detph, stats_.sel_depth, 
+                buf, stats_.id_depth, stats_.sel_depth, 
                 uci_cfg_.multipv > 1 ? mpv_str : "", 
                 (unsigned long long)stats_.nodes, elapsed, nps, fhf);
 
         Move m = rm.move;
         b = root_;
-        for (int k = 0; k < stats_.id_detph; ++k) {
+        for (int k = 0; k < stats_.id_depth; ++k) {
             n += move_to_str(output + n, sizeof(output) - n, m);
 
             b = b.do_move(m, &si);

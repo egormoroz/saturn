@@ -12,6 +12,7 @@ public:
     struct Entry {
         uint64_t key;
         Move move;
+        Move excluded;
         Move killers[2];
         int16_t eval;
     };
@@ -21,7 +22,7 @@ public:
     void set_start(int start);
     void reset();
 
-    void push(uint64_t key, Move m = MOVE_NONE, int16_t eval = 0);
+    void push(uint64_t key, Move m = MOVE_NONE, int16_t eval = 0, Move excluded = MOVE_NONE);
     void pop();
 
     Entry &at(int ply);

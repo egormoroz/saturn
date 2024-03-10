@@ -12,9 +12,9 @@ void Stack::reset() {
     memset(entries_.data(), 0, sizeof(entries_));
 }
 
-void Stack::push(uint64_t key, Move m, int16_t eval) {
+void Stack::push(uint64_t key, Move m, int16_t eval, Move excluded) {
     entries_[height_++] = { 
-        key, m, 
+        key, m, excluded,
         { MOVE_NONE, MOVE_NONE }, 
         eval 
     };
