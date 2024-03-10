@@ -94,7 +94,7 @@ struct Judge {
 
         if (abs(score) > 10)
             draw_score_plies = 0;
-        else if (ply >= 50)
+        else if (ply >= 100)
             ++draw_score_plies;
 
         if (!is_ok(m)) {
@@ -425,7 +425,7 @@ void selfplay(const char *out_name, int min_depth, int move_time,
 
         printf("%s\n", reason_to_str(e.reason));
 
-        if (pos_cnt % n_flush_every)
+        if (pos_cnt % n_flush_every == 0)
             fout.flush();
     }
 
