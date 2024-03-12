@@ -144,7 +144,7 @@ void UCIContext::parse_position(std::istream &is) {
         st_.push(board_.key(), m);
         board_ = board_.do_move(m, &si_);
     }
-    st_.set_start(st_.height());
+    st_.set_start(st_.total_height());
     si_.reset();
 }
 

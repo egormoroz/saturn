@@ -82,7 +82,7 @@ struct Judge {
         STALEMATE,
         REPEATED_DRAW_SCORE,
         FIFTY_MOVE_RULE,
-        FIFTY_SHITTY_WORKAOUND,
+        THREEFOLD_REP,
         MATERIAL_DRAW,
         MAX_PLY_REACHED,
     };
@@ -108,6 +108,9 @@ struct Judge {
             return;
         }
 
+        // the score is reversed, since the move m is already applied
+        score = -score;
+
         if (abs(score) > 10000) {
             result = score > 0 ? stm : ~stm;
             reason = SCORE_THRESHOLD;
@@ -115,15 +118,14 @@ struct Judge {
         }
 
         if (b.half_moves() >= 100) {
-            // TODO: fixme
-            if (abs(score) > 700) {
-                result = score > 0 ? stm : ~stm;
-                reason = FIFTY_SHITTY_WORKAOUND;
-                return;
-            }
-
             result = GameOutcome::DRAW;
             reason = FIFTY_MOVE_RULE;
+            return;
+        }
+
+        if (st.is_repetition(b) && score == 0) {
+            result = GameOutcome::DRAW;
+            reason = THREEFOLD_REP;
             return;
         }
 
@@ -156,13 +158,13 @@ static const char* reason_to_str(Judge::Reason r) {
         return "res_inv";
 
     const char* strs[Judge::MAX_PLY_REACHED + 1] = {
-        "no_reason",
-        "score_thresh",
+        "NO_REASON",
+        "score",
         "checkmate",
         "stalemate",
-        "rep_draw_score",
-        "fifty",
-        "fifty_workaround",
+        "rep_lowscore",
+        "50",
+        "3-fold",
         "mat_draw",
         "max_ply",
     };
@@ -219,7 +221,9 @@ private:
 
             for (int ply = start_ply; judge.result < 0; ++ply) {
                 limits.start = timer::now();
-                search_.setup(board_, limits, usc);
+
+                stack_.set_start(stack_.total_height());
+                search_.setup(board_, limits, usc, &stack_);
 
                 search_.iterative_deepening();
 
@@ -234,8 +238,6 @@ private:
                 int16_t score = search_.get_pv_start(0).score;
                 int pv_idx = choose_pv(100);
                 Move move = search_.get_pv_start(pv_idx).move;
-
-                judge.adjudicate(board_, stack_, move, score, ply);
                 assert(board_.is_valid_move(move));
 
                 pc.seq[pc.n_moves++] = { move, score };
@@ -245,6 +247,8 @@ private:
                 stack_.push(board_.key(), move);
                 board_ = board_.do_move(move, &si_stack_[ply+1]);
                 hash ^= board_.key();
+
+                judge.adjudicate(board_, stack_, move, score, ply);
             }
 
             assert(judge.result != -1);
