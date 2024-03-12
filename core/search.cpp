@@ -486,22 +486,22 @@ move_loop:
         if (bb.checkers() && b.see_ge(m)) 
             extension = 1;
 
-        // Singular move extension (+10 elo)
+        // Singular move extension (currently loses ELO)
         // Extend if TT move is so good it causes a beta cutoff, whereas all other moves don't.
-        if (!is_root && m == ttm && !excluded && depth >= 8 
-                && tte.depth5 >= depth - 3 && tte.bound2 & BOUND_BETA) 
-        {
-            int rbeta = tte.score16 - depth;
+        // if (!is_root && m == ttm && !excluded && depth >= 8 
+        //         && tte.depth5 >= depth - 3 && tte.bound2 & BOUND_BETA) 
+        // {
+        //     int rbeta = tte.score16 - depth;
 
-            entry.excluded = ttm;
-            int score = search<false>(b, rbeta - 1, rbeta, (depth - 1) / 2);
-            entry.excluded = MOVE_NONE;
+        //     entry.excluded = ttm;
+        //     int score = search<false>(b, rbeta - 1, rbeta, (depth - 1) / 2);
+        //     entry.excluded = MOVE_NONE;
 
-            if (score < rbeta - 16)
-                extension += 2;
-            else if (score < rbeta)
-                extension += 1;
-        }
+        //     if (score < rbeta - 16)
+        //         extension += 2;
+        //     else if (score < rbeta)
+        //         extension += 1;
+        // }
 
         extension = std::min(extension, 2);
         new_depth += is_root ? 0 : extension;

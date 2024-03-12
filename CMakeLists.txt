@@ -12,6 +12,15 @@ add_executable(saturn
     cli.cpp core/searchworker.cpp nnue/evaluate.cpp
     core/search.cpp selfplay.cpp pack.cpp)
 
+
+include(CheckIPOSupported)
+check_ipo_supported(RESULT LTO_SUPPORTED)
+if(LTO_SUPPORTED)
+    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
+    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELWITHDEBINFO OFF)
+    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_DEBUG OFF)
+endif()
+
 if (MSVC)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP")
 else()
