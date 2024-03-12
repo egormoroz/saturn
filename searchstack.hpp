@@ -31,7 +31,7 @@ public:
     int total_height() const;
     bool capped() const;
 
-    bool is_repetition(const Board &b, int fold=1) const;
+    bool is_repetition(const Board &b) const;
 
     int16_t mated_score() const;
 

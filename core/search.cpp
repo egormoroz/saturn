@@ -256,7 +256,7 @@ void Search::iterative_deepening() {
         n_pvs_ = 0;
     }
 
-    if ((rmp_.num_moves() == 1 || is_board_drawn(root_)) && !silent_) {
+    if ((rmp_.num_moves() == 1/* || is_board_drawn(root_)*/) && !silent_) {
         RootMove m = rmp_.best_move();
         sync_cout() << "bestmove " << m.move << '\n';
         return;
@@ -389,15 +389,12 @@ int Search::search(const Board &b, int alpha,
     bool avoid_null = false;
     Move ttm = MOVE_NONE;
     int16_t eval;
-    // probing tt at root on low depth searches used for selfplay really hurts diversity
-    // In general, we are looking for diversity if multipv is enabled
-    bool avoid_probing = is_root && n_pvs_ > 1;
-    if (!avoid_probing && g_tt.probe(b.key(), tte)) {
+    if (g_tt.probe(b.key(), tte)) {
         if (ttm = Move(tte.move16); !b.is_valid_move(ttm))
             ttm = MOVE_NONE;
         
         // TODO: consider not returning when in PV node
-        if (!excluded && can_return_ttscore(tte, alpha, beta, depth, ply)) {
+        if (!is_root && !excluded && can_return_ttscore(tte, alpha, beta, depth, ply)) {
             if (ttm && b.is_quiet(ttm))
                 hist_.add_bonus(b, ttm, depth * depth);
             return alpha;
@@ -672,7 +669,7 @@ int Search::quiescence(const Board &b,
 bool Search::is_board_drawn(const Board &b) const {
     if (b.half_moves() >= 100 
         || (!b.checkers() && b.is_material_draw())
-        || stack_.is_repetition(b, 3))
+        || stack_.is_repetition(b))
         return true;
     return false;
 }
