@@ -175,6 +175,8 @@ uint64_t packed_hash(const PackedBoard &pb);
 void merge_packed_games(const char **game_fnames, const char **hash_fnames,
         int n_files, const char *fout_games, const char *fout_hash);
 
+void merge_packed_games2(const char **game_fnames, int n_files, const char *fout_games);
+
 int recover_pack(const char *fname_in, const char *fname_out, const char *hash_out);
 
 bool repack_games(const char *fname_in, const char *fname_out);

@@ -455,6 +455,14 @@ int enter_cli(int argc, char **argv) {
                 cum_hash, n_chains, n_pos);
 
         return 0;
+    } else if (!strcmp(argv[1], "packmerge2")) {
+        if (argc < 5) {
+            printf("usage: packmerge2 <fout_bin> <n_files> <fbin1> <fbin2>...\n");
+            return 1;
+        }
+
+        merge_packed_games2((const char**)&argv[4], atol(argv[3]), argv[2]);
+        return 0;
     }
 
     printf("invalid command line arguments\n");

@@ -238,6 +238,60 @@ void merge_packed_games(const char **game_fnames,
     fout << hash << '\n';
 }
 
+
+void merge_packed_games2(const char **game_fnames, int n_games, const char *fout_games) {
+    ChunkHead head;
+    ChainReader2 cr;
+
+    std::vector<char> buffer(PACK_CHUNK_SIZE + CHUNK_PADDING);
+    std::vector<PosChain> leftovers;
+
+    std::ofstream fout(fout_games, std::ios::binary);
+    for (int i = 0; i < n_games; ++i) {
+        std::ifstream fin(game_fnames[i], std::ios::binary);
+
+        while (true) {
+            if (fin.read(buffer.data(), PACK_CHUNK_SIZE)) {
+                assert(fin.gcount() == PACK_CHUNK_SIZE);
+                fout.write(buffer.data(), PACK_CHUNK_SIZE);
+                continue;
+            }
+
+            size_t n_read = fin.gcount();
+            if (n_read < ChunkHead::SIZE) break;
+
+            head.from_bytes((const uint8_t*)buffer.data());
+            if (head.SIZE + head.body_size > PACK_CHUNK_SIZE) break;
+
+            const uint8_t *ptr = (const uint8_t*)buffer.data() + head.SIZE;
+            size_t buf_size = head.body_size + CHUNK_PADDING;
+
+            for (uint32_t i = 0; i < head.n_chains; ++i) {
+                if (!is_ok(cr.start_new_chain(ptr, buf_size))) break;
+
+                leftovers.resize(leftovers.size() + 1);
+                PosChain &pc = leftovers.back();
+
+                pc.start = pack_board(cr.board);
+                pc.result = cr.result;
+
+                do {
+                    pc.seq[pc.n_moves++] = { cr.move, cr.score };
+                } while (is_ok(cr.next()));
+
+                buf_size -= cr.tellg();
+                ptr += cr.tellg();
+            }
+
+            break;
+        }
+    }
+
+    ChainWriter cw(fout);
+    for (auto &pc: leftovers)
+        cw.write(pc);
+}
+
 // TODO: consider using pext.
 // https://stackoverflow.com/questions/7669057/find-nth-set-bit-in-an-int/7671563#7671563
 constexpr inline Bitboard nth_lsb(Bitboard v, int n) {
@@ -875,7 +929,9 @@ void ChunkHead::from_bytes(const uint8_t* buf) {
 
 ChainWriter::ChainWriter(std::ostream &os)
     : os_(os)
-{}
+{
+    chunk_start_ = os_.tellp();
+}
 
 void ChainWriter::write(const PosChain &pc) {
     assert(chunk_off_ <= PACK_CHUNK_SIZE);
@@ -1056,6 +1112,8 @@ bool validate_packed_games2(const char *fname, uint64_t &hash_out) {
 
     while (fin) {
         fin.read((char*)buffer.data(), PACK_CHUNK_SIZE);
+        if (!fin && fin.gcount() == 0) break;
+
         head.from_bytes(buffer.data());
         assert(head.body_size < PACK_CHUNK_SIZE);
 

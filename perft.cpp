@@ -33,9 +33,8 @@ uint64_t perft(const Board &b, int depth) {
         return end - begin;
 
     uint64_t n = 0;
-    StateInfo si;
     for (auto it = begin; it != end; ++it) {
-        n += perft(b.do_move(*it, &si), depth - 1);
+        n += perft(b.do_move(*it), depth - 1);
     }
 
     return n;
@@ -49,8 +48,7 @@ int perft_test_positions() {
     for (int i = 0; i < N; ++i) {
         threads.emplace_back([&results, i]() {
             PerftResult pr = PERFT_RESULTS[i];
-            StateInfo si;
-            Board b(&si);
+            Board b;
             if (!b.load_fen(pr.fen))
                 return;
             results[i] = perft(b, pr.depth);
