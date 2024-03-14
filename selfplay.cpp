@@ -220,6 +220,8 @@ private:
             uint64_t hash = board_.key();
 
             for (int ply = start_ply; judge.result < 0; ++ply) {
+                if (!keep_going_) return;
+
                 limits.start = timer::now();
 
                 stack_.set_start(stack_.total_height());

@@ -43,8 +43,10 @@ bool Board::setup(Bitboard mask, const Piece *pc_list, Color stm,
 {
     StateInfo *si = si_;
     memset(this, 0, sizeof(Board));
-    si_ = si;
-    si_->reset();
+    if (si) {
+        si_ = si;
+        si_->reset();
+    }
 
     for (int i = 0; mask; ++i) {
         Square sq = pop_lsb(mask);

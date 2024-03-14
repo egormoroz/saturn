@@ -21,9 +21,11 @@ Board Board::do_move(Move m, StateInfo *newst) const {
     result.en_passant_ = SQ_NONE;
     result.checkers_ = 0;
 
-    result.si_ = newst;
-    newst->reset();
-    newst->previous = si_;
+    if (newst) {
+        result.si_ = newst;
+        newst->reset();
+        newst->previous = si_;
+    }
 
     Square from = from_sq(m), to = to_sq(m);
     Color us = side_to_move_, them = ~us;
@@ -34,18 +36,21 @@ Board Board::do_move(Move m, StateInfo *newst) const {
 
     result.remove_piece(from);
 
-    if (type_of(m) != PROMOTION) {
-        newst->move_piece(moved, from, to);
-    } else {
-        newst->remove_piece(moved, from);
-        newst->add_piece(make_piece(us, prom_type(m)),
-                to);
+    if (newst) {
+        if (type_of(m) != PROMOTION) {
+            newst->move_piece(moved, from, to);
+        } else {
+            newst->remove_piece(moved, from);
+            newst->add_piece(make_piece(us, prom_type(m)),
+                    to);
+        }
     }
 
     Piece captured = piece_on(to);
     if (captured != NO_PIECE) {
         result.remove_piece(to);
-        newst->remove_piece(captured, to);
+        if (newst)
+            newst->remove_piece(captured, to);
     }
     Piece p = type_of(m) == PROMOTION ? make_piece(
             us, prom_type(m)) : moved;
@@ -70,7 +75,8 @@ Board Board::do_move(Move m, StateInfo *newst) const {
         if (type_of(m) == EN_PASSANT) {
             Square cap_sq = make_square(file_of(to), rank_of(from));
             result.remove_piece(cap_sq);
-            newst->remove_piece(make_piece(them, PAWN), cap_sq);
+            if (newst)
+                newst->remove_piece(make_piece(them, PAWN), cap_sq);
             result.checkers_ |= pawn_attacks_bb(them, ksq) & to_bb;
         } else if (type_of(m) == PROMOTION) {
             PieceType prom = prom_type(m);
@@ -97,7 +103,8 @@ Board Board::do_move(Move m, StateInfo *newst) const {
 
         result.remove_piece(rk_from);
         result.put_piece(rook, rk_to);
-        newst->move_piece(rook, rk_from, rk_to);
+        if (newst)
+            newst->move_piece(rook, rk_from, rk_to);
     }
 
     result.blockers_for_king_[us] = result.slider_blockers<false>(
@@ -138,9 +145,11 @@ Board Board::do_null_move(StateInfo *newst) const {
     result.half_moves_++;
     result.update_pin_info();
 
-    result.si_ = newst;
-    newst->reset();
-    newst->previous = si_;
+    if (newst) {
+        result.si_ = newst;
+        newst->reset();
+        newst->previous = si_;
+    }
 
     result.key_ ^= ZOBRIST.side
         ^ (ZOBRIST.enpassant[file_of(en_passant_)] 
