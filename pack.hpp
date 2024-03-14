@@ -93,8 +93,9 @@ struct ChunkHead {
     uint64_t hash = 0;
     uint32_t n_chains = 0;
     uint32_t body_size = 0;
+    uint32_t n_pos = 0;
 
-    static constexpr size_t SIZE = 16;
+    static constexpr size_t SIZE = 20;
 
     void to_bytes(uint8_t* buf) const;
     void from_bytes(const uint8_t* buf);

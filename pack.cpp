@@ -863,12 +863,14 @@ void ChunkHead::to_bytes(uint8_t* buf) const{
     unsigned_to_bytes(hash, buf);
     unsigned_to_bytes(n_chains, buf + 8);
     unsigned_to_bytes(body_size, buf + 12);
+    unsigned_to_bytes(n_pos, buf + 16);
 }
 
 void ChunkHead::from_bytes(const uint8_t* buf) {
     hash = bytes_to_unsigned<uint64_t>(buf);
     n_chains = bytes_to_unsigned<uint32_t>(buf + 8);
     body_size = bytes_to_unsigned<uint32_t>(buf + 12);
+    n_pos = bytes_to_unsigned<uint32_t>(buf + 16);
 }
 
 ChainWriter::ChainWriter(std::ostream &os)
@@ -895,6 +897,7 @@ void ChainWriter::write(const PosChain &pc) {
     head_.hash ^= hash;
     head_.n_chains++;
     head_.body_size += (uint32_t)n_written;
+    head_.n_pos += pc.n_moves;
 
     os_.write((const char*)buf_, n_written);
 }
@@ -929,6 +932,7 @@ void ChainWriter::finish_chunk(bool pad) {
     head_.hash = 0;
     head_.n_chains = 0;
     head_.body_size = 0;
+    head_.n_pos = 0;
 }
 
 

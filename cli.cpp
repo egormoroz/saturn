@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <sstream>
 #include <cctype>
+#include <fstream>
 
 #include "cli.hpp"
 #include "primitives/utility.hpp"
@@ -419,6 +420,39 @@ int enter_cli(int argc, char **argv) {
             printf("valid! hash %llu", (unsigned long long)hash);
         else
             printf("invalid :-(");
+
+        return 0;
+    } else if (!strcmp(argv[1], "packstats")) {
+        if (argc != 3) {
+            printf("usage: packstats <pack_fin>n");
+            return 1;
+        }
+
+        std::ifstream fin(argv[2], std::ios::binary);
+        if (!fin) {
+            printf("could not open file %s\n", argv[2]);
+            return 1;
+        }
+
+        ChunkHead head;
+        uint8_t buffer[head.SIZE];
+
+        unsigned long long cum_hash = 0, n_chains = 0, n_pos = 0;
+
+        while (true) {
+            if (!fin.read((char*)buffer, sizeof(buffer)))
+                break;
+
+            head.from_bytes(buffer);
+            cum_hash ^= head.hash;
+            n_chains += head.n_chains;
+            n_pos += head.n_pos;
+
+            fin.ignore(PACK_CHUNK_SIZE - head.SIZE);
+        }
+
+        printf("Hash %llu\nNumber of chains %llu\nNumber of positions %llu\n",
+                cum_hash, n_chains, n_pos);
 
         return 0;
     }
