@@ -10,8 +10,6 @@
 #include <fstream>
 #include <thread>
 
-#include <filesystem>
-
 #include "core/eval.hpp"
 #include "core/search.hpp"
 #include "pack.hpp"
@@ -377,20 +375,13 @@ void selfplay(const char *out_name, int min_depth, int move_time,
 {
     char buf[256];
     snprintf(buf, sizeof(buf), "%s.bin", out_name);
-    bool bin_exists = std::filesystem::exists(buf);
-    std::ofstream fout(buf, std::ios::binary | std::ios::app);
+
+    std::ofstream fout(buf, std::ios::binary);
     if (!fout) {
         printf("[ERROR] selfplay: could not create bin file %s\n", buf);
         return;
     }
-
-    constexpr int n_flush_every = 32;
-    constexpr int n_buf_size = n_flush_every * PosChain::MAX_PACKED_SIZE;
-
-    std::vector<char> fout_buf(n_buf_size);
-    fout.rdbuf()->pubsetbuf(fout_buf.data(), fout_buf.size());
-
-    // forcefully flush the fout
+    ChainWriter writer(fout);
 
     SearchLimits limits;
     limits.min_depth = min_depth;
@@ -405,14 +396,11 @@ void selfplay(const char *out_name, int min_depth, int move_time,
     TimePoint start = timer::now();
 
     int outcome_int[3] = { 1, -1, 0 };
-
-    uint64_t hash = 0;
     int pos_cnt = 0;
 
     while (pos_cnt < num_pos) {
         Entry e = q.pop();
-        e.pc.write_to_stream(fout);
-        hash ^= e.hash;
+        writer.write(e.pc);
         pos_cnt += e.pc.n_moves;
 
         auto delta = timer::now() - start;
@@ -430,26 +418,9 @@ void selfplay(const char *out_name, int min_depth, int move_time,
             printf("%.2f eta sec ", eta);
 
         printf("%s\n", reason_to_str(e.reason));
-
-        if (pos_cnt % n_flush_every == 0)
-            fout.flush();
     }
 
     for (Session &s: sessions)
         s.stop();
-
-    fout.close();
-    snprintf(buf, sizeof(buf), "%s.hash", out_name);
-    if (bin_exists && std::filesystem::exists(buf)) {
-        std::ifstream fin(buf);
-        uint64_t t;
-        fin >> t;
-        hash ^= t;
-
-        printf("hash updated\n");
-    }
-
-    fout.open(buf);
-    fout << hash << '\n';
 }
 

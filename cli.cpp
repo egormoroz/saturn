@@ -312,103 +312,6 @@ int enter_cli(int argc, char **argv) {
 
         return 0;
     } else if (!strcmp(argv[1], "packval")) {
-        if (argc < 3 || argc % 2 != 0) {
-            printf("usage: packval <games_file_1> <games_hashfile_1>...\n");
-            return 1;
-        }
-
-        int pass = 0;
-        for (int i = 2; i < argc; i += 2) {
-            printf("%d. %s\t%s\n", i / 2, argv[i], argv[i + 1]);
-            if (!validate_packed_games(argv[i], argv[i + 1])) {
-                printf("..FAIL\n");
-            } else {
-                printf("..PASS\n");
-                ++pass;
-            }
-        }
-
-        int total = argc / 2 - 1;
-        printf("%d pass, %d fail, %d total\n", pass, total-pass, total);
-
-        return 0;
-    } else if (!strcmp(argv[1], "packmerge")) {
-        if (argc < 5) {
-            printf("usage: packmerge <fout_bin> <fout_hash> <n_files> "
-                   "<fbin1> <fhash1>...\n");
-            return 1;
-        }
-
-        const char *fout_games = argv[2];
-        const char *fout_hash = argv[3];
-        int n_files = atol(argv[4]);
-
-        if (argc != n_files * 2 + 5) {
-            printf("not enough files provided\n");
-            printf("usage: packmerge <fout_bin> <fout_hash> <n_files> "
-                   "<fbin1> <fhash1>...\n");
-            return 1;
-        }
-
-        std::vector<const char*> fgames(n_files), fhashes(n_files);
-        for (int i = 0; i < n_files; ++i) {
-            fgames[i] = argv[5 + 2*i];
-            fhashes[i] = argv[5 + 2*i + 1];
-        }
-
-        merge_packed_games(fgames.data(), fhashes.data(),
-                n_files, fout_games, fout_hash);
-
-        if (validate_packed_games(fout_games, fout_hash))
-            printf("merge is valid\n");
-        else
-            printf("[!] merge is invalid\n");
-
-        return 0;
-    } else if (!strcmp(argv[1], "repack")) {
-        if (argc != 4) {
-            printf("usage: repack <old_pack_file> <new_pack_file>\n");
-            return 1;
-        }
-
-        repack_games(argv[2], argv[3]);
-
-        return 0;
-    } else if (!strcmp(argv[1], "packtest")) {
-        // check that the binpack is at least readable...
-        if (argc != 3) {
-            printf("usage: packtest <pack_file>\n");
-            return 1;
-        }
-
-        if (validate_packed_games(argv[2]))
-            printf("looks good\n");
-        else
-            printf("something aint right\n");
-        return 0;
-    } else if (!strcmp(argv[1], "packrecover")) {
-        if (argc != 4) {
-            printf("usage: packrecover <pack_in> <name_out>\n");
-            return 1;
-        }
-
-        std::string name_out = argv[3];
-        int n = recover_pack(argv[2], (name_out + ".bin").c_str(), (name_out + ".hash").c_str());
-        printf("recovered %d positions\n", n);
-        return 0;
-    } else if (!strcmp(argv[1], "packindex")) {
-        if (argc != 4) {
-            printf("usage: packindex <pack_fin> <index_fout>\n");
-            return 1;
-        }
-
-        if (!create_index(argv[2], argv[3])) {
-            printf("something went wrong, make sure the pack is valid\n");
-            return 1;
-        }
-
-        return 0;
-    } else if (!strcmp(argv[1], "packval2")) {
         if (argc != 3) {
             printf("usage: packval2 <pack_fin>n");
             return 1;
@@ -455,7 +358,7 @@ int enter_cli(int argc, char **argv) {
                 cum_hash, n_chains, n_pos);
 
         return 0;
-    } else if (!strcmp(argv[1], "packmerge2")) {
+    } else if (!strcmp(argv[1], "packmerge")) {
         if (argc < 5) {
             printf("usage: packmerge2 <fout_bin> <n_files> <fbin1> <fbin2>...\n");
             return 1;
