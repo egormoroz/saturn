@@ -407,6 +407,20 @@ int enter_cli(int argc, char **argv) {
         }
 
         return 0;
+    } else if (!strcmp(argv[1], "packval2")) {
+        if (argc != 3) {
+            printf("usage: packval2 <pack_fin>n");
+            return 1;
+        }
+
+        uint64_t hash = 0;
+        bool is_valid = validate_packed_games2(argv[2], hash);
+        if (is_valid)
+            printf("valid! hash %llu", (unsigned long long)hash);
+        else
+            printf("invalid :-(");
+
+        return 0;
     }
 
     printf("invalid command line arguments\n");

@@ -9,8 +9,8 @@
 #include "searchstack.hpp"
 
 // size overhead is 0.05% for 1 MB
-// constexpr size_t PACK_CHUNK_SIZE = 1*1024*1024;
-constexpr size_t PACK_CHUNK_SIZE = 16*1024;
+constexpr size_t PACK_CHUNK_SIZE = 1*1024*1024;
+// constexpr size_t PACK_CHUNK_SIZE = 16*1024;
 
 struct PackedBoard {
     uint64_t pc_mask;
@@ -182,7 +182,7 @@ bool validate_packed_games(const char *fname);
 bool validate_packed_games(const char *fname, uint64_t hash);
 bool validate_packed_games(const char *fname, const char *hashes_fname);
 
-bool validate_packed_games2(const char *fname);
+bool validate_packed_games2(const char *fname, uint64_t &hash_out);
 
 // assumes the pack is valid
 bool create_index(const char *fname_pack, PackIndex &pi);
