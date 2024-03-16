@@ -24,7 +24,7 @@ constexpr int ASP_MIN_DEPTH_MIN = 1;
 constexpr int ASP_MIN_DEPTH_MAX = 64;
 
 constexpr float LMR_COEFF_MIN = 0.25f;
-constexpr float LMR_COEFF = 0.5f;
+constexpr float LMR_COEFF = 0.65f;
 constexpr float LMR_COEFF_MAX = 2.f;
 
 }
