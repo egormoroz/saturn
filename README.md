@@ -1,5 +1,5 @@
 ## About
-A uci chess engine. NNNUE weights and selfplay data can be found [here](https://huggingface.co/hrtdind).
+A UCI chess engine. NNUE weights and selfplay data can be found [here](https://huggingface.co/hrtdind).
 
 ## Rating
 
