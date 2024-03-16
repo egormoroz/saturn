@@ -52,7 +52,7 @@ struct TimeMan {
         (void)(ply);
         if (limits.infinite) return;
         if (limits.move_time) {
-            max_time = limits.move_time;
+            max_time = std::max(1, limits.move_time - 10);
             return;
         }
 
