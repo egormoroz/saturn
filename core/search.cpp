@@ -112,17 +112,13 @@ int16_t cap_value(const Board &b, Move m) {
 
 } //namespace
 
-void init_reduction_tables() {
+void init_reduction_tables(float k) {
     for (int depth = 1; depth < 32; ++depth)
         for (int moves = 1; moves < 64; ++moves)
             LMR[depth][moves] = static_cast<uint8_t>(
-                0.1 + log(depth) * log(moves) / 2
+                0.1 + log(depth) * log(moves) * k
             );
     LMR[0][0] = LMR[0][1] = LMR[1][0] = 0;
-
-#ifdef SOFT_LMR
-    memset(LMR, 0, sizeof(LMR));
-#endif
 }
 
 void RootMovePicker::reset(const Board &root){

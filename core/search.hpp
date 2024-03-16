@@ -102,6 +102,6 @@ private:
     std::atomic_bool keep_going_;
 };
 
-void init_reduction_tables();
+void init_reduction_tables(float k = defopts::LMR_COEFF);
 
 #endif

@@ -22,7 +22,4 @@ private:
     Routine loop_;
 };
 
-// defines in search.cpp
-void init_reduction_tables();
-
 #endif

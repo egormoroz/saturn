@@ -253,6 +253,12 @@ void UCIContext::parse_setopt(std::istream &is) {
         int value = -1;
         if (is >> value && inrange(value, d::ASP_MIN_DEPTH_MIN, d::ASP_MIN_DEPTH_MAX))
             cfg_.asp_min_depth = value;
+    } else if (name == "lmrcoeff") {
+        if (is >> t; t != "value")
+            return;
+        if (float value; is >> value) {
+            init_reduction_tables(value);
+        }
     }
 }
 
@@ -269,12 +275,13 @@ void UCIContext::print_info() {
             "option name multipv type spin default %d min %d max %d\n"
             "option name aspdelta type spin default %d min %d max %d\n"
             "option name aspmindepth type spin default %d min %d max %d\n"
+            "option name lmrcoeff type string default %.2f\n"
             "option name evalfile type string default %s\n",
             defopts::TT_SIZE, defopts::TT_SIZE_MIN, defopts::TT_SIZE_MAX,
             defopts::MULTIPV, defopts::MULTIPV_MIN, defopts::MULTIPV_MAX,
             defopts::ASP_INIT_DELTA, defopts::ASP_INIT_MIN, defopts::ASP_INIT_MAX,
             defopts::ASP_MIN_DEPTH, defopts::ASP_MIN_DEPTH_MIN, defopts::ASP_MIN_DEPTH_MAX,
-            defopts::NNUE_PATH
+            defopts::LMR_COEFF, defopts::NNUE_PATH
     );
 
     sync_cout() << buf;
@@ -313,21 +320,21 @@ int enter_cli(int argc, char **argv) {
         return 0;
     } else if (!strcmp(argv[1], "packval")) {
         if (argc != 3) {
-            printf("usage: packval2 <pack_fin>n");
+            printf("usage: packval <pack_fin>\n");
             return 1;
         }
 
         uint64_t hash = 0;
         bool is_valid = validate_packed_games2(argv[2], hash);
         if (is_valid)
-            printf("valid! hash %llu", (unsigned long long)hash);
+            printf("valid! hash %llu\n", (unsigned long long)hash);
         else
-            printf("invalid :-(");
+            printf("invalid :-(\n");
 
         return 0;
     } else if (!strcmp(argv[1], "packstats")) {
         if (argc != 3) {
-            printf("usage: packstats <pack_fin>n");
+            printf("usage: packstats <pack_fin>\n");
             return 1;
         }
 
