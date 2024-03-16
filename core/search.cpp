@@ -113,6 +113,8 @@ int16_t cap_value(const Board &b, Move m) {
 } //namespace
 
 void init_reduction_tables(float k) {
+    // k == 0.65 *could be* like +5 elo
+    // TODO: test this
     for (int depth = 1; depth < 32; ++depth)
         for (int moves = 1; moves < 64; ++moves)
             LMR[depth][moves] = static_cast<uint8_t>(
@@ -416,6 +418,12 @@ int Search::search(const Board &b, int alpha,
     if (depth < 7 && eval - 175 * depth / (1 + improving) >= beta
             && abs(beta) < MATE_BOUND)
         return eval;
+
+    // Razoring
+    if (!b.checkers() && depth < 6 && eval + 200 * depth <= alpha) {
+        if (quiescence<false>(b, alpha, beta) <= alpha)
+            return alpha;
+    }
 
     //Null move pruning
     if (depth >= 3 && !excluded
