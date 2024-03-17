@@ -131,7 +131,6 @@ void RootMovePicker::reset(const Board &root){
             ttm = MOVE_NONE;
     }
 
-    // TODO: consider ordering quiet moves with NNUE evaluation / qsearch
     MovePicker mp(root, ttm);
     mpv_start_ = cur_ = num_moves_ = 0;
     for (Move m = mp.next<false>(); m != MOVE_NONE; 
