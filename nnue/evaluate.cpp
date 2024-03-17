@@ -119,7 +119,10 @@ int32_t evaluate(const Board &b) {
     scale_and_clamp<nnspecs::HALFKP>(si->acc.v[stm], transformed);
     scale_and_clamp<nnspecs::HALFKP>(si->acc.v[~stm], transformed + nnspecs::HALFKP);
 
-    return net.propagate(transformed);
+    int32_t result = net.forward(transformed);
+    result += (si->acc.psqt[stm] - si->acc.psqt[~stm]) / 2;
+
+    return result;
 }
 
 bool load_parameters(const char *path) {
