@@ -17,7 +17,7 @@ int main(int argc, char **argv) {
     init_reduction_tables();
     g_tt.resize(defopts::TT_SIZE);
 
-    if (!nnue::load_parameters(defopts::NNUE_PATH))
+    if (!nnue::load_parameters("C:\\Users\\aitaz\\Documents\\saturn\\nnue_trainer\\trainer\\megamerge\\psqt.nnue"))
         printf("[WARN] failed to initialize nnue\n");
 
     return enter_cli(argc, argv);

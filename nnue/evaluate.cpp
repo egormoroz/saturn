@@ -62,6 +62,7 @@ bool update_accumulator(
         return false;
 
     memcpy(si->acc.v[side], si->previous->acc.v[side], nnspecs::HALFKP * 2);
+    si->acc.psqt[side] = si->previous->acc.psqt[side];
 
     if (!si->nb_deltas) {
         si->acc.computed[side] = true;

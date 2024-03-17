@@ -367,7 +367,7 @@ int enter_cli(int argc, char **argv) {
         return 0;
     } else if (!strcmp(argv[1], "packmerge")) {
         if (argc < 5) {
-            printf("usage: packmerge2 <fout_bin> <n_files> <fbin1> <fbin2>...\n");
+            printf("usage: packmerge <fout_bin> <n_files> <fbin1> <fbin2>...\n");
             return 1;
         }
 
