@@ -25,7 +25,6 @@ void refresh_accumulator(
         Color perspective) 
 {
     Square ksq = b.king_square(perspective);
-    ksq = orient(perspective, ksq);
 
     uint16_t features[32];
     int n_features = 0;
@@ -35,7 +34,7 @@ void refresh_accumulator(
         Square s = pop_lsb(mask);
         Piece p = b.piece_on(s);
 
-        features[n_features++] = halfkp_idx(perspective, ksq, s, p);
+        features[n_features++] = halfkp::halfkp_idx(perspective, ksq, s, p);
     }
 
     transformer.refresh_accumulator(acc, 
@@ -78,12 +77,12 @@ bool update_accumulator(
             continue;
 
         if (d.to != SQ_NONE) {
-            uint16_t idx = halfkp_idx(side, ksq, d.to, d.piece);
+            uint16_t idx = halfkp::halfkp_idx(side, ksq, d.to, d.piece);
             added[n_added++] = idx;
         }
 
         if (d.from != SQ_NONE) {
-            uint16_t idx = halfkp_idx(side, ksq, d.from, d.piece);
+            uint16_t idx = halfkp::halfkp_idx(side, ksq, d.from, d.piece);
             removed[n_removed++] = idx;
         }
     }
@@ -107,12 +106,9 @@ int32_t evaluate(const Board &b) {
     StateInfo *si = b.get_stateinfo();
     Color stm = b.side_to_move();
 
-    Square wksq = b.king_square(WHITE), 
-           bksq = orient(BLACK, b.king_square(BLACK));
-
-    if (!update_accumulator(si, WHITE, wksq))
+    if (!update_accumulator(si, WHITE, b.king_square(WHITE)))
         refresh_accumulator(b, si->acc, WHITE);
-    if (!update_accumulator(si, BLACK, bksq))
+    if (!update_accumulator(si, BLACK, b.king_square(BLACK)))
         refresh_accumulator(b, si->acc, BLACK);
 
     alignas(64) static thread_local int8_t transformed[nnspecs::L1_IN]{};
