@@ -111,6 +111,7 @@ void UCIContext::enter_loop() {
         else if (cmd == "go") parse_go(is);
         else if (cmd == "setoption") parse_setopt(is);
         else if (cmd == "stop") search_.stop();
+        else if (cmd == "ponderhit") search_.stop_pondering();
         else if (cmd == "d") sync_cout() << board_;
         else if (cmd == "tree") tree_walker();
         else if (cmd == "quit") break;
@@ -151,8 +152,11 @@ void UCIContext::parse_position(std::istream &is) {
 
 void UCIContext::parse_go(std::istream &is) {
     std::string token;
+
     SearchLimits limits;
+    bool ponder = false;
     limits.start = timer::now();
+
 
     while (is >> token) {
         if (token == "wtime") is >> limits.time[WHITE];
@@ -161,6 +165,7 @@ void UCIContext::parse_go(std::istream &is) {
         else if (token == "binc") is >> limits.inc[BLACK];
         else if (token == "movetime") is >> limits.move_time;
         else if (token == "infinite") limits.infinite = true;
+        else if (token == "ponder") ponder = true;
         else if (token == "depth") is >> limits.max_depth;
         else if (token == "nodes") is >> limits.max_nodes;
         else if (token == "perft") {
@@ -174,7 +179,7 @@ void UCIContext::parse_go(std::istream &is) {
         limits.infinite = true;
 
     search_.go(board_, limits, cfg_,
-            st_.total_height() ? &st_ : nullptr);
+            st_.total_height() ? &st_ : nullptr, ponder);
 }
 
 void UCIContext::parse_go_perft(std::istream &is) {
@@ -206,8 +211,8 @@ void UCIContext::parse_setopt(std::istream &is) {
     namespace d = defopts;
 
     if (name == "hash") {
-        if (is >> t; t != "value")
-            return;
+        if (is >> t; t != "value") return;
+
         int value = -1;
         if (is >> value && inrange(value, d::TT_SIZE_MIN, d::TT_SIZE_MAX)) {
             search_.stop();
@@ -215,20 +220,18 @@ void UCIContext::parse_setopt(std::istream &is) {
             g_tt.resize(value);
         }
     } else if (name == "clear") {
-        if (is >> t; t != "hash")
-            return;
+        if (is >> t; t != "hash") return;
+
         g_tt.clear();
     } else if (name == "multipv") {
-        if (is >> t; t != "value")
-            return;
+        if (is >> t; t != "value") return;
+
         int value = -1;
         if (is >> value && inrange(value, d::MULTIPV_MIN, d::MULTIPV_MAX))
             cfg_.multipv = value;
     } else if (name == "evalfile") {
-        if (is >> t; t != "value")
-            return;
-        if (!std::getline(is, t))
-            return;
+        if (is >> t; t != "value") return;
+        if (!std::getline(is, t)) return;
 
         const char* path = t.c_str();
         while (*path && std::isspace(*path))
@@ -242,23 +245,22 @@ void UCIContext::parse_setopt(std::istream &is) {
             printf("Failed to initialize NNUE from file %s\n", path);
         }
     } else if (name == "aspdelta") {
-        if (is >> t; t != "value")
-            return;
+        if (is >> t; t != "value") return;
+
         int value = -1;
         if (is >> value && inrange(value, d::ASP_INIT_MIN, d::ASP_INIT_MAX))
             cfg_.asp_init_delta = value;
     } else if (name == "aspmindepth") {
-        if (is >> t; t != "value")
-            return;
+        if (is >> t; t != "value") return;
+
         int value = -1;
         if (is >> value && inrange(value, d::ASP_MIN_DEPTH_MIN, d::ASP_MIN_DEPTH_MAX))
             cfg_.asp_min_depth = value;
     } else if (name == "lmrcoeff") {
         if (is >> t; t != "value")
             return;
-        if (float value; is >> value) {
+        if (float value; is >> value)
             init_reduction_tables(value);
-        }
     }
 }
 
@@ -271,6 +273,7 @@ void UCIContext::print_info() {
 
     snprintf(buf, sizeof(buf), 
             "option name Hash type spin default %d min %d max %d\n"
+            "option name Ponder type check default false\n"
             "option name clear hash type button\n"
             "option name multipv type spin default %d min %d max %d\n"
             "option name aspdelta type spin default %d min %d max %d\n"

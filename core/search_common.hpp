@@ -35,7 +35,9 @@ struct SearchLimits {
     int min_depth = 0;
     int time[2]{}, inc[2]{};
     int move_time = 0;
+
     bool infinite = false;
+
     uint64_t max_nodes = 0;
     TimePoint start{};
 };
@@ -51,6 +53,7 @@ struct TimeMan {
 
         (void)(ply);
         if (limits.infinite) return;
+
         if (limits.move_time) {
             max_time = std::max(1, limits.move_time - 10);
             return;

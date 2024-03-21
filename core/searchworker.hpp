@@ -8,13 +8,15 @@
 class SearchWorker {
 public:
     SearchWorker();
+    ~SearchWorker();
 
     void set_silent(bool s);
 
     void go(const Board &root, const SearchLimits &limits,
-            UCISearchConfig usc, const Stack *st = nullptr);
+            UCISearchConfig usc, const Stack *st = nullptr, bool ponder=false);
 
     void stop();
+    void stop_pondering();
     void wait_for_completion();
 
 private:
