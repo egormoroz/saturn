@@ -8,9 +8,6 @@
 #include "transformer.hpp"
 
 constexpr int LOG2_WEIGHT_SCALE = 6;
-// wtf is this bullshit?
-/* constexpr int FV_SCALE = 16; */
-constexpr int FV_SCALE = 64;
 
 using TransformerLayer = FeatureTransformer<
     nnspecs::HALFKP_FEATURE_NB, nnspecs::HALFKP>;
@@ -22,7 +19,7 @@ struct Network {
             && output.load_parameters(is);
     }
 
-    int32_t propagate(const int8_t *input) const {
+    int32_t forward(const int8_t *input) const {
         struct alignas(SIMD_ALIGN) Buffer {
             Buffer() {
                 memset(this, 0, sizeof(*this));
@@ -52,7 +49,7 @@ struct Network {
 
         int32_t result;
         output.forward(buffer.out_in, &result);
-        return result / FV_SCALE;
+        return result >> LOG2_WEIGHT_SCALE;
     }
 
     using L1 = LinearLayer<nnspecs::L1_IN, nnspecs::L1_OUT>;

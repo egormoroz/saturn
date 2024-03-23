@@ -54,11 +54,12 @@ public:
     void set_silent(bool s);
 
     void setup(const Board &root, const SearchLimits &limits,
-            UCISearchConfig usc, const Stack *st = nullptr);
+            UCISearchConfig usc, const Stack *st = nullptr, bool ponder=false);
 
     void iterative_deepening();
 
     void atomic_stop();
+    void stop_pondering();
 
     RootMove get_pv_start(int i) const;
     int num_pvs() const;
@@ -100,6 +101,7 @@ private:
     EvalCache ev_cache_;
     bool silent_ = false;
     std::atomic_bool keep_going_;
+    std::atomic_bool pondering_ = false;
 };
 
 void init_reduction_tables(float k = defopts::LMR_COEFF);

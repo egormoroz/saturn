@@ -19,15 +19,20 @@ struct FeatureTransformer {
 
     bool load_parameters(std::istream &is) {
         constexpr size_t bias_bytes = OUTPUT_DIM * 2;
+        constexpr size_t psqt_bytes = INPUT_DIM * 4;
 
-        memset(biases, 0, sizeof(biases));
-        if (!is.read((char*)biases, bias_bytes))
+        memset(bias_, 0, sizeof(bias_));
+        if (!is.read((char*)bias_, bias_bytes))
             return false;
 
-        memset(weights, 0, sizeof(weights));
+        memset(psqt_, 0, sizeof(psqt_));
+        if (!is.read((char*)psqt_, psqt_bytes))
+            return false;
+
+        memset(weight_, 0, sizeof(weight_));
         for (size_t i = 0; i < INPUT_DIM; ++i) {
             const size_t off = i * OUT_DIM_ALIGEND;
-            if (!is.read((char*)&weights[off], OUTPUT_DIM * 2))
+            if (!is.read((char*)&weight_[off], OUTPUT_DIM * 2))
                 return false;
         }
 
@@ -45,15 +50,19 @@ struct FeatureTransformer {
         constexpr size_t num_chunks = OUT_DIM_ALIGEND / register_width;
         static_assert(num_chunks <= 16, "not enough registers");
 
+        acc.psqt[perspective] = 0;
+        for (uint16_t idx: features)
+            acc.psqt[perspective] += psqt_[idx];
+
         int16_t *v = acc.v[perspective];
         __m256i regs[num_chunks];
 
-        auto bias_vec = (const __m256i*)biases;
+        auto bias_vec = (const __m256i*)bias_;
         for (size_t i = 0; i < num_chunks; ++i) 
             regs[i] = bias_vec[i];
 
         for (uint16_t idx: features) {
-            auto weight_slice_vec = (const __m256i*)&weights[idx * OUT_DIM_ALIGEND];
+            auto weight_slice_vec = (const __m256i*)&weight_[idx * OUT_DIM_ALIGEND];
             for (size_t i = 0; i < num_chunks; ++i)
                 regs[i] = _mm256_add_epi16(regs[i], weight_slice_vec[i]);
         }
@@ -73,14 +82,14 @@ struct FeatureTransformer {
 
         for (size_t i = 0; i < n_passes; ++i) {
             size_t offset = i * one_pass_size;
-            auto bias_vec_slice = (const __m128i*)&biases[offset];
+            auto bias_vec_slice = (const __m128i*)&bias_[offset];
             auto acc_vec_slice = (__m128i*)&v[offset];
 
             for (size_t j = 0; j < n_registers; ++j) 
                 regs[j] = bias_vec_slice[j];
 
             for (uint16_t idx: features) {
-                auto weight_slice_vec = (const __m128i*)&weights[idx * OUT_DIM_ALIGEND + offset];
+                auto weight_slice_vec = (const __m128i*)&weight_[idx * OUT_DIM_ALIGEND + offset];
                 for (size_t j = 0; j < n_registers; ++j)
                     regs[j] = _mm_add_epi16(regs[j], weight_slice_vec[j]);
             }
@@ -103,6 +112,11 @@ struct FeatureTransformer {
         constexpr size_t num_chunks = OUT_DIM_ALIGEND / register_width;
         static_assert(num_chunks <= 16, "not enough registers");
 
+        for (uint16_t idx: added)
+            acc.psqt[perspective] += psqt_[idx];
+        for (uint16_t idx: removed)
+            acc.psqt[perspective] -= psqt_[idx];
+
         int16_t *v = acc.v[perspective];
         
         __m256i regs[num_chunks];
@@ -112,7 +126,7 @@ struct FeatureTransformer {
         }
 
         for (uint16_t idx: added) {
-            const int16_t *wcol = &weights[idx * OUT_DIM_ALIGEND];
+            const int16_t *wcol = &weight_[idx * OUT_DIM_ALIGEND];
             for (size_t i = 0; i < num_chunks; ++i) {
                 regs[i] = _mm256_add_epi16(
                     regs[i], 
@@ -122,7 +136,7 @@ struct FeatureTransformer {
         }
 
         for (uint16_t idx: removed) {
-            const int16_t *wcol = &weights[idx * OUT_DIM_ALIGEND];
+            const int16_t *wcol = &weight_[idx * OUT_DIM_ALIGEND];
             for (size_t i = 0; i < num_chunks; ++i) {
                 regs[i] = _mm256_sub_epi16(
                     regs[i], 
@@ -152,13 +166,13 @@ struct FeatureTransformer {
                 regs[j] = acc_vec_slice[j];
 
             for (uint16_t idx: added) {
-                auto weight_slice_vec = (const __m128i*)&weights[idx * OUT_DIM_ALIGEND + offset];
+                auto weight_slice_vec = (const __m128i*)&weight_[idx * OUT_DIM_ALIGEND + offset];
                 for (size_t j = 0; j < n_registers; ++j)
                     regs[j] = _mm_add_epi16(regs[j], weight_slice_vec[j]);
             }
 
             for (uint16_t idx: removed) {
-                auto weight_slice_vec = (const __m128i*)&weights[idx * OUT_DIM_ALIGEND + offset];
+                auto weight_slice_vec = (const __m128i*)&weight_[idx * OUT_DIM_ALIGEND + offset];
                 for (size_t j = 0; j < n_registers; ++j)
                     regs[j] = _mm_sub_epi16(regs[j], weight_slice_vec[j]);
             }
@@ -171,7 +185,9 @@ struct FeatureTransformer {
         acc.computed[perspective] = true;
     }
 
-    alignas(SIMD_ALIGN) int16_t weights[INPUT_DIM * OUT_DIM_ALIGEND];
-    alignas(SIMD_ALIGN) int16_t biases[OUT_DIM_ALIGEND];
+private:
+    alignas(SIMD_ALIGN) int16_t weight_[INPUT_DIM * OUT_DIM_ALIGEND];
+    alignas(SIMD_ALIGN) int16_t bias_[OUT_DIM_ALIGEND];
+    int32_t psqt_[INPUT_DIM * 1];
 };
 

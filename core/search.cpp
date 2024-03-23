@@ -131,7 +131,6 @@ void RootMovePicker::reset(const Board &root){
             ttm = MOVE_NONE;
     }
 
-    // TODO: consider ordering quiet moves with NNUE evaluation / qsearch
     MovePicker mp(root, ttm);
     mpv_start_ = cur_ = num_moves_ = 0;
     for (Move m = mp.next<false>(); m != MOVE_NONE; 
@@ -202,13 +201,13 @@ void Search::set_silent(bool s) {
     silent_ = s;
 }
 
-void Search::setup(const Board &root,  
-        const SearchLimits &limits,
-        UCISearchConfig usc, const Stack *st)
+void Search::setup(const Board &root,  const SearchLimits &limits,
+        UCISearchConfig usc, const Stack *st, bool ponder)
 {
     // should we really do this?
     g_tt.new_search();
 
+    pondering_ = ponder;
     uci_cfg_ = usc;
     root_ = root;
     limits_ = limits;
@@ -236,7 +235,7 @@ void Search::setup(const Board &root,
 
 bool Search::keep_going() {
     if (stats_.nodes % 2048 == 0 && keep_going_) {
-        keep_going_ = limits_.infinite || !man_.out_of_time()
+        keep_going_ = pondering_ || limits_.infinite || !man_.out_of_time()
             || stats_.id_depth <= limits_.min_depth;
         if (limits_.max_nodes)
             keep_going_ = keep_going_ && stats_.nodes < limits_.max_nodes;
@@ -254,7 +253,7 @@ void Search::iterative_deepening() {
         n_pvs_ = 0;
     }
 
-    if ((rmp_.num_moves() == 1/* || is_board_drawn(root_)*/) && !silent_) {
+    if ((rmp_.num_moves() == 1/* || is_board_drawn(root_)*/) && !silent_ && !pondering_) {
         RootMove m = rmp_.best_move();
         sync_cout() << "bestmove " << m.move << '\n';
         return;
@@ -292,24 +291,41 @@ void Search::iterative_deepening() {
         extract_pvmoves();
         uci_report();
 
+        if (limits_.infinite || pondering_)
+            continue;
+
         TimePoint now = timer::now(), 
               time_left = man_.start + man_.max_time - now;
-        if (abs(score - prev_score) < 8 && !limits_.infinite
-                && !limits_.move_time && now - start >= time_left
-                && d >= limits_.min_depth)
+        if (abs(score - prev_score) < 8 && !limits_.move_time 
+                && now - start >= time_left && d >= limits_.min_depth)
             break; //assume we don't have enough time to go 1 ply deeper
 
         if (uci_cfg_.multipv == 1 && abs(score) >= VALUE_MATE - d)
             break;
     }
 
+    while (pondering_);
+
     RootMove rm = rmp_.best_move();
-    if (!silent_)
-        sync_cout() << "bestmove " << rm.move << '\n';
+    if (!silent_) {
+        auto out = sync_cout();
+        out << "bestmove " << rm.move;
+
+        TTEntry tte;
+        Board bb = root_.do_move(rm.move);
+        if (g_tt.probe(bb.key(), tte) && bb.is_valid_move(Move(tte.move16)))
+            out << " ponder " << Move(tte.move16);
+        out << '\n';
+    }
 }
 
 void Search::atomic_stop() {
     keep_going_ = false;
+    pondering_ = false;
+}
+
+void Search::stop_pondering() {
+    pondering_ = false;
 }
 
 RootMove Search::get_pv_start(int i) const { 

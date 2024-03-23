@@ -90,60 +90,6 @@ PackedBoard pack_board(const Board &b) {
     return pb;
 }
 
-uint64_t packed_hash(const PackedBoard &pb) {
-    uint64_t k = 0;
-
-    uint64_t mask = pb.pc_mask;
-    CastlingRights cr = NO_CASTLING;
-    Color stm = WHITE;
-
-    Square ep = SQ_NONE;
-
-    for (int pc_idx = 0; mask; ++pc_idx) {
-        Square sq = pop_lsb(mask);
-        File file = file_of(sq);
-        uint8_t nibble = pb.pc_list[pc_idx / 2];
-        nibble = pc_idx % 2 ? nibble >> 4 : nibble & 0xF;
-
-        if (nibble == PP_BSTM_KING) {
-            stm = BLACK;
-            nibble = PPB_KING;
-        }
-        
-        if (nibble == PP_ENPASSANT) {
-            Color pc_color = rank_of(sq) == RANK_4 ? WHITE : BLACK;
-            ep = sq_backward(pc_color, sq);
-            nibble = pc_color == WHITE ? PPW_PAWN : PPB_PAWN;
-        }
-
-        if (nibble == PP_WCR_ROOK) {
-            cr = CastlingRights(cr | (file == FILE_A ? WHITE_QUEENSIDE 
-                        : WHITE_KINGSIDE));
-            nibble = PPW_ROOK;
-        }
-
-        if (nibble == PP_BCR_ROOK) {
-            cr = CastlingRights(cr | (file == FILE_A ? BLACK_QUEENSIDE 
-                        : BLACK_KINGSIDE));
-            nibble = PPB_ROOK;
-        }
-
-        Piece p = unpack_piece(PackedPiece(nibble));
-        if (nibble <= PPB_KING)
-            k ^= ZOBRIST.psq[p][sq];
-    }
-
-    if (is_ok(ep))
-        k ^= ZOBRIST.enpassant[file_of(ep)];
-
-    k ^= ZOBRIST.castling[cr];
-
-    if (stm == BLACK)
-        k ^= ZOBRIST.side;
-
-    return k;
-}
-
 bool unpack_board(const PackedBoard &pb, Board &b) {
     uint64_t hash = 0;
     uint64_t mask = pb.pc_mask;
@@ -203,41 +149,6 @@ bool unpack_board(const PackedBoard &pb, Board &b) {
     return b.setup(pb.pc_mask, pc_list, stm, cr, ep)
         && hash == b.key();
 }
-
-void merge_packed_games(const char **game_fnames, 
-        const char **hash_fnames, int n_games,
-        const char *fout_games, const char *fout_hash) 
-{
-    constexpr size_t buf_size = 1024*1024;
-    std::vector<char> buffer(buf_size);
-
-    std::ofstream fout(fout_games, std::ios::binary);
-    for (int i = 0; i < n_games; ++i) {
-        std::ifstream fin(game_fnames[i], std::ios::binary);
-        fin.seekg(0, std::ios::end);
-        size_t file_size = fin.tellg();
-        fin.seekg(0);
-        while (file_size) {
-            size_t chunk_size = std::min(buf_size, file_size);
-            fin.read(buffer.data(), chunk_size);
-            fout.write(buffer.data(), chunk_size);
-
-            file_size -= chunk_size;
-        }
-    }
-
-    uint64_t hash = 0, t;
-    for (int i = 0; i < n_games; ++i) {
-        std::ifstream fin(hash_fnames[i]);
-        fin >> t;
-        hash ^= t;
-    }
-
-    fout.close();
-    fout.open(fout_hash);
-    fout << hash << '\n';
-}
-
 
 void merge_packed_games2(const char **game_fnames, int n_games, const char *fout_games) {
     ChunkHead head;
@@ -776,15 +687,20 @@ bool validate_packed_games2(const char *fname, uint64_t &hash_out) {
 
         while (true) {
             PackResult pr;
-            if (!is_ok(pr = cr2.start_new_chain(ptr, buf_size)))
+            if (!is_ok(pr = cr2.start_new_chain(ptr, buf_size))) {
+                printf("fail 0 at %zu\n", size_t(fin.tellg()));
                 return false;
+            }
 
             hash ^= cr2.board.key();
             while (is_ok(pr = cr2.next()))
                 hash ^= cr2.board.key();
 
-            if (pr != PackResult::END_OF_CHAIN)
+            if (pr != PackResult::END_OF_CHAIN) {
+                printf("fail 1 at %zu %d\n", size_t(fin.tellg()), static_cast<int>(pr));
+                printf("moves %d \n", cr2.n_moves);
                 return false;
+            }
 
             hash ^= cr2.board.do_move(cr2.move).key();
 
@@ -795,11 +711,15 @@ bool validate_packed_games2(const char *fname, uint64_t &hash_out) {
                 break;
         }
 
-        if (ptr - buffer.data() != head.body_size + head.SIZE)
+        if (ptr - buffer.data() != head.body_size + head.SIZE){
+            printf("fail 2 at %zu\n", size_t(fin.tellg()));
             return false;
+        }
 
-        if (hash != head.hash)
+        if (hash != head.hash) {
+            printf("fail 3 at %zu\n", size_t(fin.tellg()));
             return false;
+        }
 
         hash_out ^= hash;
     }
