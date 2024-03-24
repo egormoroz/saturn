@@ -225,7 +225,7 @@ void Search::setup(const Board &root,  const SearchLimits &limits,
     nnue::refresh_accumulator(root_, root_si_.acc, WHITE);
     nnue::refresh_accumulator(root_, root_si_.acc, BLACK);
 
-    man_.init(limits, root.side_to_move(), stack_.total_height());
+    man_.init(limits, root.side_to_move(), usc.move_overhead);
 
     memset(counters_.data(), 0, sizeof(counters_));
     memset(followups_.data(), 0, sizeof(followups_));

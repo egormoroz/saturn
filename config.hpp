@@ -27,6 +27,9 @@ constexpr float LMR_COEFF_MIN = 0.25f;
 constexpr float LMR_COEFF = 0.65f;
 constexpr float LMR_COEFF_MAX = 2.f;
 
+constexpr int MOVE_OVERHEAD = 30;
+constexpr int MOVE_OVERHEAD_MIN = 0;
+constexpr int MOVE_OVERHEAD_MAX = 1000;
 }
 
 #endif

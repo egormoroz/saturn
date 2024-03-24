@@ -43,6 +43,8 @@ private:
 
 struct UCISearchConfig {
     int multipv = defopts::MULTIPV;
+    int move_overhead = defopts::MOVE_OVERHEAD;
+
     int asp_init_delta = defopts::ASP_INIT_DELTA;
     int asp_min_depth = defopts::ASP_MIN_DEPTH;
 };

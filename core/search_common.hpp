@@ -47,22 +47,18 @@ struct TimeMan {
     TimePoint max_time = 0;
 
     void init(const SearchLimits &limits, 
-            Color us, int ply) 
+            Color us, int move_overhead) 
     {
         start = limits.start;
 
-        (void)(ply);
         if (limits.infinite) return;
 
         if (limits.move_time) {
-            max_time = std::max(1, limits.move_time - 10);
+            max_time = std::max(1, limits.move_time - move_overhead);
             return;
         }
 
-        int time = limits.time[us] / 40 
-            + limits.inc[us];
-        time = std::min(time, limits.time[us] * 9 / 10);
-        max_time = time;
+        max_time = limits.time[us] / 30 + limits.inc[us] - move_overhead;
     }
 
     bool out_of_time() const { 

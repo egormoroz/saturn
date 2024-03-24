@@ -261,6 +261,12 @@ void UCIContext::parse_setopt(std::istream &is) {
             return;
         if (float value; is >> value)
             init_reduction_tables(value);
+    } else if (name == "moveoverhead") {
+        if (is >> t; t != "value") return;
+
+        int value = -1;
+        if (is >> value && inrange(value, d::MOVE_OVERHEAD_MIN, d::MOVE_OVERHEAD_MAX))
+            cfg_.move_overhead = value;
     }
 }
 
@@ -278,12 +284,14 @@ void UCIContext::print_info() {
             "option name multipv type spin default %d min %d max %d\n"
             "option name aspdelta type spin default %d min %d max %d\n"
             "option name aspmindepth type spin default %d min %d max %d\n"
+            "option name MoveOverhead type spin default %d min %d max %d\n"
             "option name lmrcoeff type string default %.2f\n"
             "option name evalfile type string default %s\n",
             defopts::TT_SIZE, defopts::TT_SIZE_MIN, defopts::TT_SIZE_MAX,
             defopts::MULTIPV, defopts::MULTIPV_MIN, defopts::MULTIPV_MAX,
             defopts::ASP_INIT_DELTA, defopts::ASP_INIT_MIN, defopts::ASP_INIT_MAX,
             defopts::ASP_MIN_DEPTH, defopts::ASP_MIN_DEPTH_MIN, defopts::ASP_MIN_DEPTH_MAX,
+            defopts::MOVE_OVERHEAD,defopts::MOVE_OVERHEAD_MIN, defopts::MOVE_OVERHEAD_MAX,
             defopts::LMR_COEFF, defopts::NNUE_PATH
     );
 
