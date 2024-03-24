@@ -9,8 +9,10 @@ bool Board::load_fen(std::string_view fen) {
     trim_front(fen);
     StateInfo *si = si_;
     memset(this, 0, sizeof(Board));
-    si_ = si;
-    si_->reset();
+    if (si) {
+        si_ = si;
+        si_->reset();
+    }
 
     for (int r = RANK_8; r >= RANK_1; --r) {
         for (int f = FILE_A; f <= FILE_H; ++f) {

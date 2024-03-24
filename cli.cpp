@@ -15,6 +15,8 @@
 
 #include "perft.hpp"
 
+#include "zobrist.hpp"
+
 namespace {
 
 template<bool root>
@@ -84,7 +86,6 @@ void tree_walker() {
 UCIContext::UCIContext()
     : board_(&si_)
 {
-    cfg_.multipv = defopts::MULTIPV;
 }
 
 void UCIContext::enter_loop() {
@@ -151,6 +152,19 @@ void UCIContext::parse_position(std::istream &is) {
 }
 
 void UCIContext::parse_go(std::istream &is) {
+    // TODO: make max book depth dynamic
+    if (book_loaded_ && st_.total_height() <= 16) {
+        uint64_t key = board_.key();
+        Square ep = board_.en_passant();
+        if (is_ok(ep))
+            key ^= ZOBRIST.enpassant[file_of(ep)];
+
+        if (Move m = book_.probe(key); is_ok(m) && board_.is_valid_move(m)) {
+            sync_cout() << "bestmove " << m << '\n';
+            return;
+        }
+    }
+
     std::string token;
 
     SearchLimits limits;
@@ -267,6 +281,21 @@ void UCIContext::parse_setopt(std::istream &is) {
         int value = -1;
         if (is >> value && inrange(value, d::MOVE_OVERHEAD_MIN, d::MOVE_OVERHEAD_MAX))
             cfg_.move_overhead = value;
+    } else if (name == "bookfile") {
+        if (is >> t; t != "value") return;
+        if (!std::getline(is, t) || t.empty()) return;
+
+
+        const char* path = t.c_str();
+        while (*path && std::isspace(*path))
+            ++path;
+
+        if (t.find(".bin") != std::string::npos)
+            book_loaded_ = book_.load_from_bin(path);
+        else
+            book_loaded_ = book_.load_from_fens(path);
+
+        printf("book is %s\n", book_loaded_ ? "loaded" : "not loaded");
     }
 }
 
@@ -286,6 +315,7 @@ void UCIContext::print_info() {
             "option name aspmindepth type spin default %d min %d max %d\n"
             "option name MoveOverhead type spin default %d min %d max %d\n"
             "option name lmrcoeff type string default %.2f\n"
+            "option name bookfile type string default <none>\n"
             "option name evalfile type string default %s\n",
             defopts::TT_SIZE, defopts::TT_SIZE_MIN, defopts::TT_SIZE_MAX,
             defopts::MULTIPV, defopts::MULTIPV_MIN, defopts::MULTIPV_MAX,
@@ -383,6 +413,26 @@ int enter_cli(int argc, char **argv) {
         }
 
         merge_packed_games2((const char**)&argv[4], atol(argv[3]), argv[2]);
+        return 0;
+    } else if (!strcmp(argv[1], "cvtbook")) {
+        if (argc != 4) {
+            printf("usage: cvtbook <txtbook_iN> <binbook_out>\n");
+            return 1;
+        }
+
+        Book b;
+        if (!b.load_from_fens(argv[2])) {
+            printf("failed to load book from %s\n", argv[2]);
+            return 1;
+        }
+
+        if (!b.save_to_bin(argv[3])) {
+            printf("failed to save book to %s\n", argv[2]);
+            return 1;
+        }
+
+        printf("binarized book saved to %s\n", argv[3]);
+
         return 0;
     }
 

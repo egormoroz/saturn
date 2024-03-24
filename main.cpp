@@ -6,10 +6,6 @@
 #include "cli.hpp"
 #include "nnue/evaluate.hpp"
 
-#include "core/search.hpp"
-
-using namespace std;
-
 int main(int argc, char **argv) {
     init_zobrist();
     init_attack_tables();

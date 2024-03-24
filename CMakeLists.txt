@@ -10,7 +10,7 @@ add_executable(saturn
     movgen/magic.cpp movgen/generate.cpp primitives/utility.cpp
     core/eval.cpp tree.cpp searchstack.cpp movepicker.cpp
     cli.cpp core/searchworker.cpp nnue/evaluate.cpp
-    core/search.cpp selfplay.cpp pack.cpp)
+    core/search.cpp selfplay.cpp pack.cpp book.cpp)
 
 
 if (MSVC)

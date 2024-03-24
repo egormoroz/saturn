@@ -6,6 +6,8 @@
 #include "searchstack.hpp"
 #include "core/searchworker.hpp"
 
+#include "book.hpp"
+
 class UCIContext {
 public:
     UCIContext();
@@ -24,6 +26,9 @@ private:
     Stack st_;
     SearchWorker search_;
     StateInfo si_;
+
+    Book book_;
+    bool book_loaded_ = false;
 
     UCISearchConfig cfg_;
 };
