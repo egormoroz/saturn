@@ -8,8 +8,9 @@
 
 
 Move Book::probe(uint64_t key, bool random) const {
-    size_t lo = 0, hi = entries_.size();
+    if (entries_.empty()) return MOVE_NONE;
 
+    size_t lo = 0, hi = entries_.size() - 1;
     while (lo <= hi) {
         size_t mid = (lo + hi) / 2;
         const BookEntry &e = entries_[mid];
