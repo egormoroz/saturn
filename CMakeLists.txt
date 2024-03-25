@@ -8,7 +8,7 @@ add_executable(saturn
     board/board.cpp board/board_moves.cpp board/parse.cpp 
     board/validate.cpp board/see.cpp movgen/attack.cpp 
     movgen/magic.cpp movgen/generate.cpp primitives/utility.cpp
-    core/eval.cpp tree.cpp searchstack.cpp movepicker.cpp
+    core/eval.cpp searchstack.cpp movepicker.cpp
     cli.cpp core/searchworker.cpp nnue/evaluate.cpp
     core/search.cpp selfplay.cpp pack.cpp book.cpp)
 

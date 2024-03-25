@@ -6,7 +6,6 @@
 #include "eval.hpp"
 #include "../movepicker.hpp"
 #include "../primitives/utility.hpp"
-#include "../tree.hpp"
 #include "../tt.hpp"
 #include "../nnue/evaluate.hpp"
 #include "../nnue/nnue_state.hpp"
@@ -271,7 +270,6 @@ void Search::iterative_deepening() {
 
     for (int d = 2; d <= limits_.max_depth; ++d) {
         stats_.id_depth = d;
-        g_tree.clear();
         prev_score = score;
         TimePoint start = timer::now();
 
@@ -427,7 +425,7 @@ int Search::search(const Board &b, int alpha,
         --depth;
 
     // TODO: check if forward pruning makes sense in a singularity search
-    if (pv_node || b.checkers())
+    if (pv_node || b.checkers() || excluded)
         goto move_loop; //skip pruning
 
     //Reverse futility pruning
@@ -448,15 +446,12 @@ int Search::search(const Board &b, int alpha,
         && eval >= beta)
     {
         int R = 3 + depth / 6, n_depth = depth - R - 1;
-        size_t ndx = g_tree.begin_node(MOVE_NULL, alpha, 
-                beta, n_depth, ply, NodeType::Null);
         stack_.push(b.key(), MOVE_NULL, eval);
 
         int score = -search(b.do_null_move(&si), -beta, 
                 -beta + 1, n_depth);
 
         stack_.pop();
-        g_tree.end_node(ndx, score);
 
         if (score >= beta)
             return beta;
@@ -476,14 +471,11 @@ move_loop:
     AutoMovePicker<is_root> amp(rmp_, b, ttm, entry.killers, &hist_, counter, followup);
 
     Board bb(&si);
-    auto search_move = [&](Move m, int depth, bool zw) {
-        size_t ndx = g_tree.begin_node(m, alpha, beta, 
-                depth, ply);
-        int t_beta = zw ? -(alpha + 1) : -beta;
-        int score = -search(bb, t_beta, -alpha, depth);
-        g_tree.end_node(ndx, score);
-        return score;
-    };
+    // auto search_move = [&](int depth, bool zw) {
+    //     int t_beta = zw ? -(alpha + 1) : -beta;
+    //     int score = -search(bb, t_beta, -alpha, depth);
+    //     return score;
+    // };
 
     std::array<Move, 64> quiets;
     int num_quiets{};
@@ -508,20 +500,24 @@ move_loop:
 
         // Singular move extension (currently loses ELO)
         // Extend if TT move is so good it causes a beta cutoff, whereas all other moves don't.
-        // if (!is_root && m == ttm && !excluded && depth >= 8 
-        //         && tte.depth5 >= depth - 3 && tte.bound2 & BOUND_BETA) 
-        // {
-        //     int rbeta = tte.score16 - depth;
+        if (!is_root && m == ttm && !excluded && depth >= 8 
+                && tte.depth5 >= depth - 3 && tte.bound2 & BOUND_BETA) 
+        {
+            int rbeta = tte.score16 - depth;
 
-        //     entry.excluded = ttm;
-        //     int score = search<false>(b, rbeta - 1, rbeta, (depth - 1) / 2);
-        //     entry.excluded = MOVE_NONE;
+            entry.excluded = ttm;
+            int score = search<false>(b, rbeta - 1, rbeta, (depth - 1) / 2);
+            entry.excluded = MOVE_NONE;
 
-        //     if (score < rbeta - 16)
-        //         extension += 2;
-        //     else if (score < rbeta)
-        //         extension += 1;
-        // }
+            if (score < rbeta - 16)
+                extension += 2;
+            else if (score < rbeta)
+                extension += 1;
+            // IMPORTANT: this single condition made SE *win* elo
+            // Maybe the SE itself is useless and this reduction alone rocks?
+            else if (tte.score16 >= beta)
+                extension -= 2;
+        }
 
         extension = std::min(extension, 2);
         new_depth += is_root ? 0 : extension;
@@ -552,17 +548,20 @@ move_loop:
 
         //Zero-window search
         if (!pv_node || moves_tried)
-            score = search_move(m, new_depth, true);
+            score = -search(bb, -alpha - 1, -alpha, new_depth);
+            // score = search_move(new_depth, true);
 
         //Re-search if reduced move beats alpha
         if (r && score > alpha) {
             new_depth += r;
-            score = search_move(m, new_depth, true);
+            score = -search(bb, -alpha - 1, -alpha, new_depth);
+            // score = search_move(new_depth, true);
         }
 
         //(Re-)search with full window
         if (pv_node && ((score > alpha && score < beta) || !moves_tried))
-            score = search_move(m, new_depth, false);
+            score = -search(bb, -beta, -alpha, new_depth);
+            // score = search_move(new_depth, false);
 
         stack_.pop();
         ++moves_tried;
@@ -661,8 +660,6 @@ int Search::quiescence(const Board &b,
                 && eval + cap_value(b, m) + 200 <= alpha) 
             continue;
 
-        size_t ndx = g_tree.begin_node(m, alpha, beta, 
-                0, stack_.height());
         bb = b.do_move(m, &si);
         stack_.push(b.key(), m, eval);
 
@@ -672,7 +669,6 @@ int Search::quiescence(const Board &b,
             : -quiescence<false>(bb, -beta, -alpha);
 
         stack_.pop();
-        g_tree.end_node(ndx, score);
 
         if (score > alpha)
             alpha = score;

@@ -5,7 +5,6 @@
 
 #include "cli.hpp"
 #include "primitives/utility.hpp"
-#include "tree.hpp"
 #include "tt.hpp"
 #include "nnue/evaluate.hpp"
 #include "scout.hpp"
@@ -16,72 +15,6 @@
 #include "perft.hpp"
 
 #include "zobrist.hpp"
-
-namespace {
-
-template<bool root>
-void print_tree(std::vector<size_t> &nodes, size_t parent, int depth) {
-    if (!root) {
-        nodes.push_back(parent);
-        std::cout << g_tree.nodes[parent] << '\n';
-    }
-    if (!depth)
-        return;
-
-    size_t child = root ? 0 : g_tree.first_child(parent);
-    while (child != Tree::npos) {
-        print_tree<false>(nodes, child, depth - 1);
-        child = g_tree.next_child(child);
-    }
-}
-
-void tree_walker() {
- if (!g_tree.size())
-        return;
-
-    int depth = 1;
-    std::string token;
-    size_t parent = Tree::npos;
-    std::vector<size_t> nodes;
-    std::ostringstream ss;
-
-    while (true) {
-        nodes.clear();
-        if (parent == Tree::npos)
-            print_tree<true>(nodes, parent, depth);
-        else
-            print_tree<false>(nodes, parent, depth);
-
-        std::cout << "walker> ";
-        std::cin >> token;
-
-        if (token == "quit")
-            break;
-        else if (token == "setd")
-            std::cin >> depth;
-        else if (token == "d")
-            std::cout << depth << '\n';
-        else if (token == "sel") {
-            std::cin >> token;
-            for (size_t i: nodes) {
-                ss.str("");
-                ss.clear();
-                ss << g_tree.nodes[i].played;
-                if (ss.str() == token) {
-                    parent = i;
-                    break;
-                }
-            }
-
-        } else if (token == "root") {
-            parent = Tree::npos;
-        } else if (token == "up") {
-            parent = g_tree.parent(parent);
-        }
-    }
-}
-
-} //namespace
 
 UCIContext::UCIContext()
     : board_(&si_)
@@ -114,7 +47,6 @@ void UCIContext::enter_loop() {
         else if (cmd == "stop") search_.stop();
         else if (cmd == "ponderhit") search_.stop_pondering();
         else if (cmd == "d") sync_cout() << board_;
-        else if (cmd == "tree") tree_walker();
         else if (cmd == "quit") break;
 
     } while (s != "quit");
