@@ -513,10 +513,11 @@ move_loop:
                 extension += 2;
             else if (score < rbeta)
                 extension += 1;
-            // IMPORTANT: this single condition made SE *win* elo
-            // Maybe the SE itself is useless and this reduction alone rocks?
+            // Without these reductions SE loses elo
             else if (tte.score16 >= beta)
-                extension -= 2;
+                extension -= 1;
+            else if (tte.score16 <= old_alpha)
+                extension -= 1;
         }
 
         extension = std::min(extension, 2);
