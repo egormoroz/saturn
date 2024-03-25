@@ -445,7 +445,8 @@ int Search::search(const Board &b, int alpha,
         && b.has_nonpawns(b.side_to_move())
         && eval >= beta)
     {
-        int R = 3 + depth / 6, n_depth = depth - R - 1;
+        int R = 4 + depth / 6 + std::min(2, (eval - beta) / 100);
+        int n_depth = depth - R;
         stack_.push(b.key(), MOVE_NULL, eval);
 
         int score = -search(b.do_null_move(&si), -beta, 
@@ -471,11 +472,6 @@ move_loop:
     AutoMovePicker<is_root> amp(rmp_, b, ttm, entry.killers, &hist_, counter, followup);
 
     Board bb(&si);
-    // auto search_move = [&](int depth, bool zw) {
-    //     int t_beta = zw ? -(alpha + 1) : -beta;
-    //     int score = -search(bb, t_beta, -alpha, depth);
-    //     return score;
-    // };
 
     std::array<Move, 64> quiets;
     int num_quiets{};
@@ -550,19 +546,16 @@ move_loop:
         //Zero-window search
         if (!pv_node || moves_tried)
             score = -search(bb, -alpha - 1, -alpha, new_depth);
-            // score = search_move(new_depth, true);
 
         //Re-search if reduced move beats alpha
         if (r && score > alpha) {
             new_depth += r;
             score = -search(bb, -alpha - 1, -alpha, new_depth);
-            // score = search_move(new_depth, true);
         }
 
         //(Re-)search with full window
         if (pv_node && ((score > alpha && score < beta) || !moves_tried))
             score = -search(bb, -beta, -alpha, new_depth);
-            // score = search_move(new_depth, false);
 
         stack_.pop();
         ++moves_tried;
