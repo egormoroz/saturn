@@ -498,7 +498,7 @@ move_loop:
         if (bb.checkers() && b.see_ge(m)) 
             extension = 1;
 
-        // Singular move extension (currently loses ELO)
+        // Singular move extension
         // Extend if TT move is so good it causes a beta cutoff, whereas all other moves don't.
         if (!is_root && m == ttm && !excluded && depth >= 8 
                 && tte.depth5 >= depth - 3 && tte.bound2 & BOUND_BETA) 

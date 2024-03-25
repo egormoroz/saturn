@@ -18,12 +18,10 @@ CCRL 40/15 ELO changelog.
 - Refactor this utter mess, add comments and such.
 - Investigate TT aging and its effect on the playing strength. A very brief test so far resulted in 0 elo difference.
 - Better NNUE architecture
-- Better NNUE eval range (currently it's soft capped to [-1500; 1500] or something like that)
 - Optional BMI2 movegen
 - Make sure SSSE3 version werks on an old cpu
 - Lazy SMP
 - Revisit move ordering stuff
-- Singular extension
 
 ## Building using cmake
 Requires C++17 and popcnt intrisincs.
