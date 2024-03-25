@@ -1,7 +1,6 @@
 ## About
 
 [Challenge me on Lichess!](https://lichess.org/@/xxSaturnxx)
-(Note: Currently works on a crappy 1 vcore server with no pondering).
 
 A UCI chess engine. NNUE weights and selfplay data can be found [here](https://huggingface.co/hrtdind).
 
