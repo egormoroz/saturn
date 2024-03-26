@@ -13,7 +13,11 @@ constexpr int MULTIPV = 1;
 constexpr int MULTIPV_MIN = 1;
 constexpr int MULTIPV_MAX = 255;
 
+#ifndef EVALFILE
 constexpr char NNUE_PATH[] = "saturn.nnue";
+#else
+constexpr char NNUE_PATH[] = EVALFILE;
+#endif
 
 constexpr int ASP_INIT_DELTA = 22; //tuned
 constexpr int ASP_INIT_MIN = 1;

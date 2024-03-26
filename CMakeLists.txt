@@ -12,6 +12,8 @@ add_executable(saturn
     cli.cpp core/searchworker.cpp nnue/evaluate.cpp
     core/search.cpp selfplay.cpp pack.cpp book.cpp)
 
+message(STATUS "$ENV{EVALFILE}")
+add_compile_definitions(EVALFILE="$ENV{EVALFILE}")
 
 if (MSVC)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP /GL")
