@@ -534,7 +534,7 @@ move_loop:
             break;
 
         // SEE pruning
-        if (amp.stage() >= Stage::BAD_TACTICAL && depth < 10 && b.see_ge(m, see_margin[is_quiet]))
+        if (amp.stage() >= Stage::BAD_TACTICAL && depth < 8 && !b.see_ge(m, see_margin[is_quiet]))
             continue;
 
         // Late more reductions
