@@ -333,6 +333,8 @@ RootMove Search::get_pv_start(int i) const {
 
 int Search::num_pvs() const { return n_pvs_; }
 
+const SearchStats& Search::get_stats() const { return stats_; }
+
 int Search::aspiration_window(int score, int depth) {
     if (depth < uci_cfg_.asp_min_depth)
         return search<true>(root_, -VALUE_MATE, VALUE_MATE, depth);

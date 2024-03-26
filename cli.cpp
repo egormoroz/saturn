@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <numeric>
 #include <sstream>
 #include <cctype>
 #include <fstream>
@@ -261,6 +262,64 @@ void UCIContext::print_info() {
     sync_cout() << "uciok\n";
 }
 
+static void run_bench(int argc, char **argv) {
+    (void)(argc);
+    (void)(argv);
+
+    static const char *bench_fens[] = {
+        #include "bench.csv"
+    };
+
+    constexpr int N_FENS = std::size(bench_fens);
+
+    int nodes[N_FENS];
+    int times[N_FENS];
+    int nps[N_FENS];
+    Move best_moves[N_FENS];
+    int scores[N_FENS];
+
+    std::unique_ptr<Search> search(new Search);
+    search->set_silent(true);
+
+    SearchLimits limits;
+    limits.max_depth = 12;
+    limits.infinite = true;
+
+    Board b;
+
+    for (int i = 0; i < N_FENS; ++i) {
+        b.load_fen(bench_fens[i]);
+        
+        limits.start = timer::now();
+
+        search->setup(b, limits, UCISearchConfig());
+        search->iterative_deepening();
+
+        auto stats = search->get_stats();
+
+        nodes[i] = int(stats.nodes);
+        times[i] = int(timer::now() - limits.start);
+        nps[i] = 1000 * nodes[i] / std::max(1, times[i]);
+        best_moves[i] = search->get_pv_start(0).move;
+        scores[i] = search->get_pv_start(0).score;
+
+        g_tt.clear();
+    }
+
+    char best_buf[16];
+    for (int i = 0; i < N_FENS; ++i) {
+        move_to_str(best_buf, sizeof(best_buf), best_moves[i]);
+
+        printf("[# %2d] bestmove %6s  score %5d cp  %12d nodes  %12d nps\n", 
+                i, best_buf, scores[i], nodes[i], nps[i]);
+    }
+
+    int64_t total_nodes = std::accumulate(std::begin(nodes), std::end(nodes), 0);
+    int avg_nps = 1000 * total_nodes / std::accumulate(std::begin(times), std::end(times), 0);
+
+    printf("\noverall %12d nodes %12d nps\n", int(total_nodes), avg_nps);
+}
+
 int enter_cli(int argc, char **argv) {
     if (argc < 2) {
         (void)(argc);
@@ -365,6 +424,9 @@ int enter_cli(int argc, char **argv) {
 
         printf("binarized book saved to %s\n", argv[3]);
 
+        return 0;
+    } else if (!strcmp(argv[1], "bench")) {
+        run_bench(argc, argv);
         return 0;
     }
 

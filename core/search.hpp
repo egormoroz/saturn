@@ -66,6 +66,8 @@ public:
     RootMove get_pv_start(int i) const;
     int num_pvs() const;
 
+    const SearchStats& get_stats() const;
+
 private:
     bool keep_going();
     int aspiration_window(int score, int depth);
