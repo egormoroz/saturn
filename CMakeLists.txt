@@ -12,7 +12,7 @@ add_executable(saturn
     cli.cpp core/searchworker.cpp nnue/evaluate.cpp
     core/search.cpp selfplay.cpp pack.cpp book.cpp)
 
-if (DEFINED $ENV{EVALFILE})
+if (DEFINED ENV{EVALFILE})
     message(STATUS "$ENV{EVALFILE}")
     add_compile_definitions(EVALFILE="$ENV{EVALFILE}")
 endif()
