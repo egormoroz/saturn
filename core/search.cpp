@@ -373,6 +373,11 @@ int Search::search(const Board &b, int alpha,
     const bool pv_node = alpha != beta - 1;
     // Used for Singular Extension. Excluded move is the TT move.
     const Move excluded = ply > 0 ? stack_.at(ply).excluded : MOVE_NONE;
+    
+    const int see_margin[2] = {
+        -20 * depth * depth,
+        -64 * depth,
+    };
 
     if (!keep_going())
         return 0;
@@ -486,9 +491,10 @@ move_loop:
         if (m == excluded) continue;
 
         bool is_quiet = b.is_quiet(m);
-        int new_depth = depth - 1, r = 0;
         bool killer_or_counter = m == counter
             || entry.killers[0] == m || entry.killers[1] == m;
+
+
         bb = b.do_move(m, &si);
 
         // Check extension
@@ -519,11 +525,17 @@ move_loop:
         }
 
         extension = std::min(extension, 2);
+
+        int new_depth = depth - 1, r = 0;
         new_depth += is_root ? 0 : extension;
 
         int lmp_threshold = (3 + 2 * depth * depth) / (2 - improving);
         if (!pv_node && !bb.checkers() && is_quiet && moves_tried > lmp_threshold) 
             break;
+
+        // SEE pruning
+        if (amp.stage() >= Stage::BAD_TACTICAL && depth < 10 && b.see_ge(m, see_margin[is_quiet]))
+            continue;
 
         // Late more reductions
         if (depth > 2 && moves_tried > 1 && is_quiet) {
