@@ -641,6 +641,8 @@ int Search::quiescence(const Board &b,
     stats_.nodes++;
     stats_.qnodes++;
 
+    const int ply = stack_.height();
+
     //Mate distance pruning
     int mated_score = stack_.mated_score();
     alpha = std::max(alpha, mated_score);
@@ -649,18 +651,29 @@ int Search::quiescence(const Board &b,
         return alpha;
 
     int16_t eval = 0;
+    Move ttm = MOVE_NONE;
+    if (TTEntry tte; g_tt.probe(b.key(), tte) && b.is_valid_move(Move(tte.move16))) {
+        if (can_return_ttscore(tte, alpha, beta, 0, ply))
+            return alpha;
+        eval = tte.eval16;
+        ttm = Move(tte.move16);
+    }
+
     if constexpr (!with_evasions) {
-        eval = evaluate(b);
+        eval = is_ok(ttm) ? eval : evaluate(b);
         alpha = std::max(alpha, +eval);
         if (alpha >= beta)
             return beta;
     }
 
     StateInfo si;
-    MovePicker mp(b);
+    MovePicker mp(b, ttm);
     Board bb(&si);
+
     constexpr bool only_tacticals = !with_evasions;
-    int moves_tried = 0;
+    Move best_move = MOVE_NONE;
+    int moves_tried = 0, old_alpha = alpha;
+
     for (Move m = mp.next<only_tacticals>(); m != MOVE_NONE; 
             m = mp.next<only_tacticals>(), ++moves_tried)
     {
@@ -678,11 +691,19 @@ int Search::quiescence(const Board &b,
 
         stack_.pop();
 
-        if (score > alpha)
+        if (score > alpha) {
             alpha = score;
-        if (score >= beta) 
-            return beta;
+            best_move = m;
+
+            if (score >= beta)
+                break;
+        }
     }
+
+    if (!keep_going())
+        return 0;
+
+    g_tt.store(b.key(), alpha, eval, determine_bound(alpha, beta, old_alpha), 0, best_move, ply, false);
 
     if (with_evasions && !moves_tried)
         return stack_.mated_score();

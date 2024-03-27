@@ -47,8 +47,6 @@ public:
         const Histories *histories = nullptr,
         Move counter = MOVE_NONE,
         Move followup = MOVE_NONE);
-    //for quiescence
-    MovePicker(const Board &board);
 
     template<bool qmoves>
     Move next();

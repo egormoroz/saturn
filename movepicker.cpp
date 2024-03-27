@@ -92,10 +92,6 @@ MovePicker::MovePicker(const Board &board, Move ttm,
     }
 }
 
-MovePicker::MovePicker(const Board &board)
-    : board_(board), stage_(Stage::INIT_TACTICAL)
-{}
-
 template Move MovePicker::next<true>();
 template Move MovePicker::next<false>();
 
