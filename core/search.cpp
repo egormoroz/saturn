@@ -373,6 +373,11 @@ int Search::search(const Board &b, int alpha,
     const bool pv_node = alpha != beta - 1;
     // Used for Singular Extension. Excluded move is the TT move.
     const Move excluded = ply > 0 ? stack_.at(ply).excluded : MOVE_NONE;
+    
+    const int see_margin[2] = {
+        -20 * depth * depth,
+        -64 * depth,
+    };
 
     if (!keep_going())
         return 0;
@@ -447,7 +452,8 @@ int Search::search(const Board &b, int alpha,
         && b.has_nonpawns(b.side_to_move())
         && eval >= beta)
     {
-        int R = 3 + depth / 6, n_depth = depth - R - 1;
+        int R = 4 + depth / 6 + std::min(2, (eval - beta) / 100);
+        int n_depth = depth - R;
         stack_.push(b.key(), MOVE_NULL, eval);
 
         int score = -search(b.do_null_move(&si), -beta, 
@@ -473,11 +479,6 @@ move_loop:
     AutoMovePicker<is_root> amp(rmp_, b, ttm, entry.killers, &hist_, counter, followup);
 
     Board bb(&si);
-    // auto search_move = [&](int depth, bool zw) {
-    //     int t_beta = zw ? -(alpha + 1) : -beta;
-    //     int score = -search(bb, t_beta, -alpha, depth);
-    //     return score;
-    // };
 
     std::array<Move, 64> quiets;
     int num_quiets{};
@@ -490,9 +491,10 @@ move_loop:
         if (m == excluded) continue;
 
         bool is_quiet = b.is_quiet(m);
-        int new_depth = depth - 1, r = 0;
         bool killer_or_counter = m == counter
             || entry.killers[0] == m || entry.killers[1] == m;
+
+
         bb = b.do_move(m, &si);
 
         // Check extension
@@ -523,11 +525,17 @@ move_loop:
         }
 
         extension = std::min(extension, 2);
+
+        int new_depth = depth - 1, r = 0;
         new_depth += is_root ? 0 : extension;
 
         int lmp_threshold = (3 + 2 * depth * depth) / (2 - improving);
         if (!pv_node && !bb.checkers() && is_quiet && moves_tried > lmp_threshold) 
             break;
+
+        // SEE pruning
+        if (amp.stage() >= Stage::BAD_TACTICAL && depth < 8 && !b.see_ge(m, see_margin[is_quiet]))
+            continue;
 
         // Late more reductions
         if (depth > 2 && moves_tried > 1 && is_quiet) {
@@ -552,19 +560,16 @@ move_loop:
         //Zero-window search
         if (!pv_node || moves_tried)
             score = -search(bb, -alpha - 1, -alpha, new_depth);
-            // score = search_move(new_depth, true);
 
         //Re-search if reduced move beats alpha
         if (r && score > alpha) {
             new_depth += r;
             score = -search(bb, -alpha - 1, -alpha, new_depth);
-            // score = search_move(new_depth, true);
         }
 
         //(Re-)search with full window
         if (pv_node && ((score > alpha && score < beta) || !moves_tried))
             score = -search(bb, -beta, -alpha, new_depth);
-            // score = search_move(new_depth, false);
 
         stack_.pop();
         ++moves_tried;
