@@ -282,7 +282,7 @@ static void run_bench(int argc, char **argv) {
     search->set_silent(true);
 
     SearchLimits limits;
-    limits.max_depth = 12;
+    limits.max_depth = 13;
     limits.infinite = true;
 
     Board b;
