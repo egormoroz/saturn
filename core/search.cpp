@@ -420,7 +420,7 @@ int Search::search(const Board &b, int alpha,
         }
 
         avoid_null = tte.avoid_null;
-        eval = tte.eval16;
+        eval = tte.score16;
     } else {
         eval = evaluate(b);
     }
