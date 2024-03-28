@@ -234,7 +234,7 @@ void UCIContext::parse_setopt(std::istream &is) {
 
 void UCIContext::print_info() {
     sync_cout() 
-        << "id name saturn 1.1\n" 
+        << "id name saturn 1.2\n" 
         << "id author egormoroz\n";
 
     char buf[1024];

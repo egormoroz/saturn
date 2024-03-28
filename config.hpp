@@ -14,7 +14,7 @@ constexpr int MULTIPV_MIN = 1;
 constexpr int MULTIPV_MAX = 255;
 
 #ifndef EVALFILE
-constexpr char NNUE_PATH[] = "saturn.nnue";
+constexpr char NNUE_PATH[] = "saturn-5F6C2511.nnue";
 #else
 constexpr char NNUE_PATH[] = EVALFILE;
 #endif
