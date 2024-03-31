@@ -2,6 +2,7 @@
 #define PRIMITIVE_BITBOARD_HPP
 
 #include <cstdint>
+#include <cassert>
 #include "common.hpp"
 
 #ifdef _MSC_VER

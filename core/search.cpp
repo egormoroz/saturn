@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <cstring>
 #include <cmath>
+#include <iomanip>
 
 #include "search.hpp"
 #include "eval.hpp"
@@ -76,6 +77,12 @@ namespace {
 
 uint8_t LMR[32][64];
 
+struct LMRAutoInit {
+    LMRAutoInit() {
+        update_reduction_tables();
+    }
+} _;
+
 bool can_return_ttscore(const TTEntry &tte, 
     int &alpha, int beta, int depth, int ply)
 {
@@ -111,7 +118,7 @@ int16_t cap_value(const Board &b, Move m) {
 
 } //namespace
 
-void init_reduction_tables(float k) {
+void update_reduction_tables(float k) {
     // k == 0.65 *could be* like +5 elo
     // TODO: test this
     for (int depth = 1; depth < 32; ++depth)
@@ -201,18 +208,19 @@ void Search::set_silent(bool s) {
 }
 
 void Search::setup(const Board &root,  const SearchLimits &limits,
-        UCISearchConfig usc, const Stack *st, bool ponder)
+        const Stack *st, bool ponder, int multipv)
 {
     // should we really do this?
     g_tt.new_search();
 
     pondering_ = ponder;
-    uci_cfg_ = usc;
     root_ = root;
     limits_ = limits;
     stats_.reset();
-    rmp_.reset(root_);
     hist_.reset();
+
+    rmp_.reset(root_);
+    n_pvs_ = std::min(rmp_.num_moves(), multipv);
 
     if (st)
         stack_ = *st;
@@ -224,7 +232,7 @@ void Search::setup(const Board &root,  const SearchLimits &limits,
     nnue::refresh_accumulator(root_, root_si_.acc, WHITE);
     nnue::refresh_accumulator(root_, root_si_.acc, BLACK);
 
-    man_.init(limits, root.side_to_move(), usc.move_overhead);
+    man_.init(limits, root.side_to_move());
 
     memset(counters_.data(), 0, sizeof(counters_));
     memset(followups_.data(), 0, sizeof(followups_));
@@ -244,7 +252,6 @@ bool Search::keep_going() {
 
 void Search::iterative_deepening() {
     int score = 0, prev_score;
-    n_pvs_ = std::min(uci_cfg_.multipv, rmp_.num_moves());
 
     if (!n_pvs_){ 
         if (!silent_)
@@ -294,11 +301,13 @@ void Search::iterative_deepening() {
 
         TimePoint now = timer::now(), 
               time_left = man_.start + man_.max_time - now;
+
+        // TODO: we could try looking at EBF instead
         if (abs(score - prev_score) < 8 && !limits_.move_time 
                 && now - start >= time_left && d >= limits_.min_depth)
             break; //assume we don't have enough time to go 1 ply deeper
 
-        if (uci_cfg_.multipv == 1 && abs(score) >= VALUE_MATE - d)
+        if (n_pvs_ == 1 && abs(score) >= VALUE_MATE - d)
             break;
     }
 
@@ -336,10 +345,10 @@ int Search::num_pvs() const { return n_pvs_; }
 const SearchStats& Search::get_stats() const { return stats_; }
 
 int Search::aspiration_window(int score, int depth) {
-    if (depth < uci_cfg_.asp_min_depth)
+    if (depth < params::asp_min_depth)
         return search<true>(root_, -VALUE_MATE, VALUE_MATE, depth);
 
-    int delta = uci_cfg_.asp_init_delta, alpha = score - delta, 
+    int delta = params::asp_init_delta, alpha = score - delta, 
         beta = score + delta;
     while (keep_going()) {
         if (alpha <= -3000) alpha = -VALUE_MATE;
@@ -724,47 +733,38 @@ void Search::uci_report() const {
     if (silent_)
         return;
 
-    char output[512];
-    char buf[32];
-    char mpv_str[64];
-
     long long elapsed = timer::now() - limits_.start;
     unsigned long long nps = stats_.nodes * 1000 / (elapsed + 1);
-
     float fhf = stats_.fail_high_first / (stats_.fail_high + 1.f);
 
-    StateInfo si;
-    TTEntry tte;
-    Board b = root_;
+    auto out = sync_cout();
 
     for (int i = 0; i < n_pvs_; ++i) {
         const RootMove &rm = pv_moves_[i];
 
-        score_to_str(buf, sizeof(buf), rm.score);
-        snprintf(mpv_str, 32, "multipv %d ", i + 1);
+        out << "info multipv " << (i + 1)
+            << " score " << Score { rm.score }
+            << " depth " << stats_.id_depth
+            << " seldepth " << stats_.sel_depth
+            << " nodes " << stats_.nodes
+            << " time " << elapsed
+            << " nps " << nps
+            << " fhf " << std::setprecision(4) << fhf
+            << " pv ";
 
-        int n = snprintf(output, sizeof(output), 
-                "info score %s depth %d seldepth %d %snodes %llu time %lld "
-                "nps %llu fhf %.4f pv ",
-                buf, stats_.id_depth, stats_.sel_depth, 
-                uci_cfg_.multipv > 1 ? mpv_str : "", 
-                (unsigned long long)stats_.nodes, elapsed, nps, fhf);
-
+        Board b = root_;
+        TTEntry tte;
         Move m = rm.move;
-        b = root_;
         for (int k = 0; k < stats_.id_depth; ++k) {
-            n += move_to_str(output + n, sizeof(output) - n, m);
+            out << m << ' ';
 
-            b = b.do_move(m, &si);
-            if (!g_tt.probe(b.key(), tte))
+            b = b.do_move(m);
+            if (g_tt.probe(b.key(), tte) && b.is_valid_move(Move(tte.move16)))
+                m = Move(tte.move16);
+            else
                 break;
-            if (m = Move(tte.move16); !b.is_valid_move(m))
-                break;
-            output[n++] = ' ';
         }
 
-        output[n] = 0;
-
-        sync_cout() << output << '\n';
+        out << '\n';
     }
 }

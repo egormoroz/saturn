@@ -2,12 +2,16 @@
 #define SEARCH_HPP
 
 #include "../primitives/common.hpp"
-#include "../searchstack.hpp"
+#include "../parameters.hpp"
+
 #include "../board/board.hpp"
+#include "../searchstack.hpp"
 #include "search_common.hpp"
 #include "../movepicker.hpp"
 #include "../evalcache.hpp"
+
 #include <atomic>
+
 
 struct RootMove {
     Move move;
@@ -41,14 +45,6 @@ private:
     int mpv_start_{};
 };
 
-struct UCISearchConfig {
-    int multipv = defopts::MULTIPV;
-    int move_overhead = defopts::MOVE_OVERHEAD;
-
-    int asp_init_delta = defopts::ASP_INIT_DELTA;
-    int asp_min_depth = defopts::ASP_MIN_DEPTH;
-};
-
 class Search {
 public:
     Search();
@@ -56,7 +52,7 @@ public:
     void set_silent(bool s);
 
     void setup(const Board &root, const SearchLimits &limits,
-            UCISearchConfig usc, const Stack *st = nullptr, bool ponder=false);
+            const Stack *st = nullptr, bool ponder=false, int multipv = 1);
 
     void iterative_deepening();
 
@@ -100,7 +96,6 @@ private:
     TimeMan man_;
     SearchLimits limits_;
     SearchStats stats_;
-    UCISearchConfig uci_cfg_;
 
     EvalCache ev_cache_;
     bool silent_ = false;
@@ -108,6 +103,6 @@ private:
     std::atomic_bool pondering_ = false;
 };
 
-void init_reduction_tables(float k = defopts::LMR_COEFF);
+void update_reduction_tables(float k = params::defaults::lmr_coeff);
 
 #endif

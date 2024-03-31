@@ -1,20 +1,9 @@
 #include "attack.hpp"
+#include "magics.hpp"
 #include <initializer_list>
 
-namespace attack_tables {
+AttackTables ATTACK_TABLES;
 
-Bitboard ATTACKS[88772];
-Bitboard PSEUDO_ATTACKS[PIECE_TYPE_NB][SQUARE_NB];
-
-Bitboard PAWN_ATTACKS[COLOR_NB][SQUARE_NB];
-Bitboard PAWN_PUSHES[COLOR_NB][SQUARE_NB];
-
-Bitboard LINE[SQUARE_NB][SQUARE_NB];
-Bitboard BETWEEN[SQUARE_NB][SQUARE_NB];
-
-} //namespace attack_tables
-
-namespace atta = attack_tables;
 
 class Dir {
 public:
@@ -110,35 +99,34 @@ constexpr Bitboard pawn_pushes_bb(Bitboard bb) {
     return pushes;
 }
 
-
-void init_attack_tables() {
+AttackTables::AttackTables() {
     for (Square sq = SQ_A1; sq <= SQ_H8; ++sq) {
         Bitboard sbb = square_bb(sq);
 
-        auto f = [sq](Bitboard blockers) {
-            size_t idx = atta::ROOK_MAGICS[sq].rook_index(blockers);
-            atta::ATTACKS[idx] = gen_rook_attacks(sq, blockers);
+        auto f = [&](Bitboard blockers) {
+            size_t idx = ROOK_MAGICS[sq].rook_index(blockers);
+            attacks[idx] = gen_rook_attacks(sq, blockers);
         };
-        enum_subsets(f, atta::ROOK_MAGICS[sq].mask);
+        enum_subsets(f, ROOK_MAGICS[sq].mask);
 
-        auto g = [sq](Bitboard blockers) {
-            size_t idx = atta::BISHOP_MAGICS[sq].bishop_index(blockers);
-            atta::ATTACKS[idx] = gen_bishop_attacks(sq, blockers);
+        auto g = [&](Bitboard blockers) {
+            size_t idx = BISHOP_MAGICS[sq].bishop_index(blockers);
+            attacks[idx] = gen_bishop_attacks(sq, blockers);
         };
-        enum_subsets(g, atta::BISHOP_MAGICS[sq].mask);
+        enum_subsets(g, BISHOP_MAGICS[sq].mask);
 
 
-        atta::PAWN_ATTACKS[WHITE][sq] = pawn_attacks_bb<WHITE>(sbb);
-        atta::PAWN_ATTACKS[BLACK][sq] = pawn_attacks_bb<BLACK>(sbb);
-        atta::PAWN_PUSHES[WHITE][sq] = pawn_pushes_bb<WHITE>(sbb);
-        atta::PAWN_PUSHES[BLACK][sq] = pawn_pushes_bb<BLACK>(sbb);
+        pawn_attacks[WHITE][sq] = pawn_attacks_bb<WHITE>(sbb);
+        pawn_attacks[BLACK][sq] = pawn_attacks_bb<BLACK>(sbb);
+        pawn_pushes[WHITE][sq] = pawn_pushes_bb<WHITE>(sbb);
+        pawn_pushes[BLACK][sq] = pawn_pushes_bb<BLACK>(sbb);
 
-        atta::PSEUDO_ATTACKS[KNIGHT][sq] = knight_attacks(sbb);
-        atta::PSEUDO_ATTACKS[KING][sq] = king_attacks(sbb);
+        pseudo_attacks[KNIGHT][sq] = knight_attacks(sbb);
+        pseudo_attacks[KING][sq] = king_attacks(sbb);
 
-        atta::PSEUDO_ATTACKS[BISHOP][sq] = attacks_bb<BISHOP>(sq, 0);
-        atta::PSEUDO_ATTACKS[ROOK][sq] = attacks_bb<ROOK>(sq, 0);
-        atta::PSEUDO_ATTACKS[QUEEN][sq] = attacks_bb<QUEEN>(sq, 0);
+        pseudo_attacks[BISHOP][sq] = attacks_bb<BISHOP>(sq, 0);
+        pseudo_attacks[ROOK][sq] = attacks_bb<ROOK>(sq, 0);
+        pseudo_attacks[QUEEN][sq] = attacks_bb<QUEEN>(sq, 0);
     }
 
     for (Square s1 = SQ_A1; s1 <= SQ_H8; ++s1) {
@@ -148,9 +136,9 @@ void init_attack_tables() {
                 Bitboard s2b = square_bb(s2);
 
                 if (attacks_bb(p, s1, 0) & s2b) {
-                    atta::LINE[s1][s2] = (attacks_bb(p, s1, 0) 
+                    line[s1][s2] = (attacks_bb(p, s1, 0) 
                             & attacks_bb(p, s2, 0)) | s1b | s2b;
-                    atta::BETWEEN[s1][s2] = attacks_bb(p, s1, s2b) 
+                    between[s1][s2] = attacks_bb(p, s1, s2b) 
                         & attacks_bb(p, s2, s1b);
                 }
             }

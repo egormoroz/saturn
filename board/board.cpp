@@ -7,12 +7,7 @@
 #include "../nnue/evaluate.hpp"
 #include <cstring>
 
-/*
- * FILE: board.cpp
- * All the piece management stuff goes here, as well 
- * as some methods not worth creating a separate file
- * */
-
+// Used to detect material draw
 constexpr uint64_t PCKEY_INDEX[COLOR_NB][PIECE_TYPE_NB] = {
     { 0, 1ull << 0, 1ull << 4, 1ull << 8, 1ull << 12, 1ull << 16, 0 },
     { 0, 1ull << 20, 1ull << 24, 1ull << 28,  1ull << 32, 1ull << 36, 0 },
@@ -23,6 +18,7 @@ constexpr uint64_t pckey_v = pckey_v<p> | pckey_v<pcs...>;
 
 template<Piece p>
 constexpr uint64_t pckey_v<p> = PCKEY_INDEX[int(color_of(p))][type_of(p)];
+
 
 Board::Board(StateInfo *si)
     : si_(si) {}

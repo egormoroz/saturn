@@ -5,6 +5,7 @@
 #include <chrono>
 #include <algorithm>
 #include "../primitives/common.hpp"
+#include "../parameters.hpp"
 
 struct SearchStats {
     uint64_t nodes{}, qnodes{};
@@ -15,8 +16,7 @@ struct SearchStats {
 
     void reset() {
         nodes = qnodes = fail_high = fail_high_first = 0;
-        sel_depth = 0;
-        id_depth = 0;
+        sel_depth = id_depth = 0;
     }
 };
 
@@ -46,19 +46,17 @@ struct TimeMan {
     TimePoint start = 0;
     TimePoint max_time = 0;
 
-    void init(const SearchLimits &limits, 
-            Color us, int move_overhead) 
-    {
+    void init(const SearchLimits &limits, Color us) {
         start = limits.start;
 
         if (limits.infinite) return;
 
         if (limits.move_time) {
-            max_time = std::max(1, limits.move_time - move_overhead);
+            max_time = std::max(1, limits.move_time - params::move_overhead);
             return;
         }
 
-        max_time = limits.time[us] / 30 + limits.inc[us] - move_overhead;
+        max_time = limits.time[us] / 30 + limits.inc[us] - params::move_overhead;
     }
 
     bool out_of_time() const { 

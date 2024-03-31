@@ -2,6 +2,7 @@
 #define BOOK_HPP
 
 #include "primitives/common.hpp"
+#include <cstddef>
 #include <vector>
 
 ; // this mysterious semicolon fixes clangd warning bug

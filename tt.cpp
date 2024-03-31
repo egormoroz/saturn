@@ -1,9 +1,15 @@
 #include "tt.hpp"
 #include <cstring>
 #include "board/board.hpp"
+#include "parameters.hpp"
 #include <xmmintrin.h>
 
 TranspositionTable g_tt;
+
+
+TranspositionTable::TranspositionTable() {
+    resize(params::defaults::tt_size);
+}
 
 int TTEntry::score(int ply) const {
     int s = score16;

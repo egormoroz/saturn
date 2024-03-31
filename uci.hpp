@@ -27,12 +27,10 @@ private:
     SearchWorker search_;
     StateInfo si_;
 
+    int multipv_ = 1;
+
     Book book_;
     bool book_loaded_ = false;
-
-    UCISearchConfig cfg_;
 };
-
-int enter_cli(int argc, char **argv);
 
 #endif

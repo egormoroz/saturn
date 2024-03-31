@@ -1,8 +1,29 @@
-#include "attack.hpp"
+#ifndef MAGICS_HPP
+#define MAGICS_HPP
 
-namespace attack_tables {
 
-Magic ROOK_MAGICS[SQUARE_NB] = {
+#include "../primitives/bitboard.hpp"
+#include <cstddef>
+
+struct Magic {
+    uint64_t mask;
+    uint64_t factor;
+    size_t offset;
+
+
+    size_t rook_index(Bitboard blockers) const {
+        uint64_t index = (blockers & mask) * factor;
+        return (index >> (64 - 12)) + offset;
+    }
+
+    size_t bishop_index(Bitboard blockers) const {
+        uint64_t index = (blockers & mask) * factor;
+        return (index >> (64 - 9)) + offset;
+    }
+
+};
+
+constexpr Magic ROOK_MAGICS[SQUARE_NB] = {
     //          mask                factor         offset
     { 0x0001'0101'0101'017e, 0x0028'0077'ffeb'fffe, 26304 },
     { 0x0002'0202'0202'027c, 0x2004'0102'0109'7fff, 35520 },
@@ -70,7 +91,7 @@ Magic ROOK_MAGICS[SQUARE_NB] = {
     { 0x7e80'8080'8080'8000, 0x0001'ffff'9dff'a333, 14826 },
 };
 
-Magic BISHOP_MAGICS[SQUARE_NB] = {
+constexpr Magic BISHOP_MAGICS[SQUARE_NB] = {
     //          mask                factor         offset
     { 0x0040'2010'0804'0200, 0x007f'bfbf'bfbf'bfff,  5378 },
     { 0x0000'4020'1008'0400, 0x0000'a060'4010'07fc,  4093 },
@@ -138,4 +159,4 @@ Magic BISHOP_MAGICS[SQUARE_NB] = {
     { 0x0040'2010'0804'0200, 0x007f'ff9f'df7f'f813, 16076 },
 };
 
-} //namespace attack_tables
+#endif

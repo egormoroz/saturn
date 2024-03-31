@@ -10,8 +10,8 @@
 #include <fstream>
 #include <thread>
 
-#include "core/eval.hpp"
 #include "core/search.hpp"
+#include "nnue/evaluate.hpp"
 #include "pack.hpp"
 #include "primitives/utility.hpp"
 
@@ -201,8 +201,6 @@ public:
 private:
     void thread_routine() {
         search_.set_silent(true);
-        UCISearchConfig usc;
-        usc.multipv = num_pvs_;
 
         PosChain pc;
         while (keep_going_) {
@@ -223,7 +221,7 @@ private:
                 limits.start = timer::now();
 
                 stack_.set_start(stack_.total_height());
-                search_.setup(board_, limits, usc, &stack_);
+                search_.setup(board_, limits, &stack_, false, num_pvs_);
 
                 search_.iterative_deepening();
 
@@ -277,14 +275,13 @@ private:
         constexpr int max_pv_diff = 50;
         constexpr int ld_multipv = 20;
 
-        UCISearchConfig ld_usc;
-        ld_usc.multipv = std::max(ld_multipv, num_pvs_);
+        int multipv = std::max(ld_multipv, num_pvs_);
 
         // Make several low depth moves. This results in okay-ish positions 
         // and (hopefully) fixes the issue with not generating *any* endgame positions.
         for (int i = 0; i < n_ld_moves; ++i) {
             limits.start = timer::now();
-            search_.setup(board_, limits, ld_usc);
+            search_.setup(board_, limits, nullptr, false, multipv);
             search_.iterative_deepening();
 
             int n_pvs = search_.num_pvs();
@@ -314,7 +311,7 @@ private:
             float min_weight = 1;
             for (int i = 0; i < total_moves; ++i) {
                 Board b = board_.do_move(moves[i], &si_stack_[ply+1]);
-                weights[i] = static_cast<float>(-evaluate(b));
+                weights[i] = static_cast<float>(-nnue::evaluate(b));
                 min_weight = weights[i] < min_weight ? weights[i] : min_weight;
             }
 

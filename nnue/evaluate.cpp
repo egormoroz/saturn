@@ -8,12 +8,22 @@
 
 #include "crelu.hpp"
 
+#include "../parameters.hpp"
+#include "../scout.hpp"
+
 namespace {
 
 bool NNUE_INITIALIZED = false;
 
 Network net;
 TransformerLayer transformer;
+
+struct AutoInit {
+    AutoInit() {
+        if (!nnue::load_parameters(params::defaults::nnue_weights_path))
+            sync_cout() << "[WARN] failed to initialize nnue\n";
+    }
+} _;
 
 }
 
@@ -99,7 +109,7 @@ bool update_accumulator(
 
 int32_t evaluate(const Board &b) {
     if (!NNUE_INITIALIZED) {
-        printf("NNUE not initialized, aborting...\n");
+        sync_cout() << "info string NNUE not initialized, aborting...\n";
         std::abort();
     }
 
@@ -123,26 +133,23 @@ int32_t evaluate(const Board &b) {
 }
 
 bool load_parameters(const char *path) {
+    NNUE_INITIALIZED = false;
+
     std::ifstream fin(path, std::ios::binary);
     if (!fin.is_open()) {
-        printf("failed to open parameters file\n");
+        sync_cout() << "Failed to open parameters file\n";
         return false;
     }
-
-    /* fin.seekg(189+4); */
 
     if (!transformer.load_parameters(fin)) {
-        printf("failed to load tranformer parameters\n");
+        sync_cout() << "Failed to load tranformer parameters\n";
         return false;
     }
 
-    /* fin.ignore(4); */
     if (!net.load_parameters(fin)) {
-        printf("failed to load parameters\n");
+        sync_cout() << "Failed to load net parameters\n";
         return false;
     }
-
-    printf("successfully loaded nnue parameters\n");
 
     NNUE_INITIALIZED = true;
     return true;

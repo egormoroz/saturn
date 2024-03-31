@@ -7,10 +7,10 @@ add_executable(saturn
     main.cpp zobrist.cpp perft.cpp tt.cpp
     board/board.cpp board/board_moves.cpp board/parse.cpp 
     board/validate.cpp board/see.cpp movgen/attack.cpp 
-    movgen/magic.cpp movgen/generate.cpp primitives/utility.cpp
-    core/eval.cpp searchstack.cpp movepicker.cpp
-    cli.cpp core/searchworker.cpp nnue/evaluate.cpp
-    core/search.cpp selfplay.cpp pack.cpp book.cpp)
+    movgen/generate.cpp primitives/utility.cpp
+    searchstack.cpp movepicker.cpp
+    uci.cpp core/searchworker.cpp nnue/evaluate.cpp
+    core/search.cpp selfplay.cpp pack.cpp book.cpp parameters.cpp)
 
 if (DEFINED ENV{EVALFILE})
     message(STATUS "$ENV{EVALFILE}")

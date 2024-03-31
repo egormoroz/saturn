@@ -75,7 +75,7 @@ class TranspositionTable {
         char padding[2];
     };
 public:
-    TranspositionTable() = default;
+    TranspositionTable();
 
     void resize(size_t mbs);
     void clear();

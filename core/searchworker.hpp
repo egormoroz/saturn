@@ -2,8 +2,12 @@
 #define SEARCHWORKER_HPP
 
 #include <memory>
-#include "routine.hpp"
 #include "search.hpp"
+
+#include <mutex>
+#include <condition_variable>
+#include <thread>
+#include <atomic>
 
 class SearchWorker {
 public:
@@ -12,8 +16,8 @@ public:
 
     void set_silent(bool s);
 
-    void go(const Board &root, const SearchLimits &limits,
-            UCISearchConfig usc, const Stack *st = nullptr, bool ponder=false);
+    void go(const Board &root, const SearchLimits &limits, 
+            const Stack *st = nullptr, bool ponder=false, int multipv=1);
 
     void stop();
     void stop_pondering();
@@ -21,7 +25,13 @@ public:
 
 private:
     std::unique_ptr<Search> search_;
-    Routine loop_;
+
+    std::thread thread_;
+    std::mutex mutex_;
+    std::condition_variable go_cv_, done_cv_;
+
+    std::atomic_bool go_, done_;
+    std::atomic_bool terminate_;
 };
 
 #endif
