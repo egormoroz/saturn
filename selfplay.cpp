@@ -268,8 +268,8 @@ private:
         int n_ld_moves = dist(rng);
 
         SearchLimits limits;
-        limits.min_depth = 2;
-        limits.max_depth = 2;
+        limits.depth = 2;
+        limits.type = limits.DEPTH;
 
         constexpr int stop_score_thresh = 500;
         constexpr int max_pv_diff = 50;
@@ -367,8 +367,8 @@ private:
     std::thread th_;
 };
 
-void selfplay(const char *out_name, int min_depth, int move_time, 
-        int num_pos, int n_pvs, int max_ld_moves, int n_threads) 
+void selfplay(const char *out_name, int num_pos, int nodes, 
+        int n_pvs, int max_ld_moves, int n_threads) 
 {
     char buf[256];
     snprintf(buf, sizeof(buf), "%s.bin", out_name);
@@ -381,8 +381,8 @@ void selfplay(const char *out_name, int min_depth, int move_time,
     ChainWriter writer(fout);
 
     SearchLimits limits;
-    limits.min_depth = min_depth;
-    limits.move_time = move_time;
+    limits.nodes = nodes;
+    limits.type = limits.NODES;
 
     PosQueue q;
 

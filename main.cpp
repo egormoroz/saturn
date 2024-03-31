@@ -29,21 +29,19 @@ int main(int argc, char **argv) {
 
     if (!strcmp(argv[1], "selfplay")) {
         if (argc != 9) {
-            printf("usage: selfplay <out_name> <num_pos> <min_depth> "
-                   "<move_time> <n_psv> <max_ld_moves> <n_threads>\n");
+            printf("usage: selfplay <out_name> <num_pos> <nodes> "
+                   "<n_psv> <max_ld_moves> <n_threads>\n");
             return 1;
         }
         
         const char *out_name = argv[2];
         int num_pos = atol(argv[3]);
-        int min_depth = atol(argv[4]);
-        int move_time = atol(argv[5]);
-        int n_pv = atol(argv[6]);
-        int max_ld_moves = atol(argv[7]);
-        int n_threads = atol(argv[8]);
+        int nodes = atol(argv[4]);
+        int n_pv = atol(argv[5]);
+        int max_ld_moves = atol(argv[6]);
+        int n_threads = atol(argv[7]);
 
-        selfplay(out_name, min_depth, move_time, num_pos, 
-                n_pv, max_ld_moves, n_threads);
+        selfplay(out_name, num_pos, nodes, n_pv, max_ld_moves, n_threads);
 
         return 0;
     } else if (!strcmp(argv[1], "packval")) {
@@ -150,8 +148,8 @@ static void run_bench(int argc, char **argv) {
     search->set_silent(true);
 
     SearchLimits limits;
-    limits.max_depth = 13;
-    limits.infinite = true;
+    limits.depth = 13;
+    limits.type = limits.DEPTH;
 
     Board b;
 

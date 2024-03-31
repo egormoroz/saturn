@@ -3,7 +3,6 @@
 
 #include <cstdint>
 #include <chrono>
-#include <algorithm>
 #include "../primitives/common.hpp"
 #include "../parameters.hpp"
 
@@ -31,15 +30,20 @@ namespace timer {
 }
 
 struct SearchLimits {
-    int max_depth = MAX_DEPTH;
-    int min_depth = 0;
+    enum LimitType {
+        UNLIMITED,
+        NODES,
+        DEPTH,
+        TIME,
+    } type = UNLIMITED;
+
+    TimePoint start{};
+
+    int depth = MAX_DEPTH;
     int time[2]{}, inc[2]{};
     int move_time = 0;
 
-    bool infinite = false;
-
-    uint64_t max_nodes = 0;
-    TimePoint start{};
+    uint64_t nodes = 0;
 };
 
 struct TimeMan {
@@ -48,15 +52,11 @@ struct TimeMan {
 
     void init(const SearchLimits &limits, Color us) {
         start = limits.start;
-
-        if (limits.infinite) return;
-
-        if (limits.move_time) {
-            max_time = std::max(1, limits.move_time - params::move_overhead);
+        if (limits.type != limits.TIME)
             return;
-        }
 
-        max_time = limits.time[us] / 30 + limits.inc[us] - params::move_overhead;
+        max_time = limits.move_time;
+        max_time += limits.time[us] / 30 + limits.inc[us] - params::move_overhead;
     }
 
     bool out_of_time() const { 

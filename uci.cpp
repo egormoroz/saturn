@@ -96,10 +96,10 @@ void UCIContext::parse_go(std::istream &is) {
 
     std::string token;
 
-    SearchLimits limits;
     bool ponder = false;
+    SearchLimits limits;
+    limits.type = limits.TIME;
     limits.start = timer::now();
-
 
     while (is >> token) {
         if (token == "wtime") is >> limits.time[WHITE];
@@ -107,22 +107,16 @@ void UCIContext::parse_go(std::istream &is) {
         else if (token == "winc") is >> limits.inc[WHITE];
         else if (token == "binc") is >> limits.inc[BLACK];
         else if (token == "movetime") is >> limits.move_time;
-        else if (token == "infinite") limits.infinite = true;
-        else if (token == "ponder") ponder = true;
-        else if (token == "depth") is >> limits.max_depth;
-        else if (token == "nodes") is >> limits.max_nodes;
-        else if (token == "perft") {
-            parse_go_perft(is);
-            return;
-        }
+
+        else if (token == "infinite") limits.type = limits.UNLIMITED;
+
+        else if (token == "ponder") { ponder = true; limits.type = limits.UNLIMITED; }
+        else if (token == "depth") { is >> limits.depth; limits.type = limits.DEPTH; }
+        else if (token == "nodes") { is >> limits.nodes; limits.type = limits.NODES; }
+        else if (token == "perft") { parse_go_perft(is); return; }
     }
 
-    if (!limits.time[WHITE] && !limits.time[BLACK]
-            && !limits.move_time)
-        limits.infinite = true;
-
-    search_.go(board_, limits, st_.total_height() ? &st_ : nullptr, 
-            ponder, multipv_);
+    search_.go(board_, limits, st_.total_height() ? &st_ : nullptr, ponder, multipv_);
 }
 
 void UCIContext::parse_go_perft(std::istream &is) {

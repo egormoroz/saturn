@@ -242,10 +242,18 @@ void Search::setup(const Board &root,  const SearchLimits &limits,
 
 bool Search::keep_going() {
     if (stats_.nodes % 2048 == 0 && keep_going_) {
-        keep_going_ = pondering_ || limits_.infinite || !man_.out_of_time()
-            || stats_.id_depth <= limits_.min_depth;
-        if (limits_.max_nodes)
-            keep_going_ = keep_going_ && stats_.nodes < limits_.max_nodes;
+        switch (limits_.type) {
+        case SearchLimits::UNLIMITED: 
+        case SearchLimits::DEPTH:
+            break;
+
+        case SearchLimits::NODES:
+            keep_going_ = stats_.nodes < limits_.nodes;
+            break;
+        case SearchLimits::TIME:
+            keep_going_ = !man_.out_of_time();
+            break;
+        };
     }
     return keep_going_;
 }
@@ -259,7 +267,7 @@ void Search::iterative_deepening() {
         n_pvs_ = 0;
     }
 
-    if ((rmp_.num_moves() == 1/* || is_board_drawn(root_)*/) && !silent_ && !pondering_) {
+    if (rmp_.num_moves() == 1 && !silent_ && !pondering_) {
         RootMove m = rmp_.best_move();
         sync_cout() << "bestmove " << m.move << '\n';
         return;
@@ -275,7 +283,8 @@ void Search::iterative_deepening() {
     uci_report();
 
 
-    for (int d = 2; d <= limits_.max_depth; ++d) {
+    const int max_depth = limits_.type == limits_.DEPTH ? limits_.depth : MAX_DEPTH;
+    for (int d = 2; d <= max_depth; ++d) {
         stats_.id_depth = d;
         prev_score = score;
         TimePoint start = timer::now();
@@ -296,7 +305,7 @@ void Search::iterative_deepening() {
         extract_pvmoves();
         uci_report();
 
-        if (limits_.infinite || pondering_)
+        if (limits_.type != limits_.TIME)
             continue;
 
         TimePoint now = timer::now(), 
@@ -304,7 +313,7 @@ void Search::iterative_deepening() {
 
         // TODO: we could try looking at EBF instead
         if (abs(score - prev_score) < 8 && !limits_.move_time 
-                && now - start >= time_left && d >= limits_.min_depth)
+                && now - start >= time_left && d >= limits_.depth)
             break; //assume we don't have enough time to go 1 ply deeper
 
         if (n_pvs_ == 1 && abs(score) >= VALUE_MATE - d)
