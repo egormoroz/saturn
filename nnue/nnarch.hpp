@@ -1,14 +1,12 @@
 #pragma once
 
 #include <cstddef>
-#include "nnue_misc.hpp"
+#include "halfkp.hpp"
 
 using std::size_t;
 
 namespace nnspecs {
 
-//constexpr size_t HALFKP_FEATURE_NB = 40960;
-//constexpr size_t HALFKP_FEATURE_NB = 41024;
 constexpr size_t HALFKP_FEATURE_NB = halfkp::N_FT;
 
 constexpr size_t HALFKP = 256;

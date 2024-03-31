@@ -1,35 +1,24 @@
-#pragma once
+#ifndef HALFKP_HPP
+#define HALFKP_HPP
 
 #include "../primitives/common.hpp"
+#include <cstddef>
 
-template<typename T>
-constexpr T round_up(T x, T multiple) {
-    T remainder = x % multiple;
-    if (!remainder)
-        return x;
+namespace halfkp {
 
-    return x + multiple - remainder;
-}
-
-template<typename T>
-struct Span {
-    Span(T *begin, T *end)
+struct FeatureSpan {
+    FeatureSpan(const uint16_t *begin, const uint16_t *end)
         : begin_(begin), end_(end) {}
 
-    T* begin() { return begin_; }
-    T* end() { return end_; }
+    const uint16_t* begin() { return begin_; }
+    const uint16_t* end() { return end_; }
 
     size_t size() const { return end_ - begin_; }
 
 private:
-    T *begin_;
-    T *end_;
+    const uint16_t *begin_;
+    const uint16_t *end_;
 };
-
-
-class Board;
-
-namespace halfkp {
 
 constexpr int N_SQ = 64;
 constexpr int N_PC = 10;
@@ -74,5 +63,6 @@ constexpr uint16_t halfkp_idx(Color pov, Square ksq, Square psq, Piece p) {
     return o_sq + N_SQ * pc_idx + N_SQ*N_PC * KING_BUCKETS[o_ksq];
 }
 
-}
+} // halfkp
 
+#endif

@@ -5,7 +5,7 @@
 #include "../primitives/bitboard.hpp"
 #include <string_view>
 #include <iosfwd>
-#include "../nnue/nnue_state.hpp"
+#include "../nnue/state.hpp"
 
 class Board {
 public:

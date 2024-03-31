@@ -8,7 +8,7 @@ add_executable(saturn
     parameters.cpp board/board.cpp board/board_moves.cpp board/parse.cpp
     board/validate.cpp board/see.cpp movgen/attack.cpp movgen/generate.cpp
     primitives/utility.cpp searchstack.cpp movepicker.cpp uci.cpp
-    search/searchworker.cpp search/search.cpp nnue/evaluate.cpp)
+    search/searchworker.cpp search/search.cpp nnue/nnue.cpp)
 
 if (DEFINED ENV{EVALFILE})
     message(STATUS "$ENV{EVALFILE}")

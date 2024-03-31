@@ -11,7 +11,7 @@
 #include <thread>
 
 #include "search/search.hpp"
-#include "nnue/evaluate.hpp"
+#include "nnue/nnue.hpp"
 #include "pack.hpp"
 #include "primitives/utility.hpp"
 

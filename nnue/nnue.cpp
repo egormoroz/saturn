@@ -1,17 +1,18 @@
 #include <cstring>
 #include <fstream>
 
-#include "evaluate.hpp"
+#include "nnue.hpp"
 #include "network.hpp"
 #include "../board/board.hpp"
-#include "nnue_state.hpp"
-
-#include "crelu.hpp"
+#include "state.hpp"
 
 #include "../parameters.hpp"
 #include "../scout.hpp"
 
-namespace {
+#include "ops.hpp"
+
+namespace nnue {
+
 
 bool NNUE_INITIALIZED = false;
 
@@ -24,10 +25,6 @@ struct AutoInit {
             sync_cout() << "[WARN] failed to initialize nnue\n";
     }
 } _;
-
-}
-
-namespace nnue {
 
 void refresh_accumulator(
         const Board &b, 
@@ -48,10 +45,9 @@ void refresh_accumulator(
     }
 
     transformer.refresh_accumulator(acc, 
-        FtSpan(features, features + n_features), perspective);
+        halfkp::FeatureSpan(features, features + n_features), perspective);
 }
 
-// ksq must be relative
 bool update_accumulator(
         StateInfo *si, 
         Color side,
@@ -98,8 +94,8 @@ bool update_accumulator(
     }
 
     transformer.update_accumulator(si->acc,
-        FtSpan(added, added + n_added),
-        FtSpan(removed, removed + n_removed),
+        halfkp::FeatureSpan(added, added + n_added),
+        halfkp::FeatureSpan(removed, removed + n_removed),
         side
     );
 

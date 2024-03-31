@@ -1,7 +1,18 @@
-#pragma once
+#ifndef STATE_HPP
+#define STATE_HPP
 
-#include "../primitives/common.hpp"
-#include "accumulator.hpp"
+#include <cstdint>
+#include <cassert>
+
+#include "nnarch.hpp"
+#include "simd.hpp"
+
+struct Accumulator {
+    alignas(SIMD_ALIGN) int16_t v[2][nnspecs::HALFKP];
+    int psqt[2];
+    bool computed[2];
+};
+
 
 struct Delta {
     Piece piece;
@@ -38,3 +49,4 @@ struct StateInfo {
     }
 };
 
+#endif

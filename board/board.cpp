@@ -3,7 +3,7 @@
 #include "../zobrist.hpp"
 #include "../movgen/attack.hpp"
 #include "../primitives/utility.hpp"
-#include "../nnue/evaluate.hpp"
+#include "../nnue/nnue.hpp"
 #include <cstring>
 
 // Used to detect material draw

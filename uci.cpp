@@ -5,7 +5,7 @@
 #include "uci.hpp"
 #include "primitives/utility.hpp"
 #include "tt.hpp"
-#include "nnue/evaluate.hpp"
+#include "nnue/nnue.hpp"
 #include "scout.hpp"
 
 

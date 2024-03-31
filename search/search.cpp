@@ -7,8 +7,8 @@
 #include "../movepicker.hpp"
 #include "../primitives/utility.hpp"
 #include "../tt.hpp"
-#include "../nnue/evaluate.hpp"
-#include "../nnue/nnue_state.hpp"
+#include "../nnue/nnue.hpp"
+#include "../nnue/state.hpp"
 #include "../scout.hpp"
 
 
