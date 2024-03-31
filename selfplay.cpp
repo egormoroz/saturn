@@ -10,7 +10,7 @@
 #include <fstream>
 #include <thread>
 
-#include "core/search.hpp"
+#include "search/search.hpp"
 #include "nnue/evaluate.hpp"
 #include "pack.hpp"
 #include "primitives/utility.hpp"

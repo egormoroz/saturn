@@ -4,7 +4,7 @@
 #include <iostream>
 #include "board/board.hpp"
 #include "searchstack.hpp"
-#include "core/searchworker.hpp"
+#include "search/searchworker.hpp"
 
 #include "book.hpp"
 

@@ -51,7 +51,7 @@ int main(int argc, char **argv) {
         }
 
         uint64_t hash = 0;
-        bool is_valid = validate_packed_games2(argv[2], hash);
+        bool is_valid = validate_packed_games(argv[2], hash);
         if (is_valid)
             printf("valid! hash %llu\n", (unsigned long long)hash);
         else
@@ -97,7 +97,7 @@ int main(int argc, char **argv) {
             return 1;
         }
 
-        merge_packed_games2((const char**)&argv[4], atol(argv[3]), argv[2]);
+        merge_packed_games((const char**)&argv[4], atol(argv[3]), argv[2]);
         return 0;
     } else if (!strcmp(argv[1], "cvtbook")) {
         if (argc != 4) {

@@ -150,9 +150,9 @@ bool unpack_board(const PackedBoard &pb, Board &b) {
         && hash == b.key();
 }
 
-void merge_packed_games2(const char **game_fnames, int n_games, const char *fout_games) {
+void merge_packed_games(const char **game_fnames, int n_games, const char *fout_games) {
     ChunkHead head;
-    ChainReader2 cr;
+    ChainReader cr;
 
     std::vector<char> buffer(PACK_CHUNK_SIZE + CHUNK_PADDING);
     std::vector<PosChain> leftovers;
@@ -384,7 +384,7 @@ static int16_t read_int(BitReader &br) {
 }
 
 std::pair<uint8_t*, uint64_t> PosChain::write_to_buf(uint8_t *buf, size_t buf_size) const {
-    assert(buf_size >= 2 * MAX_PLIES);
+    assert(buf_size >= 2 * PACK_MAX_PLIES);
     static_assert(sizeof(uint8_t) == 1);
 
     const uint8_t * const buf_end = buf + buf_size;
@@ -438,13 +438,13 @@ std::pair<uint8_t*, uint64_t> PosChain::write_to_buf(uint8_t *buf, size_t buf_si
 }
 
 void PosChain::write_to_stream(std::ostream &os) const {
-    uint8_t buf[MAX_PLIES * 2];
+    uint8_t buf[PACK_MAX_PLIES * 2];
     auto [buf_end, hash] = write_to_buf(buf, sizeof(buf));
     os.write((const char*)buf, buf_end - buf);
 }
 
 bool PosChain::load_from_stream(std::istream &is) {
-    uint8_t buf[MAX_PLIES * 2];
+    uint8_t buf[PACK_MAX_PLIES * 2];
     if (!is.read((char*)buf, sizeof(start.pc_mask)))
         return false;
     start.pc_mask = bytes_to_unsigned<uint64_t>(buf);
@@ -458,7 +458,7 @@ bool PosChain::load_from_stream(std::istream &is) {
 
     result = len_and_result & 3;
     n_moves = len_and_result >> 2;
-    assert(n_moves <= MAX_PLIES);
+    assert(n_moves <= PACK_MAX_PLIES);
 
     Board b;
     if (!unpack_board(start, b))
@@ -583,7 +583,7 @@ void ChainWriter::finish_chunk(bool pad) {
 }
 
 
-PackResult ChainReader2::start_new_chain(const uint8_t *buf, size_t buf_size) {
+PackResult ChainReader::start_new_chain(const uint8_t *buf, size_t buf_size) {
     buf_size_ = buf_size;
     br_.data = buf;
 
@@ -604,7 +604,7 @@ PackResult ChainReader2::start_new_chain(const uint8_t *buf, size_t buf_size) {
 
     result = len_and_result & 3;
     n_moves = len_and_result >> 2;
-    if (n_moves > MAX_PLIES || result > 2)
+    if (n_moves > PACK_MAX_PLIES || result > 2)
         return PackResult::INVALID_HEADER;
 
     if (!unpack_board(start, board))
@@ -621,7 +621,7 @@ PackResult ChainReader2::start_new_chain(const uint8_t *buf, size_t buf_size) {
     return board.is_valid_move(move) ? PackResult::OK : PackResult::INVALID_MOVE;
 }
 
-PackResult ChainReader2::next() {
+PackResult ChainReader::next() {
     if (move_idx >= n_moves)
         return PackResult::END_OF_CHAIN;
 
@@ -635,7 +635,7 @@ PackResult ChainReader2::next() {
     return PackResult::OK;
 }
 
-bool ChainReader2::read_movescore() {
+bool ChainReader::read_movescore() {
     if (tellg() + CHUNK_PADDING >= buf_size_)
         return false;
 
@@ -657,14 +657,14 @@ bool ChainReader2::read_movescore() {
     return tellg() + CHUNK_PADDING <= buf_size_;
 }
 
-size_t ChainReader2::tellg() const {
+size_t ChainReader::tellg() const {
     return (br_.cursor + 7) / 8;
 }
 
 
-bool validate_packed_games2(const char *fname, uint64_t &hash_out) {
+bool validate_packed_games(const char *fname, uint64_t &hash_out) {
     ChunkHead head;
-    ChainReader2 cr2;
+    ChainReader cr2;
 
     std::ifstream fin(fname, std::ios::binary);
     std::vector<uint8_t> buffer(PACK_CHUNK_SIZE + CHUNK_PADDING, 0);

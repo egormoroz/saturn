@@ -37,7 +37,6 @@ public:
 
 private:
     std::vector<Entry> entries_;
-    //std::array<Entry, MAX_PLIES> entries_;
     int height_{}, start_{};
 };
 

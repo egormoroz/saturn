@@ -295,4 +295,7 @@ constexpr Square sq_shift(Square sq) {
 
 /*--------------End of direction definitions---------*/
 
+
+constexpr int mg_value[PIECE_TYPE_NB] = { 0, 82, 337, 365, 477, 1025,  0};
+
 #endif

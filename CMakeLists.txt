@@ -4,13 +4,11 @@ set(CMAKE_CXX_STANDARD 17)
 project(saturn)
 
 add_executable(saturn 
-    main.cpp zobrist.cpp perft.cpp tt.cpp
-    board/board.cpp board/board_moves.cpp board/parse.cpp 
-    board/validate.cpp board/see.cpp movgen/attack.cpp 
-    movgen/generate.cpp primitives/utility.cpp
-    searchstack.cpp movepicker.cpp
-    uci.cpp core/searchworker.cpp nnue/evaluate.cpp
-    core/search.cpp selfplay.cpp pack.cpp book.cpp parameters.cpp)
+    main.cpp zobrist.cpp perft.cpp tt.cpp selfplay.cpp pack.cpp book.cpp
+    parameters.cpp board/board.cpp board/board_moves.cpp board/parse.cpp
+    board/validate.cpp board/see.cpp movgen/attack.cpp movgen/generate.cpp
+    primitives/utility.cpp searchstack.cpp movepicker.cpp uci.cpp
+    search/searchworker.cpp search/search.cpp nnue/evaluate.cpp)
 
 if (DEFINED ENV{EVALFILE})
     message(STATUS "$ENV{EVALFILE}")

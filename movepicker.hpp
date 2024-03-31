@@ -2,6 +2,7 @@
 #define MOVEPICKER_HPP
 
 #include "movgen/generate.hpp"
+#include <array>
 
 enum class Stage {
     TT_MOVE = 0,

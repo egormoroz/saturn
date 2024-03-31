@@ -4,13 +4,51 @@
 #include <ostream>
 #include <istream>
 #include "primitives/common.hpp"
-#include "bitrw.hpp"
 #include "board/board.hpp"
 #include "searchstack.hpp"
 
+struct BitWriter {
+    uint8_t *data;
+    size_t cursor;
+
+    template<typename T>
+    void write(T y, size_t n_bits = sizeof(std::decay_t<T>) * 8) {
+        using U = std::make_unsigned_t<std::decay_t<T>>;
+        U x = static_cast<U>(y);
+
+        while (n_bits) {
+            size_t byte_idx = cursor / 8, bit_idx = cursor % 8;
+            data[byte_idx] |= (x & 1) << bit_idx;
+            x >>= 1;
+            --n_bits;
+            ++cursor;
+        }
+    }
+};
+
+struct BitReader {
+    const uint8_t *data;
+    size_t cursor;
+
+    template<typename T>
+    T read(size_t n_bits) {
+        using U = std::make_unsigned_t<std::decay_t<T>>;
+        U x = 0;
+
+        for (size_t i = 0; i < n_bits; ++i)  {
+            size_t byte_idx = cursor / 8, bit_idx = cursor % 8;
+            x |= ((data[byte_idx] >> bit_idx) & 1) << i;
+            ++cursor;
+        }
+
+        return x;
+    }
+};
+
+
 // size overhead is 0.05% for 1 MB
 constexpr size_t PACK_CHUNK_SIZE = 1*1024*1024;
-// constexpr size_t PACK_CHUNK_SIZE = 16*1024;
+constexpr int PACK_MAX_PLIES = 1024;
 
 struct PackedBoard {
     uint64_t pc_mask;
@@ -40,7 +78,7 @@ constexpr inline bool is_ok(PackResult pr) { return pr == PackResult::OK; }
 
 struct PosChain {
     // a very generous upper bound
-    static constexpr int MAX_PACKED_SIZE = sizeof(PackedBoard) + 2 + 4 * MAX_PLIES;
+    static constexpr int MAX_PACKED_SIZE = sizeof(PackedBoard) + 2 + 4 * PACK_MAX_PLIES;
 
     PackedBoard start;
     uint8_t result;
@@ -49,7 +87,7 @@ struct PosChain {
     struct MoveScore {
         Move move;
         int16_t score;
-    } seq[MAX_PLIES];
+    } seq[PACK_MAX_PLIES];
 
     std::pair<uint8_t*, uint64_t> write_to_buf(uint8_t *buf, size_t buf_size) const;
 
@@ -80,7 +118,7 @@ struct ChainWriter {
 private:
     void finish_chunk(bool pad = true);
 
-    uint8_t buf_[MAX_PLIES * 2];
+    uint8_t buf_[PACK_MAX_PLIES * 2];
 
     std::ostream &os_;
     // the offset to the beginning of the current chunk
@@ -95,7 +133,7 @@ private:
 // the buffer bounds when reading a corrupted pack.
 constexpr size_t CHUNK_PADDING = 8;
 
-struct ChainReader2 {
+struct ChainReader {
     // The last move isn't made
     Board board;
 
@@ -126,9 +164,9 @@ private:
 PackedBoard pack_board(const Board &b);
 [[nodiscard]] bool unpack_board(const PackedBoard &pb, Board &b);
 
-void merge_packed_games2(const char **game_fnames, int n_files, const char *fout_games);
+void merge_packed_games(const char **game_fnames, int n_files, const char *fout_games);
 
-bool validate_packed_games2(const char *fname, uint64_t &hash_out);
+bool validate_packed_games(const char *fname, uint64_t &hash_out);
 
 
 #endif

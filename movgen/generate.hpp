@@ -3,7 +3,6 @@
 
 #include "../primitives/common.hpp"
 #include <cstdint>
-#include <array>
 
 struct ExtMove {
     Move move;

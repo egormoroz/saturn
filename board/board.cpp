@@ -3,7 +3,6 @@
 #include "../zobrist.hpp"
 #include "../movgen/attack.hpp"
 #include "../primitives/utility.hpp"
-#include "../core/eval.hpp"
 #include "../nnue/evaluate.hpp"
 #include <cstring>
 

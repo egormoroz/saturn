@@ -1,6 +1,5 @@
 #include "board.hpp"
 #include "../movgen/attack.hpp"
-#include "../core/eval.hpp"
 
 bool Board::see_ge(Move m, int threshold) const {
     if (type_of(m) != NORMAL)
