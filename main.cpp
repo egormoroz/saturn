@@ -187,6 +187,6 @@ static void run_bench(int argc, char **argv) {
     int avg_nps = 1000 * total_nodes / std::accumulate(std::begin(times), std::end(times), 0);
 
     std::cout << "\noverall " 
-        << std::setw(9) << nodes << " nodes"
+        << std::setw(9) << total_nodes << " nodes"
         << std::setw(9) << avg_nps << " nps" << std::endl;
 }

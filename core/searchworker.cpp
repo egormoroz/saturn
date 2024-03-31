@@ -26,7 +26,10 @@ SearchWorker::SearchWorker()
 }
 
 SearchWorker::~SearchWorker() {
-    stop();
+    search_->atomic_stop();
+    terminate_ = true;
+    go_cv_.notify_one();
+
     wait_for_completion();
     thread_.join();
 }
