@@ -4,8 +4,11 @@
 
 #define RESTRICT __restrict
 
+#if defined(__AVX2__)
 #define USE_AVX2
+#else 
 #define USE_SSSE3
+#endif
 
 #if defined(USE_AVX2)
 
