@@ -387,7 +387,7 @@ int Search::search(const Board &b, int alpha,
         int beta, int depth) 
 {
     const int ply = stack_.height();
-    const bool pv_node = alpha != beta - 1;
+    const bool is_pv = alpha != beta - 1;
     // Used for Singular Extension. Excluded move is the TT move.
     const Move excluded = ply > 0 ? stack_.at(ply).excluded : MOVE_NONE;
     
@@ -430,7 +430,8 @@ int Search::search(const Board &b, int alpha,
             ttm = MOVE_NONE;
         
         // TODO: consider not returning when in PV node
-        if (!is_root && !excluded && can_return_ttscore(tte, alpha, beta, depth, ply)) {
+        if (!is_root && !excluded && can_return_ttscore(tte, alpha, beta, depth, ply) && !is_pv) 
+        {
             if (ttm && b.is_quiet(ttm))
                 hist_.add_bonus(b, ttm, depth * depth);
             return alpha;
@@ -449,7 +450,7 @@ int Search::search(const Board &b, int alpha,
         --depth;
 
     // TODO: check if forward pruning makes sense in a singularity search
-    if (pv_node || b.checkers() || excluded)
+    if (is_pv || b.checkers() || excluded)
         goto move_loop; //skip pruning
 
     //Reverse futility pruning
@@ -547,7 +548,7 @@ move_loop:
         new_depth += is_root ? 0 : extension;
 
         int lmp_threshold = (3 + 2 * depth * depth) / (2 - improving);
-        if (!pv_node && !bb.checkers() && is_quiet && moves_tried > lmp_threshold) 
+        if (!is_pv && !bb.checkers() && is_quiet && moves_tried > lmp_threshold) 
             break;
 
         // SEE pruning
@@ -557,7 +558,7 @@ move_loop:
         // Late more reductions
         if (depth > 2 && moves_tried > 1 && is_quiet) {
             r = LMR[std::min(31, depth)][std::min(63, moves_tried)];
-            if (!pv_node) ++r;
+            if (!is_pv) ++r;
             if (!improving) ++r;
             if (killer_or_counter) r -= 2;
 
@@ -575,7 +576,7 @@ move_loop:
         stack_.push(b.key(), m, eval);
 
         //Zero-window search
-        if (!pv_node || moves_tried)
+        if (!is_pv || moves_tried)
             score = -search(bb, -alpha - 1, -alpha, new_depth);
 
         //Re-search if reduced move beats alpha
@@ -585,7 +586,7 @@ move_loop:
         }
 
         //(Re-)search with full window
-        if (pv_node && ((score > alpha && score < beta) || !moves_tried))
+        if (is_pv && ((score > alpha && score < beta) || !moves_tried))
             score = -search(bb, -beta, -alpha, new_depth);
 
         stack_.pop();
