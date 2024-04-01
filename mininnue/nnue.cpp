@@ -50,9 +50,6 @@ bool update_accumulator(StateInfo *si, Color pov) {
 
     for (int i = 0; i < si->nb_deltas; ++i) {
         const Delta &d = si->deltas[i];
-        if (type_of(d.piece) == KING)
-            continue;
-
         if (d.to != SQ_NONE)
             added[n_added++] = index(pov, d.to, d.piece);
         if (d.from != SQ_NONE)
@@ -70,7 +67,7 @@ void refresh_accumulator(const Board &b, Accumulator &acc, Color pov) {
     uint16_t features[32];
     int n_features = 0;
 
-    Bitboard mask = b.pieces() & ~b.pieces(KING);
+    Bitboard mask = b.pieces();
     while (mask) {
         Square s = pop_lsb(mask);
         features[n_features++] = index(pov, s, b.piece_on(s));
