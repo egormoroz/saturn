@@ -36,38 +36,43 @@ private:
     template<bool refresh>
     void apply_features(Accumulator &acc, FtSpan ft_add, FtSpan ft_sub, Color pov) const {
         constexpr int reg_width = simd_reg_width / 16;
-        constexpr int n_regs = N_HIDDEN / reg_width;
+        constexpr int n_regs = std::min(N_HIDDEN / reg_width, SIMD_REGISTERS);
 
         static_assert(N_HIDDEN % reg_width == 0);
-        static_assert(n_regs <= SIMD_REGISTERS, "multipass not supported yet");
 
-        auto acc_vec = (SIMDVector*)acc.v[pov];
-        auto bias_vec = (const SIMDVector*)bias_;
+        constexpr int pass_size = n_regs * reg_width;
+        constexpr int n_passes = N_HIDDEN / pass_size;
 
-        SIMDVector regs[n_regs];
+        for (int pass = 0; pass < n_passes; ++pass) {
+            const int off = pass * pass_size;
+            auto acc_vec_slice = (SIMDVector*)&acc.v[pov][off];
+            auto bias_vec_slice = (const SIMDVector*)&bias_[off];
 
-        if constexpr (refresh) {
+            SIMDVector regs[n_regs];
+
+            if constexpr (refresh) {
+                for (int i = 0; i < n_regs; ++i)
+                    regs[i] = bias_vec_slice[i];
+            } else {
+                for (int i = 0; i < n_regs; ++i)
+                    regs[i] = acc_vec_slice[i];
+            }
+
+            for (uint16_t idx: ft_add) {
+                auto column_vec = (const SIMDVector*)&weight_[N_HIDDEN * idx + off];
+                for (int i = 0; i < n_regs; ++i)
+                    regs[i] = vec_add_epi16(regs[i], column_vec[i]);
+            }
+
+            for (uint16_t idx: ft_sub) {
+                auto column_vec = (const SIMDVector*)&weight_[N_HIDDEN * idx + off];
+                for (int i = 0; i < n_regs; ++i)
+                    regs[i] = vec_sub_epi16(regs[i], column_vec[i]);
+            }
+
             for (int i = 0; i < n_regs; ++i)
-                regs[i] = bias_vec[i];
-        } else {
-            for (int i = 0; i < n_regs; ++i)
-                regs[i] = acc_vec[i];
+                acc_vec_slice[i] = regs[i];
         }
-
-        for (uint16_t idx: ft_add) {
-            auto column_vec = (const SIMDVector*)&weight_[N_HIDDEN * idx];
-            for (int i = 0; i < n_regs; ++i)
-                regs[i] = vec_add_epi16(regs[i], column_vec[i]);
-        }
-
-        for (uint16_t idx: ft_sub) {
-            auto column_vec = (const SIMDVector*)&weight_[N_HIDDEN * idx];
-            for (int i = 0; i < n_regs; ++i)
-                regs[i] = vec_sub_epi16(regs[i], column_vec[i]);
-        }
-
-        for (int i = 0; i < n_regs; ++i)
-            acc_vec[i] = regs[i];
     }
 
     alignas(SIMD_ALIGN) int16_t weight_[N_FEATURES * N_HIDDEN];
