@@ -4,8 +4,7 @@
 #include "../primitives/common.hpp"
 #include "../primitives/bitboard.hpp"
 #include <string_view>
-#include <iosfwd>
-#include "../nnue/state.hpp"
+#include "../mininnue/nnue.hpp"
 
 class Board {
 public:

@@ -2,6 +2,7 @@
 #define PRIMITIVES_COMMON_HPP
 
 #include <cstdint>
+#include <cstddef>
 
 /*---------Square, file and rank definitions---------*/
 
@@ -297,5 +298,22 @@ constexpr Square sq_shift(Square sq) {
 
 
 constexpr int mg_value[PIECE_TYPE_NB] = { 0, 82, 337, 365, 477, 1025,  0};
+
+template<typename T>
+struct Span {
+    Span() = default;
+    
+    Span(T *begin, T *end)
+        : begin_(begin), end_(end) {}
+
+    T* begin() { return begin_; }
+    T* end() { return end_; }
+
+    size_t size() const { return end_ - begin_; }
+
+private:
+    T *begin_ = nullptr;
+    T *end_ = nullptr;
+};
 
 #endif

@@ -5,7 +5,7 @@
 #include "uci.hpp"
 #include "primitives/utility.hpp"
 #include "tt.hpp"
-#include "nnue/nnue.hpp"
+#include "mininnue/nnue.hpp"
 #include "scout.hpp"
 
 
@@ -20,8 +20,8 @@ UCIContext::UCIContext()
 
 void UCIContext::enter_loop() {
     board_ = Board::start_pos(&si_);
-    nnue::refresh_accumulator(board_, si_.acc, WHITE);
-    nnue::refresh_accumulator(board_, si_.acc, BLACK);
+    mini::refresh_accumulator(board_, si_.acc, WHITE);
+    mini::refresh_accumulator(board_, si_.acc, BLACK);
     st_.reset();
 
     std::string s, cmd;
@@ -170,10 +170,10 @@ void UCIContext::parse_setopt(std::istream &is) {
         while (*path && std::isspace(*path))
             ++path;
 
-        if (nnue::load_parameters(path)) {
+        if (mini::load_parameters(path)) {
             sync_cout() << "info string NNUE initialized from file " << path << "\n";
-            nnue::refresh_accumulator(board_, si_.acc, WHITE);
-            nnue::refresh_accumulator(board_, si_.acc, BLACK);
+            mini::refresh_accumulator(board_, si_.acc, WHITE);
+            mini::refresh_accumulator(board_, si_.acc, BLACK);
         } else {
             sync_cout() << "info string Failed to initialize NNUE from file " << path << "\n";
         }

@@ -17,16 +17,6 @@ int main(int argc, char **argv) {
         return 0;
     }
 
-    if (argc < 2) {
-        (void)(argc);
-        (void)(argv);
-
-        UCIContext uci;
-        uci.enter_loop();
-
-        return 0;
-    }
-
     if (!strcmp(argv[1], "selfplay")) {
         if (argc != 9) {
             printf("usage: selfplay <out_name> <num_pos> <nodes> "

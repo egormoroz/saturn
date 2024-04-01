@@ -18,7 +18,7 @@ const int move_overhead = 30;
 #ifdef EVALFILE
 const char* nnue_weights_path = EVALFILE;
 #else
-const char* nnue_weights_path = "saturn-5F6C2511.nnue";
+const char* nnue_weights_path = "mini.nnue";
 #endif
 
 

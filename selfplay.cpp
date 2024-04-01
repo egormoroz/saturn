@@ -11,7 +11,7 @@
 #include <thread>
 
 #include "search/search.hpp"
-#include "nnue/nnue.hpp"
+#include "mininnue/nnue.hpp"
 #include "pack.hpp"
 #include "primitives/utility.hpp"
 
@@ -311,7 +311,7 @@ private:
             float min_weight = 1;
             for (int i = 0; i < total_moves; ++i) {
                 Board b = board_.do_move(moves[i], &si_stack_[ply+1]);
-                weights[i] = static_cast<float>(-nnue::evaluate(b));
+                weights[i] = static_cast<float>(-mini::evaluate(b));
                 min_weight = weights[i] < min_weight ? weights[i] : min_weight;
             }
 

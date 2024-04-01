@@ -3,7 +3,6 @@
 #include "../zobrist.hpp"
 #include "../movgen/attack.hpp"
 #include "../primitives/utility.hpp"
-#include "../nnue/nnue.hpp"
 #include <cstring>
 
 // Used to detect material draw
@@ -247,7 +246,7 @@ std::ostream& operator<<(std::ostream& os, const Board &b) {
 
     os << "\nSide to move: " << b.side_to_move();
     os << "\nCastling rights: " << b.castling();
-    os << "\nStatic evaluation: " << nnue::evaluate(b) << "\n";
+    os << "\nStatic evaluation: " << mini::evaluate(b) << "\n";
 
     auto flags = os.flags();
     os << "Key: " << std::hex << b.key() << "\n";

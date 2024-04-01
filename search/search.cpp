@@ -7,8 +7,7 @@
 #include "../movepicker.hpp"
 #include "../primitives/utility.hpp"
 #include "../tt.hpp"
-#include "../nnue/nnue.hpp"
-#include "../nnue/state.hpp"
+#include "../mininnue/nnue.hpp"
 #include "../scout.hpp"
 
 
@@ -228,8 +227,8 @@ void Search::setup(const Board &root,  const SearchLimits &limits,
 
     root_.set_stateinfo(&root_si_);
     root_si_.previous = nullptr;
-    nnue::refresh_accumulator(root_, root_si_.acc, WHITE);
-    nnue::refresh_accumulator(root_, root_si_.acc, BLACK);
+    mini::refresh_accumulator(root_, root_si_.acc, WHITE);
+    mini::refresh_accumulator(root_, root_si_.acc, BLACK);
 
     man_.init(limits, root.side_to_move());
 
@@ -719,7 +718,7 @@ bool Search::is_board_drawn(const Board &b) const {
 int16_t Search::evaluate(const Board &b) {
     int16_t result;
     if (!ev_cache_.probe(b.key(), result)) {
-        result = static_cast<int16_t>(nnue::evaluate(b));
+        result = static_cast<int16_t>(mini::evaluate(b));
         ev_cache_.store(b.key(), result);
     }
 

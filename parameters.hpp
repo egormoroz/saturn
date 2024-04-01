@@ -25,8 +25,6 @@ extern float lmr_coeff;
 
 extern int move_overhead;
 
-extern const char* nnue_weights_path;
-
 }
 
 #endif

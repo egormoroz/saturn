@@ -1,15 +1,18 @@
 #ifndef STATE_HPP
 #define STATE_HPP
 
-#include <cstdint>
+#include "simd.hpp"
+#include "../primitives/common.hpp"
+
 #include <cassert>
 
-#include "nnarch.hpp"
-#include "simd.hpp"
+
+namespace mini {
+
+constexpr int N_HIDDEN = 256;
 
 struct Accumulator {
-    alignas(SIMD_ALIGN) int16_t v[2][nnspecs::HALFKP];
-    int psqt[2];
+    alignas(SIMD_ALIGN) int16_t v[2][N_HIDDEN];
     bool computed[2];
 };
 
@@ -48,5 +51,9 @@ struct StateInfo {
         acc.computed[BLACK] = false;
     }
 };
+
+ 
+} // mini
+
 
 #endif
