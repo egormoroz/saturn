@@ -7,7 +7,8 @@
 namespace nnue {
 
 template<size_t N, int shift = 0>
-void scale_and_clamp(const int16_t* RESTRICT input, int8_t* RESTRICT output) {
+void scale_and_clamp(const int16_t *input, int8_t *output) {
+#if defined(USE_AVX2)
     constexpr size_t in_register_width = simd_reg_width / 16;
     constexpr size_t out_register_width = simd_reg_width / 8;
     static_assert(N % out_register_width == 0);
@@ -39,10 +40,36 @@ void scale_and_clamp(const int16_t* RESTRICT input, int8_t* RESTRICT output) {
         
         _mm256_store_si256((__m256i*)&output[i * out_register_width], result);
     }
+#elif defined(USE_SSSE3)
+    constexpr int simd_reg_width = 128;
+    constexpr int out_reg_width = simd_reg_width / 8;
+    static_assert(N % out_reg_width == 0);
+    constexpr int n_blocks = N / out_reg_width;
+
+    auto in_vec = (const __m128i*)input;
+    auto out_vec = (__m128i*)output;
+
+    const __m128i k0x80s = _mm_set1_epi8(-128);
+    for (int i = 0; i < n_blocks; ++i) {
+        __m128i in0 = in_vec[2 * i + 0];
+        __m128i in1 = in_vec[2 * i + 1];
+
+        if constexpr (shift) {
+            in0 = _mm_srai_epi16(in0, shift);
+            in1 = _mm_srai_epi16(in1, shift);
+        }
+
+        __m128i x = _mm_packs_epi16(in0, in1);
+        x = _mm_subs_epi8(_mm_adds_epi8(x, k0x80s), k0x80s);
+
+        out_vec[i] = x;
+    }
+#endif
 }
 
 template<size_t N, int shift>
-void scale_and_clamp(const int32_t* RESTRICT input, int8_t* RESTRICT output) {
+void scale_and_clamp(const int32_t *input, int8_t *output) {
+#if defined(USE_AVX2)
     constexpr size_t in_register_width = 256 / 32;
     constexpr size_t out_register_width = 256 / 8;
     static_assert(N % out_register_width == 0);
@@ -80,18 +107,63 @@ void scale_and_clamp(const int32_t* RESTRICT input, int8_t* RESTRICT output) {
 
         _mm256_store_si256((__m256i*)&output[i * out_register_width], result);
     }
+#elif defined(USE_SSSE3)
+    constexpr int simd_reg_width = 128;
+    constexpr int out_reg_width = simd_reg_width / 8;
+    static_assert(N % out_reg_width == 0);
+    constexpr int n_blocks = N / out_reg_width;
+
+    auto in_vec = (const __m128i*)input;
+    auto out_vec = (__m128i*)output;
+
+    const __m128i k0x80s = _mm_set1_epi8(-128);
+
+    for (int i = 0; i < n_blocks; ++i) {
+        __m128i in0 = _mm_packs_epi32(in_vec[4 * i + 0], in_vec[4 * i + 1]);
+        __m128i in1 = _mm_packs_epi32(in_vec[4 * i + 2], in_vec[4 * i + 3]);
+
+        if constexpr (shift) {
+            in0 = _mm_srai_epi16(in0, shift);
+            in1 = _mm_srai_epi16(in1, shift);
+        }
+
+        __m128i x = _mm_packs_epi16(in0, in1);
+        x = _mm_subs_epi8(_mm_adds_epi8(x, k0x80s), k0x80s);
+        out_vec[i] = x;
+    }
+#endif
 }
 
 namespace detail {
 
-constexpr int N_OUTPUT_REGS = 8;   // how many registers to use for accumulators
-constexpr int SIMD_VEC_WIDTH = 32; // in bytes
-
+#if defined (USE_AVX2)
 
 using acc_vec_t = __m256i;
 using bias_vec_t = __m128i;
 using weight_vec_t = __m256i;
 using in_vec_t = __m256i;
+
+#define vec_haddx4 m256_haddx4
+#define vec_add_dpbusd_epi32x2 m256_add_dpbusd_epi32x2
+#define vec_add_dpbusd_epi32 m256_add_dpbusd_epi32
+
+#elif defined(USE_SSSE3)
+
+using acc_vec_t = __m128i;
+using bias_vec_t = __m128i;
+using weight_vec_t = __m128i;
+using in_vec_t = __m128i;
+
+#define vec_haddx4 m128_haddx4
+#define vec_add_dpbusd_epi32 m128_add_dpbusd_epi32
+#define vec_add_dpbusd_epi32x2 m128_add_dpbusd_epi32x2
+
+#endif
+
+constexpr int N_OUTPUT_REGS = SIMD_REGISTERS / 2;   // how many registers to use for accumulators
+constexpr int SIMD_VEC_WIDTH = simd_reg_width / 8; // in bytes
+
+
 
 template<size_t N_INPUT, size_t N_OUTPUT>
 struct LargeLayout {
@@ -153,7 +225,7 @@ void linear_forward_large(
             const in_vec_t in1 = invec[small_block + 1];
 
             for (size_t k = 0; k < N_OUTPUT_REGS; ++k)
-                m256_add_dpbusd_epi32x2(acc[k], in0, weightvec[k],
+                vec_add_dpbusd_epi32x2(acc[k], in0, weightvec[k],
                     in1, weightvec[k + N_OUTPUT_REGS]);
         }
 
@@ -162,7 +234,7 @@ void linear_forward_large(
 
         for (size_t k = 0; k < N_OUTPUT_REGS; k += 4) {
             const size_t idx = (big_block * N_OUTPUT_REGS + k) / 4;
-            outputvec[idx] = m256_haddx4(acc[k+0], acc[k+1],
+            outputvec[idx] = vec_haddx4(acc[k+0], acc[k+1],
                     acc[k+2], acc[k+3], biasvec[idx]);
         }
     }
@@ -196,14 +268,14 @@ void linear_forward_medium(
             for (int k = 0; k < N_OUTPUT_REGS; ++k) {
                 const int row_offset = (i * N_OUTPUT_REGS + k) * N_INPUT;
                 auto weight_slice = (const weight_vec_t*)&weight[row_offset];
-                m256_add_dpbusd_epi32(acc[k], in_vec, weight_slice[j]);
+                vec_add_dpbusd_epi32(acc[k], in_vec, weight_slice[j]);
             }
         }
 
 
         for (int k = 0; k < N_OUTPUT_REGS; k += 4) {
             int idx = i * (N_OUTPUT_REGS / bias_vec_len) + k / 4;
-            out_vec[idx] = m256_haddx4(acc[k+0], acc[k+1], acc[k+2], acc[k+3], bias_vec[idx]);
+            out_vec[idx] = vec_haddx4(acc[k+0], acc[k+1], acc[k+2], acc[k+3], bias_vec[idx]);
         }
     }
 }
@@ -219,6 +291,11 @@ void linear_forward_single(
     for (size_t i = 0; i < N_INPUT; ++i)
         out[0] += static_cast<int32_t>(weight[i]) * x[i];
 }
+
+#undef vec_zero
+#undef vec_haddx4
+#undef vec_add_dpbusd_epi32
+#undef vec_add_dpbusd_epi32x2
 
 } // detail
 

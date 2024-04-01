@@ -79,6 +79,7 @@ struct Network {
         l1.forward(input, buffer.l1_out);
         scale_and_clamp<L1::N_OUT, LOG2_WEIGHT_SCALE >(buffer.l1_out, buffer.l2_in);
 
+
         l2.forward(buffer.l2_in, buffer.l2_out);
         scale_and_clamp<L2::N_OUT, LOG2_WEIGHT_SCALE >(buffer.l2_out, buffer.out_in);
 

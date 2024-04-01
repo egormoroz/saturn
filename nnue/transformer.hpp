@@ -41,14 +41,13 @@ struct FeatureTransformer {
             halfkp::FeatureSpan features, 
             Color perspective)
     {
-
-        constexpr size_t register_width = 256 / 16;
-        constexpr size_t num_chunks = OUT_DIM / register_width;
-        static_assert(num_chunks <= 16, "not enough registers");
-
         acc.psqt[perspective] = 0;
         for (uint16_t idx: features)
             acc.psqt[perspective] += psqt_[idx];
+#if defined(USE_AVX2)
+        constexpr size_t register_width = 256 / 16;
+        constexpr size_t num_chunks = OUT_DIM / register_width;
+        static_assert(num_chunks <= 16, "not enough registers");
 
         int16_t *v = acc.v[perspective];
         __m256i regs[num_chunks];
@@ -66,6 +65,34 @@ struct FeatureTransformer {
         for (size_t i = 0; i < num_chunks; ++i)
             *(__m256i*)&v[i * register_width] = regs[i];
 
+#elif defined(USE_SSSE3)
+        constexpr size_t register_width = 128 / 16;
+        constexpr size_t n_registers = 8;
+        constexpr size_t one_pass_size = register_width * n_registers;
+        static_assert(OUT_DIM % one_pass_size == 0);
+        constexpr size_t n_passes = OUT_DIM / one_pass_size;
+
+        int16_t *v = acc.v[perspective];
+        __m128i regs[n_registers];
+
+        for (size_t i = 0; i < n_passes; ++i) {
+            size_t offset = i * one_pass_size;
+            auto bias_vec_slice = (const __m128i*)&bias_[offset];
+            auto acc_vec_slice = (__m128i*)&v[offset];
+
+            for (size_t j = 0; j < n_registers; ++j) 
+                regs[j] = bias_vec_slice[j];
+
+            for (uint16_t idx: features) {
+                auto weight_slice_vec = (const __m128i*)&weight_[idx * OUT_DIM + offset];
+                for (size_t j = 0; j < n_registers; ++j)
+                    regs[j] = _mm_add_epi16(regs[j], weight_slice_vec[j]);
+            }
+
+            for (size_t i = 0; i < n_registers; ++i)
+                acc_vec_slice[i] = regs[i];
+        }
+#endif
         acc.computed[perspective] = true;
     }
 
@@ -74,17 +101,17 @@ struct FeatureTransformer {
             halfkp::FeatureSpan added, halfkp::FeatureSpan removed,
             Color perspective)
     {
-        constexpr size_t register_width = 256 / 16;
-        constexpr size_t num_chunks = OUT_DIM / register_width;
-        static_assert(num_chunks <= 16, "not enough registers");
-
         for (uint16_t idx: added)
             acc.psqt[perspective] += psqt_[idx];
         for (uint16_t idx: removed)
             acc.psqt[perspective] -= psqt_[idx];
 
+#if defined(USE_AVX2)
+        constexpr size_t register_width = 256 / 16;
+        constexpr size_t num_chunks = OUT_DIM / register_width;
+        static_assert(num_chunks <= 16, "not enough registers");
+
         int16_t *v = acc.v[perspective];
-        
         __m256i regs[num_chunks];
 
         for (size_t i = 0; i < num_chunks; ++i) {
@@ -113,6 +140,40 @@ struct FeatureTransformer {
 
         for (size_t i = 0; i < num_chunks; ++i)
             _mm256_store_si256((__m256i*)&v[i * register_width], regs[i]);
+
+#elif defined(USE_SSSE3)
+        constexpr size_t register_width = 128 / 16;
+        constexpr size_t n_registers = 8;
+        constexpr size_t one_pass_size = register_width * n_registers;
+        static_assert(OUT_DIM % one_pass_size == 0);
+        constexpr size_t n_passes = OUT_DIM / one_pass_size;
+
+        int16_t *v = acc.v[perspective];
+        __m128i regs[n_registers];
+
+        for (size_t i = 0; i < n_passes; ++i) {
+            size_t offset = i * one_pass_size;
+            auto acc_vec_slice = (__m128i*)&v[offset];
+
+            for (size_t j = 0; j < n_registers; ++j) 
+                regs[j] = acc_vec_slice[j];
+
+            for (uint16_t idx: added) {
+                auto weight_slice_vec = (const __m128i*)&weight_[idx * OUT_DIM + offset];
+                for (size_t j = 0; j < n_registers; ++j)
+                    regs[j] = _mm_add_epi16(regs[j], weight_slice_vec[j]);
+            }
+
+            for (uint16_t idx: removed) {
+                auto weight_slice_vec = (const __m128i*)&weight_[idx * OUT_DIM + offset];
+                for (size_t j = 0; j < n_registers; ++j)
+                    regs[j] = _mm_sub_epi16(regs[j], weight_slice_vec[j]);
+            }
+
+            for (size_t i = 0; i < n_registers; ++i)
+                acc_vec_slice[i] = regs[i];
+        }
+#endif
 
         acc.computed[perspective] = true;
     }
