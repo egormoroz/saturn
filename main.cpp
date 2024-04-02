@@ -3,6 +3,7 @@
 #include "selfplay.hpp"
 #include "pack.hpp"
 #include "tt.hpp"
+#include "primitives/utility.hpp"
 
 #include <fstream>
 #include <iomanip>
