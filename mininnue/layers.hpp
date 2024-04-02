@@ -14,6 +14,9 @@ namespace layers {
 template<int N_FEATURES, int N_HIDDEN>
 struct Transformer {
     bool load_parameters(std::istream &is) {
+        if (!is.read((char*)psqt_, sizeof(psqt_)))
+            return false;
+
         if (!is.read((char*)bias_, sizeof(bias_)))
             return false;
 
@@ -32,7 +35,6 @@ struct Transformer {
     }
 
 private:
-
     template<bool refresh>
     void apply_features(Accumulator &acc, FtSpan ft_add, FtSpan ft_sub, Color pov) const {
         constexpr int reg_width = simd_reg_width / 16;
@@ -73,10 +75,17 @@ private:
             for (int i = 0; i < n_regs; ++i)
                 acc_vec_slice[i] = regs[i];
         }
+
+        if (refresh)
+            acc.psqt[pov] = 0;
+
+        for (uint16_t idx: ft_add) acc.psqt[pov] += psqt_[idx];
+        for (uint16_t idx: ft_sub) acc.psqt[pov] -= psqt_[idx];
     }
 
     alignas(SIMD_ALIGN) int16_t weight_[N_FEATURES * N_HIDDEN];
     alignas(SIMD_ALIGN) int16_t bias_[N_HIDDEN];
+    int16_t psqt_[N_FEATURES];
 };
 
 template<int N_INPUT, int16_t S_A>

@@ -3,17 +3,19 @@
 
 #include "simd.hpp"
 #include "../primitives/common.hpp"
+#include <array>
 
 #include <cassert>
 
 
 namespace mini {
 
-constexpr int N_HIDDEN = 512;
+constexpr int N_HIDDEN = 256;
 
 struct Accumulator {
-    alignas(SIMD_ALIGN) int16_t v[2][N_HIDDEN];
-    bool computed[2];
+    alignas(SIMD_ALIGN) std::array<int16_t, N_HIDDEN> v[2];
+    bool computed[2]{};
+    int32_t psqt[2];
 };
 
 

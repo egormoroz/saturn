@@ -1,12 +1,12 @@
 #include "nnue.hpp"
 #include "ftset.hpp"
 #include "layers.hpp"
+#include "../primitives/utility.hpp"
 
 #include "../board/board.hpp"
 #include "../scout.hpp"
 #include "../parameters.hpp"
 
-#include <cstring>
 #include <fstream>
 
 
@@ -28,17 +28,23 @@ struct AutoInit {
     };
 } _;
 
-bool update_accumulator(StateInfo *si, Color pov) {
+bool update_accumulator(StateInfo *si, Color pov, Square ksq) {
     if (si->acc.computed[pov])
         return true;
 
     if (!si->previous || si == si->previous)
         return false;
 
-    if (!update_accumulator(si->previous, pov))
+    const Delta d = si->deltas[0];
+    if (si->nb_deltas && type_of(d.piece) == KING 
+            && !same_king_bucket(pov, d.from, d.to))
         return false;
 
-    memcpy(si->acc.v[pov], si->previous->acc.v[pov], sizeof(Accumulator::v[0]));
+    if (!update_accumulator(si->previous, pov, ksq))
+        return false;
+
+    si->acc.psqt[pov] = si->previous->acc.psqt[pov];
+    si->acc.v[pov] = si->previous->acc.v[pov];
 
     if (!si->nb_deltas) {
         si->acc.computed[pov] = true;
@@ -51,9 +57,9 @@ bool update_accumulator(StateInfo *si, Color pov) {
     for (int i = 0; i < si->nb_deltas; ++i) {
         const Delta &d = si->deltas[i];
         if (d.to != SQ_NONE)
-            added[n_added++] = index(pov, d.to, d.piece);
+            added[n_added++] = index(pov, d.to, d.piece, ksq);
         if (d.from != SQ_NONE)
-            removed[n_removed++] = index(pov, d.from, d.piece);
+            removed[n_removed++] = index(pov, d.from, d.piece, ksq);
     }
 
     ft.update_acc(si->acc, FtSpan(added, added + n_added), 
@@ -65,13 +71,7 @@ bool update_accumulator(StateInfo *si, Color pov) {
 
 void refresh_accumulator(const Board &b, Accumulator &acc, Color pov) {
     uint16_t features[32];
-    int n_features = 0;
-
-    Bitboard mask = b.pieces();
-    while (mask) {
-        Square s = pop_lsb(mask);
-        features[n_features++] = index(pov, s, b.piece_on(s));
-    }
+    int n_features = get_active_features(b, pov, features);
 
     ft.refresh_acc(acc, FtSpan(features, features + n_features), pov);
     acc.computed[pov] = true;
@@ -86,17 +86,18 @@ int32_t evaluate(const Board &b) {
 
     StateInfo *si = b.get_stateinfo();
 
-    if (!update_accumulator(si, WHITE))
+    if (!update_accumulator(si, WHITE, b.king_square(WHITE)))
         refresh_accumulator(b, si->acc, WHITE);
-    if (!update_accumulator(si, BLACK))
+
+    if (!update_accumulator(si, BLACK, b.king_square(BLACK)))
         refresh_accumulator(b, si->acc, BLACK);
 
     Color stm = b.side_to_move();
     int32_t result = fc_out_bias;
-    result += fc_out[0].forward(si->acc.v[stm]);
-    result += fc_out[1].forward(si->acc.v[~stm]);
+    result += fc_out[0].forward(si->acc.v[stm].data());
+    result += fc_out[1].forward(si->acc.v[~stm].data());
 
-    return result / S_W;
+    return result / S_W + (si->acc.psqt[stm] - si->acc.psqt[~stm]) / 2;
 }
 
 bool load_parameters(const char *path) {

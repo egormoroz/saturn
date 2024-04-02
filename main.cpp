@@ -13,6 +13,21 @@
 static void run_bench(int argc, char **argv);
 
 int main(int argc, char **argv) {
+    /* StateInfo si[2]; */
+    /* Board b(si); */
+    /* b.load_fen("rnb1kbnN/ppp3pp/8/8/2B1p3/8/PPPP1PqP/RNBQK2R b KQq - 0 6"); */
+    /* mini::evaluate(b); */
+
+    /* std::cout << si[0].acc.psqt[WHITE] << '\n'; */
+    /* std::cout << si[0].acc.psqt[BLACK] << '\n'; */
+
+    /* b = b.do_move(move_from_str(b, "g2h1"), si + 1); */
+    /* mini::evaluate(b); */
+
+    /* std::cout << si[1].acc.psqt[WHITE] << '\n'; */
+    /* std::cout << si[1].acc.psqt[BLACK] << '\n'; */
+
+
     if (argc == 1) {
         UCIContext().enter_loop();
         return 0;

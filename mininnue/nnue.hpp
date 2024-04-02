@@ -8,7 +8,7 @@ class Board;
 
 namespace mini {
 
-bool update_accumulator( StateInfo *si, Color pov);
+bool update_accumulator( StateInfo *si, Color pov, Square ksq);
 void refresh_accumulator(const Board &b, Accumulator &acc, Color pov);
 
 int32_t evaluate(const Board &b);
