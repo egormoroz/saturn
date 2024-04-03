@@ -46,7 +46,7 @@ inline int32_t vec_hsum_epi32(__m256i x) {
 
 #elif defined(USE_SSSE3)
 
-constexpr int SIMD_REGISTERS = 16;
+constexpr int SIMD_REGISTERS = 8;
 constexpr int SIMD_ALIGN = 16;
 constexpr int simd_reg_width = 128;
 
