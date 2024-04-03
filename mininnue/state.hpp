@@ -10,7 +10,7 @@
 
 namespace mini {
 
-constexpr int N_HIDDEN = 256;
+constexpr int N_HIDDEN = 512;
 
 struct Accumulator {
     alignas(SIMD_ALIGN) std::array<int16_t, N_HIDDEN> v[2];

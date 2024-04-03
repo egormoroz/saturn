@@ -231,7 +231,7 @@ void UCIContext::print_info() {
             << d::nnue_weights_path << '\n'
 
         << "option name Hash type spin default " 
-            << d::tt_size << " min %d max %d\n"
+            << d::tt_size << " min 16 max 4096\n"
 
         <<  "option name aspdelta type spin default "
             << d::asp_init_delta << " min 1 max 100\n"
@@ -243,7 +243,7 @@ void UCIContext::print_info() {
             << d::move_overhead << " min 0 max 1000\n"
 
         <<  "option name lmrcoeff type string default "
-            << d::lmr_coeff << " min 0.4 max 1.0\n"
+            << d::lmr_coeff << '\n'
 
         <<  "option name bookfile type string default <DISABLED>\n";
 
