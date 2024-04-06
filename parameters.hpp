@@ -1,6 +1,11 @@
 #ifndef PARAMETERS_HPP
 #define PARAMETERS_HPP
 
+#ifndef EVALFILE
+#define EVALFILE "default.nnue"
+#endif
+
+
 namespace params {
 
 namespace defaults {

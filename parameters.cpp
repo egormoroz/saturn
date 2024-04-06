@@ -15,12 +15,7 @@ const float lmr_coeff = 0.65f;
 const int move_overhead = 30;
 
 
-#ifdef EVALFILE
 const char* nnue_weights_path = EVALFILE;
-#else
-const char* nnue_weights_path = "mini.nnue";
-#endif
-
 
 }
 
