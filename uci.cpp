@@ -110,7 +110,7 @@ void UCIContext::parse_go(std::istream &is) {
 
         else if (token == "infinite") limits.type = limits.UNLIMITED;
 
-        else if (token == "ponder") { ponder = true; limits.type = limits.UNLIMITED; }
+        else if (token == "ponder") { ponder = true; }
         else if (token == "depth") { is >> limits.depth; limits.type = limits.DEPTH; }
         else if (token == "nodes") { is >> limits.nodes; limits.type = limits.NODES; }
         else if (token == "perft") { parse_go_perft(is); return; }

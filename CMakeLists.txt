@@ -23,5 +23,6 @@ else()
     find_package(Threads REQUIRED)
     target_link_libraries(saturn PRIVATE Threads::Threads)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Ofast -march=native -mtune=native -flto=auto")
+    # set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=native -mtune=native -flto=auto -g -pg")
 endif()
 

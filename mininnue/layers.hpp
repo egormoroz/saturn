@@ -100,20 +100,31 @@ struct Output {
         const SIMDVector min{};
         const SIMDVector max = vec_set1_epi16(S_A);
 
-        SIMDVector sum{};
-
         auto in_vec = (const SIMDVector*)x;
         auto weight_vec = (const SIMDVector*)weight_;
 
-        constexpr int chunK_size = simd_reg_width / 16;
-        constexpr int n_chunks = N_INPUT / chunK_size;
+        constexpr int unroll_factor = SIMD_REGISTERS;
+        constexpr int chunk_size = simd_reg_width / 16;
+        constexpr int n_chunks = N_INPUT / chunk_size;
 
-        for (int i = 0; i < n_chunks; ++i) {
-            auto u = vec_min_epi16(max, vec_max_epi16(min, in_vec[i]));
-            sum = vec_add_epi32(sum, vec_madd_epi16(u, weight_vec[i]));
+        SIMDVector sums[unroll_factor]{};
+
+        static_assert(n_chunks % unroll_factor == 0);
+
+        for (int i = 0; i < n_chunks; i += unroll_factor) {
+
+            for (int j = 0; j < unroll_factor; ++j) {
+                auto u = vec_min_epi16(max, vec_max_epi16(min, in_vec[i + j]));
+                sums[j] = vec_add_epi32(sums[j], vec_madd_epi16(u, weight_vec[i + j]));
+            }
+
         }
 
-        return vec_hsum_epi32(sum);
+        for (int i = unroll_factor / 2; i > 0; i /= 2)
+            for (int j = 0; j < i; ++j)
+                sums[j] = _mm256_hadd_epi32(sums[2 * j], sums[2 * j + 1]);
+
+        return vec_hsum_epi32(sums[0]);
     }
 
 private:

@@ -15,12 +15,11 @@ CCRL 40/15 ELO changelog. Questionmark means the elo is my rough estimate at STC
 | 1.0               | 2706  | First version with PSQT eval               | 
 
 ## TODO
-- Refactor this utter mess, add comments and such.
-- Investigate TT aging and its effect on the playing strength. A very brief test so far resulted in 0 elo difference.
-- Better NNUE architecture
 - Optional BMI2 movegen
-- Make sure SSSE3 version werks on an old cpu
+- Search parameters tuning
+- Smarter time management
 - Lazy SMP
+- EGTBs
 - Revisit move ordering stuff
 
 ## Building using cmake
