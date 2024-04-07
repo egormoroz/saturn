@@ -555,7 +555,7 @@ move_loop:
             continue;
 
         // Late more reductions
-        if (depth > 2 && moves_tried > 1 && is_quiet) {
+        if (depth > 2 && moves_tried > 1 && is_quiet && !killer_or_counter) {
             r = LMR[std::min(31, depth)][std::min(63, moves_tried)];
             if (!is_pv) ++r;
             if (!improving) ++r;
