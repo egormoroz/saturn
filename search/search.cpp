@@ -257,7 +257,7 @@ bool Search::keep_going() {
 }
 
 void Search::iterative_deepening() {
-    int score = 0, prev_score;
+    int score = 0;
 
     if (!n_pvs_){ 
         if (!silent_)
@@ -280,42 +280,45 @@ void Search::iterative_deepening() {
     extract_pvmoves();
     uci_report();
 
-
     const int max_depth = limits_.type == limits_.DEPTH ? limits_.depth : MAX_DEPTH;
     for (int d = 2; d <= max_depth; ++d) {
         stats_.id_depth = d;
-        prev_score = score;
+        uint64_t nodes_before = stats_.nodes;
         TimePoint start = timer::now();
 
         rmp_.mpv_reset();
         for (int i = 0; i < n_pvs_; ++i) {
             score = aspiration_window(score, d);
-            if (!keep_going())
+            // important that we check without actually updating the flag
+            if (!keep_going_)
                 break;
 
             rmp_.exclude_top_move(score);
         }
 
-        if (!keep_going())
+        // important that we check without actually updating the flag
+        if (!keep_going_)
             break;
 
         assert(rmp_.num_excluded_moves() == n_pvs_);
         extract_pvmoves();
         uci_report();
 
-        if (limits_.type != limits_.TIME)
-            continue;
-
-        TimePoint now = timer::now(), 
-              time_left = man_.start + man_.max_time - now;
-
-        // TODO: we could try looking at EBF instead
-        if (abs(score - prev_score) < 8 && !limits_.move_time 
-                && now - start >= time_left && d >= limits_.depth)
-            break; //assume we don't have enough time to go 1 ply deeper
-
         if (n_pvs_ == 1 && abs(score) >= VALUE_MATE - d)
             break;
+
+        if (limits_.type != limits_.TIME || limits_.move_time)
+            continue;
+
+        // Now let's consider stopping early if we are limited by time
+
+        const double approx_ebf = static_cast<double>(stats_.nodes) / nodes_before;
+        const TimePoint now = timer::now();
+        const TimePoint expected_ply_cost = approx_ebf * (now - start);
+        const TimePoint time_left = man_.start + man_.max_time - now;
+
+        if (time_left < expected_ply_cost)
+            break; //assume we don't have enough time to go 1 ply deeper 
     }
 
     while (pondering_);
