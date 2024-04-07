@@ -5,7 +5,7 @@ namespace params {
 
 namespace defaults {
 
-const int tt_size = 256;
+const int tt_size = 16;
 
 const int asp_init_delta = 22;
 const int asp_min_depth = 7;
