@@ -103,7 +103,8 @@ struct Output {
         auto in_vec = (const SIMDVector*)x;
         auto weight_vec = (const SIMDVector*)weight_;
 
-        constexpr int unroll_factor = SIMD_REGISTERS;
+        // let's halve it just to have at least a few free registers
+        constexpr int unroll_factor = SIMD_REGISTERS / 2;
         constexpr int chunk_size = simd_reg_width / 16;
         constexpr int n_chunks = N_INPUT / chunk_size;
 
@@ -122,7 +123,7 @@ struct Output {
 
         for (int i = unroll_factor / 2; i > 0; i /= 2)
             for (int j = 0; j < i; ++j)
-                sums[j] = _mm256_hadd_epi32(sums[2 * j], sums[2 * j + 1]);
+                sums[j] = vec_hadd_epi32(sums[2 * j], sums[2 * j + 1]);
 
         return vec_hsum_epi32(sums[0]);
     }

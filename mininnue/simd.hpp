@@ -4,11 +4,11 @@
 
 #define RESTRICT __restrict
 
-#if defined(__AVX2__)
-#define USE_AVX2
-#else 
+/* #if defined(__AVX2__) */
+/* #define USE_AVX2 */
+/* #else */ 
 #define USE_SSSE3
-#endif
+/* #endif */
 
 #if defined(USE_AVX2)
 
@@ -23,6 +23,7 @@ using SIMDVector = __m256i;
 #define vec_add_epi16 _mm256_add_epi16
 #define vec_sub_epi16 _mm256_sub_epi16
 #define vec_madd_epi16 _mm256_madd_epi16
+#define vec_hadd_epi32 _mm256_hadd_epi32
 
 #define vec_set1_epi16 _mm256_set1_epi16
 
@@ -58,6 +59,7 @@ using SIMDVector = __m128i;
 #define vec_sub_epi16 _mm_sub_epi16
 
 #define vec_madd_epi16 _mm_madd_epi16
+#define vec_hadd_epi32 _mm_hadd_epi32
 
 #define vec_set1_epi16 _mm_set1_epi16
 
