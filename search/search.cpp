@@ -455,7 +455,7 @@ int Search::search(const Board &b, int alpha,
     //Reverse futility pruning
     if (depth < 7 && eval - 175 * depth / (1 + improving) >= beta
             && abs(beta) < MATE_BOUND)
-        return eval;
+        return (eval + beta) / 2;
 
     // Razoring
     if (!b.checkers() && depth < 6 && eval + 200 * depth <= alpha) {
