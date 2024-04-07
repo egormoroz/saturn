@@ -8,11 +8,11 @@ A UCI chess engine. NNUE weights and selfplay data can be found [here](https://h
 
 CCRL 40/15 ELO changelog. Questionmark means the elo is my rough estimate at STC.
 
-| Version           | ELO   | Most notable change                        |
-| ----------------- | ----- | ------------------------------------------ |
-| 1.2               | 3240? | horizontally mirrored NNUE, much more data | 
-| 1.1               | 3087  | HalfKP NNUE                                | 
-| 1.0               | 2706  | First version with PSQT eval               | 
+| Version           | ELO  | Most notable change                        |
+| ----------------- | ---- | ------------------------------------------ |
+| 1.2               | 3275 | horizontally mirrored NNUE, much more data | 
+| 1.1               | 3087 | HalfKP NNUE                                | 
+| 1.0               | 2706 | First version with PSQT eval               | 
 
 ## TODO
 - Optional BMI2 movegen
