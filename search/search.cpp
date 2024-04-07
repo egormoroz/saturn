@@ -547,7 +547,8 @@ move_loop:
         new_depth += is_root ? 0 : extension;
 
         int lmp_threshold = (3 + 2 * depth * depth) / (2 - improving);
-        if (!is_pv && !bb.checkers() && is_quiet && moves_tried > lmp_threshold) 
+        if (!is_pv && !bb.checkers() && amp.stage() >= Stage::NON_TACTICAL 
+                && moves_tried > lmp_threshold) 
             break;
 
         // SEE pruning
