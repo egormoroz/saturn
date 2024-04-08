@@ -213,7 +213,7 @@ void MovePicker::score_nontactical() {
             it->value += hist_->main[color_of(p)][from][to];
 
         if (board_.gives_check(it->move))
-            it->value += 10000;
+            it->value = INT16_MAX;
     }
 }
 
