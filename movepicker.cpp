@@ -42,20 +42,21 @@ constexpr int16_t SortingTable[SQUARE_NB] = {
 }
 
 Histories::Histories() noexcept {
-    for (auto &h: main)
-        for (auto &i: h)
-            i.fill(0);
+    reset();
 }
 
 void Histories::reset() {
     memset(main.data(), 0, sizeof(main));
+    memset(captures.data(), 0, sizeof(captures));
 }
 
 void Histories::add_bonus(const Board &b, Move m, int16_t bonus) {
     Square from = from_sq(m), to = to_sq(m);
     Piece p = b.piece_on(from);
 
-    int16_t &entry = main[color_of(p)][from][to];
+    auto& hist = b.is_quiet(m) ? main : captures;
+
+    int16_t &entry = hist[color_of(p)][from][to];
     entry += 32 * bonus - entry * abs(bonus) / 512;
 }
 
@@ -73,9 +74,11 @@ void Histories::update(const Board &b, Move bm,
 }
 
 int16_t Histories::get_score(const Board &b, Move m) const {
+    auto& hist = b.is_quiet(m) ? main : captures;
+
     Square from = from_sq(m), to = to_sq(m);
     Piece p = b.piece_on(from);
-    return main[color_of(p)][from][to];
+    return hist[color_of(p)][from][to];
 }
 
 
@@ -199,7 +202,9 @@ void MovePicker::score_tactical() {
         if (victim == NO_PIECE_TYPE)
             victim = prom_type(*it);
 
-        it->value = MVV_LVA[victim][attacker];
+        const int hist_score = hist_ ? hist_->get_score(board_, it->move) : 0;
+        const int score = MVV_LVA[victim][attacker] * 1000 + hist_score;
+        it->value = std::clamp(score, -INT16_MAX, INT16_MAX);
     }
 }
 

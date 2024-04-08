@@ -632,6 +632,9 @@ move_loop:
 
             if (prev)
                 followups_[from_to(prev)] = best_move;
+        } else {
+            const int bonus = std::min(depth * depth, 576);
+            hist_.add_bonus(b, best_move, bonus);
         }
     }
 

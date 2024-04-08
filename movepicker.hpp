@@ -30,6 +30,11 @@ struct Histories {
             std::array<int16_t, SQUARE_NB>, 
             SQUARE_NB>,
         COLOR_NB> main;
+    std::array<
+        std::array<
+            std::array<int16_t, SQUARE_NB>, 
+            SQUARE_NB>,
+        COLOR_NB> captures;
 
     Histories() noexcept;
 
