@@ -201,21 +201,25 @@ Search::Search()
 {
 }
 
+
 void Search::set_silent(bool s) {
     silent_ = s;
+}
+
+void Search::new_game() {
+    g_tt.new_search();
+    hist_.reset();
+    memset(counters_.data(), 0, sizeof(counters_));
+    memset(followups_.data(), 0, sizeof(followups_));
 }
 
 void Search::setup(const Board &root,  const SearchLimits &limits,
         const Stack *st, bool ponder, int multipv)
 {
-    // should we really do this?
-    g_tt.new_search();
-
     pondering_ = ponder;
     root_ = root;
     limits_ = limits;
     stats_.reset();
-    hist_.reset();
 
     rmp_.reset(root_);
     n_pvs_ = std::min(rmp_.num_moves(), multipv);
@@ -231,9 +235,6 @@ void Search::setup(const Board &root,  const SearchLimits &limits,
     mini::refresh_accumulator(root_, root_si_.acc, BLACK);
 
     man_.init(limits, root.side_to_move());
-
-    memset(counters_.data(), 0, sizeof(counters_));
-    memset(followups_.data(), 0, sizeof(followups_));
 
     keep_going_ = true;
 }

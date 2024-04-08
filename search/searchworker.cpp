@@ -38,6 +38,10 @@ void SearchWorker::set_silent(bool s) {
     search_->set_silent(s);
 }
 
+void SearchWorker::new_game() {
+    search_->new_game();
+}
+
 void SearchWorker::go(const Board &root, const SearchLimits &limits, 
         const Stack *st, bool ponder, int multipv) 
 {

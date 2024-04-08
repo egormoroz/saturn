@@ -149,10 +149,11 @@ static void run_bench(int argc, char **argv) {
 
     for (int i = 0; i < N_FENS; ++i) {
         b.load_fen(bench_fens[i]);
+        search->new_game();
+        search->setup(b, limits);
         
         limits.start = timer::now();
 
-        search->setup(b, limits);
         search->iterative_deepening();
 
         auto stats = search->get_stats();

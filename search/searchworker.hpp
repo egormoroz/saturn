@@ -16,6 +16,8 @@ public:
 
     void set_silent(bool s);
 
+    void new_game();
+
     void go(const Board &root, const SearchLimits &limits, 
             const Stack *st = nullptr, bool ponder=false, int multipv=1);
 

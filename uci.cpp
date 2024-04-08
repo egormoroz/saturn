@@ -44,6 +44,7 @@ void UCIContext::enter_loop() {
         else if (cmd == "stop") search_.stop();
         else if (cmd == "ponderhit") search_.stop_pondering();
         else if (cmd == "d") sync_cout() << board_;
+        else if (cmd == "ucinewgame") search_.new_game();
         else if (cmd == "quit") break;
 
     } while (s != "quit");
