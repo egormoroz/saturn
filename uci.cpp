@@ -183,25 +183,6 @@ void UCIContext::parse_setopt(std::istream &is) {
         } else {
             sync_cout() << "info string Failed to initialize NNUE from file " << path << "\n";
         }
-    } else if (name == "aspdelta") {
-        if (is >> t; t != "value") return;
-
-        int value = -1;
-        if (is >> value && value > 0)
-            params::asp_init_delta = value;
-    } else if (name == "aspmindepth") {
-        if (is >> t; t != "value") return;
-
-        int value = -1;
-        if (is >> value && value > 0)
-            params::asp_min_depth = value;
-    } else if (name == "lmrcoeff") {
-        if (is >> t; t != "value")
-            return;
-        if (float value; is >> value) {
-            params::lmr_coeff = value;
-            update_reduction_tables(value);
-        }
     } else if (name == "moveoverhead") {
         if (is >> t; t != "value") return;
 
@@ -223,36 +204,49 @@ void UCIContext::parse_setopt(std::istream &is) {
             book_loaded_ = book_.load_from_fens(path);
 
         sync_cout() << "info string book is " << (book_loaded_ ? "" : "not ") << "loaded\n";
+
+    } else {
+        for (int i = 0; i < params::registry.n_params; ++i) {
+            params::Parameter &p = params::registry.params[i];
+            if (name == p.name) {
+                if (is >> t; t != "value") return;
+
+                int value;
+                if (is >> value && value >= p.min && value <= p.max)
+                    p.val = value;
+
+                break;
+            }
+        }
+
+        update_reduction_tables();
     }
 }
 
 void UCIContext::print_info() {
     namespace d = params::defaults;
 
-    sync_cout() << "id name saturn 1.2\n" << "id author egormoroz\n"
+    auto cout = sync_cout();
+
+    cout << "id name saturn 1.2\n" << "id author egormoroz\n"
         <<  "option name Ponder type check default false\n"
         <<  "option name clear hash type button\n"
         <<  "option name multipv type spin default 1 min 1 max 256\n"
         <<  "option name evalfile type string default "
             << d::nnue_weights_path << '\n'
-
         << "option name Hash type spin default " 
             << d::tt_size << " min 16 max 4096\n"
-
-        <<  "option name aspdelta type spin default "
-            << d::asp_init_delta << " min 1 max 100\n"
-
-        <<  "option name aspmindepth type spin default "
-            << d::asp_init_delta << " min 1 max 100\n"
-
         <<  "option name MoveOverhead type spin default "
             << d::move_overhead << " min 0 max 1000\n"
-
-        <<  "option name lmrcoeff type string default "
-            << d::lmr_coeff << '\n'
-
         <<  "option name bookfile type string default <DISABLED>\n";
 
-    sync_cout() << "uciok\n";
+    for (int i = 0; i < params::registry.n_params; ++i) {
+        const params::Parameter& p = params::registry.params[i];
+
+        cout << "option name " << p.name << " type spin default " 
+             << p.def << " min " << p.min << " max " << p.max << '\n';
+    }
+
+    cout << "uciok\n";
 }
 

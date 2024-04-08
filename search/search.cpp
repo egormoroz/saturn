@@ -116,13 +116,12 @@ int16_t cap_value(const Board &b, Move m) {
 
 } //namespace
 
-void update_reduction_tables(float k) {
-    // k == 0.65 *could be* like +5 elo
-    // TODO: test this
+void update_reduction_tables() {
+    const float fk = params::lmr_coeff / 100.f;
     for (int depth = 1; depth < 32; ++depth)
         for (int moves = 1; moves < 64; ++moves)
             LMR[depth][moves] = static_cast<uint8_t>(
-                0.1 + log(depth) * log(moves) * k
+                0.1 + log(depth) * log(moves) * fk
             );
     LMR[0][0] = LMR[0][1] = LMR[1][0] = 0;
 }
@@ -446,7 +445,7 @@ int Search::search(const Board &b, int alpha,
     StateInfo si;
     bool improving = !b.checkers() && ply >= 2 && stack_.at(ply - 2).eval < eval;
 
-    if (depth >= 4 && !ttm)
+    if (depth >= params::iir_min_depth && !ttm)
         --depth;
 
     // TODO: check if forward pruning makes sense in a singularity search
@@ -454,23 +453,26 @@ int Search::search(const Board &b, int alpha,
         goto move_loop; //skip pruning
 
     //Reverse futility pruning
-    if (depth < 7 && eval - 175 * depth / (1 + improving) >= beta
+    if (depth <= params::rfp_max_depth 
+            && eval - params::rfp_margin * depth / (1 + improving) >= beta
             && abs(beta) < MATE_BOUND)
         return eval;
 
     // Razoring
-    if (!b.checkers() && depth < 6 && eval + 200 * depth <= alpha) {
-        if (quiescence<false>(b, alpha, beta) <= alpha)
-            return alpha;
-    }
+    if (!b.checkers() && depth <= params::rz_max_depth 
+            && eval + params::rz_margin * depth <= alpha
+            && quiescence<false>(b, alpha, beta) <= alpha) 
+        return alpha;
 
     //Null move pruning
-    if (depth >= 3 && !excluded
+    if (depth >= params::nmp_min_depth && !excluded
         && b.plies_from_null() && !avoid_null
         && b.has_nonpawns(b.side_to_move())
         && eval >= beta)
     {
-        int R = 4 + depth / 6 + std::min(2, (eval - beta) / 100);
+        int R = params::nmp_base + depth / params::nmp_depth_div 
+            + std::min(2, (eval - beta) / params::nmp_eval_div);
+
         int n_depth = depth - R;
         stack_.push(b.key(), MOVE_NULL, eval);
 
@@ -522,7 +524,7 @@ move_loop:
 
         // Singular move extension
         // Extend if TT move is so good it causes a beta cutoff, whereas all other moves don't.
-        if (!is_root && m == ttm && !excluded && depth >= 8 
+        if (!is_root && m == ttm && !excluded && depth >= params::sing_min_depth 
                 && tte.depth5 >= depth - 3 && tte.bound2 & BOUND_BETA) 
         {
             int rbeta = tte.score16 - depth;
@@ -552,7 +554,8 @@ move_loop:
             break;
 
         // SEE pruning
-        if (amp.stage() >= Stage::BAD_TACTICAL && depth < 8 && !b.see_ge(m, see_margin[is_quiet]))
+        if (amp.stage() >= Stage::BAD_TACTICAL && depth <= params::seefp_depth 
+                && !b.see_ge(m, see_margin[is_quiet]))
             continue;
 
         // Late more reductions
@@ -567,7 +570,7 @@ move_loop:
             // but a few hundred @ 10+0.1 show it doesn't lose any elo
             //if (bb.checkers()) --r; 
 
-            r -= hist_.get_score(b, m) / 8192;
+            r -= hist_.get_score(b, m) / params::lmr_hist_div;
 
             r = std::clamp(r, 0, new_depth - 1);
             new_depth -= r;
@@ -683,7 +686,7 @@ int Search::quiescence(const Board &b,
             m = mp.next<only_tacticals>(), ++moves_tried)
     {
         if (!with_evasions && type_of(m) != PROMOTION
-                && eval + cap_value(b, m) + 200 <= alpha) 
+                && eval + cap_value(b, m) + params::delta_margin <= alpha) 
             continue;
 
         bb = b.do_move(m, &si);

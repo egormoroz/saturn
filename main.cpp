@@ -11,6 +11,7 @@
 #include <numeric>
 
 static void run_bench(int argc, char **argv);
+static void print_spsa();
 
 int main(int argc, char **argv) {
     if (argc == 1) {
@@ -116,6 +117,9 @@ int main(int argc, char **argv) {
     } else if (!strcmp(argv[1], "bench")) {
         run_bench(argc, argv);
         return 0;
+    } else if (!strcmp(argv[1], "spsa")) {
+        print_spsa();
+        return 0;
     }
 
     printf("invalid command line arguments\n");
@@ -183,3 +187,14 @@ static void run_bench(int argc, char **argv) {
         << std::setw(9) << total_nodes << " nodes"
         << std::setw(9) << avg_nps << " nps" << std::endl;
 }
+
+
+static void print_spsa() {
+    for (int i = 0; i < params::registry.n_params; ++i) {
+        const params::Parameter& p = params::registry.params[i];
+
+        std::cout << p.name << ", int, " << p.def << ", " << p.min << ", " << p.max
+            << ", " << p.step << ", 0.002\n";
+    }
+}
+
