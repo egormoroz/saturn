@@ -400,7 +400,7 @@ void selfplay(const char *out_name, int num_pos, int nodes,
         writer.write(e.pc);
         pos_cnt += e.pc.n_moves;
 
-        auto delta = timer::now() - start;
+        auto delta = std::max<TimePoint>(1, timer::now() - start);
         int pos_per_sec = int(pos_cnt * 1000ll / delta);
         float eta = float(num_pos - pos_cnt) / pos_per_sec;
 

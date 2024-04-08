@@ -19,9 +19,9 @@ int main(int argc, char **argv) {
     }
 
     if (!strcmp(argv[1], "selfplay")) {
-        if (argc != 8) {
+        if (argc != 9) {
             printf("usage: selfplay <out_name> <num_pos> <nodes> "
-                   "<n_psv> <max_ld_moves> <n_threads>\n");
+                   "<n_psv> <max_ld_moves> <n_threads> <tt_size>\n");
             return 1;
         }
         
@@ -31,6 +31,9 @@ int main(int argc, char **argv) {
         int n_pv = atol(argv[5]);
         int max_ld_moves = atol(argv[6]);
         int n_threads = atol(argv[7]);
+        int tt_size = atol(argv[8]);
+
+        g_tt.resize(tt_size);
 
         selfplay(out_name, num_pos, nodes, n_pv, max_ld_moves, n_threads);
 
