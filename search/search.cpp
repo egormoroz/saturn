@@ -567,7 +567,7 @@ move_loop:
             // but a few hundred @ 10+0.1 show it doesn't lose any elo
             //if (bb.checkers()) --r; 
 
-            r -= hist_.get_score(b, m) / 8192;
+            r -= hist_.get_score(b, m) / 4096;
 
             r = std::clamp(r, 0, new_depth - 1);
             new_depth -= r;
