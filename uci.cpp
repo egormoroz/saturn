@@ -116,6 +116,11 @@ void UCIContext::parse_go(std::istream &is) {
         else if (token == "perft") { parse_go_perft(is); return; }
     }
 
+    Color us = board_.side_to_move();
+    if (ponder && limits.time[us] > limits.time[~us] && limits.type == limits.TIME)
+        limits.time[us] += limits.time[~us];
+
+
     search_.go(board_, limits, st_.total_height() ? &st_ : nullptr, ponder, multipv_);
 }
 
