@@ -38,18 +38,18 @@ PARAMETER(nmp_eval_div, 100, 80, 200, 20)
 PARAMETER(iir_min_depth, 4, 2, 8, 2)
 
 PARAMETER(rfp_max_depth, 6, 2, 8, 2)
-PARAMETER(rfp_margin, 175, 100, 250, 25)
+PARAMETER(rfp_margin, 175, 50, 250, 25)
 
 PARAMETER(rz_max_depth, 5, 2, 8, 2)
-PARAMETER(rz_margin, 200, 150, 300, 50)
+PARAMETER(rz_margin, 200, 100, 300, 50)
 
 PARAMETER(sing_min_depth, 8, 6, 12, 1)
 
-PARAMETER(lmr_hist_div, 8192, 2048, 12288, 512)
+PARAMETER(lmr_hist_div, 4096, 2048, 12288, 512)
 
 PARAMETER(delta_margin, 200, 100, 400, 50)
 
-PARAMETER(seefp_depth, 7, 6, 12, 1)
+PARAMETER(seefp_depth, 7, 2, 12, 1)
 
 }
 
