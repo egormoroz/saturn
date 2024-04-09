@@ -193,8 +193,8 @@ static void print_spsa() {
     for (int i = 0; i < params::registry.n_params; ++i) {
         const params::Parameter& p = params::registry.params[i];
 
-        std::cout << p.name << ", int, " << p.def << ", " << p.min << ", " << p.max
-            << ", " << p.step << ", 0.002\n";
+        std::cout << p.name << ", int, " << p.def << ".0, " << p.min << ".0, " 
+            << p.max << ".0, " << p.step << ".0, 0.002\n";
     }
 }
 
