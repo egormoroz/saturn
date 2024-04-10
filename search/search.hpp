@@ -2,7 +2,6 @@
 #define SEARCH_HPP
 
 #include "../primitives/common.hpp"
-#include "../parameters.hpp"
 
 #include "../board/board.hpp"
 #include "../searchstack.hpp"
@@ -105,6 +104,6 @@ private:
     std::atomic_bool pondering_ = false;
 };
 
-void update_reduction_tables(float k = params::defaults::lmr_coeff);
+void update_reduction_tables();
 
 #endif
