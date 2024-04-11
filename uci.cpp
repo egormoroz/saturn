@@ -171,6 +171,7 @@ void UCIContext::parse_setopt(std::istream &is) {
     } else if (name == "evalfile") {
         if (is >> t; t != "value") return;
         if (!std::getline(is, t)) return;
+        if (t.find("<builtin>") != std::string::npos) return;
 
         const char* path = t.c_str();
         while (*path && std::isspace(*path))
@@ -192,6 +193,10 @@ void UCIContext::parse_setopt(std::istream &is) {
     } else if (name == "bookfile") {
         if (is >> t; t != "value") return;
         if (!std::getline(is, t) || t.empty()) return;
+        if (t.find("<disabled>") != std::string::npos) {
+            book_loaded_ = false;
+            return;
+        }
 
 
         const char* path = t.c_str();
@@ -232,13 +237,12 @@ void UCIContext::print_info() {
         <<  "option name Ponder type check default false\n"
         <<  "option name clear hash type button\n"
         <<  "option name multipv type spin default 1 min 1 max 256\n"
-        <<  "option name evalfile type string default "
-            << d::nnue_weights_path << '\n'
+        <<  "option name evalfile type string default <builtin>\n"
         << "option name Hash type spin default " 
             << d::tt_size << " min 16 max 4096\n"
         <<  "option name MoveOverhead type spin default "
             << d::move_overhead << " min 0 max 1000\n"
-        <<  "option name bookfile type string default <DISABLED>\n";
+        <<  "option name bookfile type string default <disabled>\n";
 
     for (int i = 0; i < params::registry.n_params; ++i) {
         const params::Parameter& p = params::registry.params[i];
