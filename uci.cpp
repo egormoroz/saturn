@@ -233,7 +233,7 @@ void UCIContext::print_info() {
 
     auto cout = sync_cout();
 
-    cout << "id name saturn 1.2\n" << "id author egormoroz\n"
+    cout << "id name saturn 1.3\n" << "id author egormoroz\n"
         <<  "option name Ponder type check default false\n"
         <<  "option name clear hash type button\n"
         <<  "option name multipv type spin default 1 min 1 max 256\n"
