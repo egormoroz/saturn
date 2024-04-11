@@ -139,7 +139,7 @@ struct Judge {
             return;
         }
 
-        if (ply + 1 >= MAX_PLIES) {
+        if (ply >= MAX_PLIES - MAX_DEPTH * 2) {
             result = GameOutcome::DRAW;
             reason = MAX_PLY_REACHED;
             return;

@@ -442,6 +442,8 @@ int Search::search(const Board &b, int alpha,
         eval = evaluate(b);
     }
 
+    if (stack_.capped()) return eval;
+
     StateInfo si;
     bool improving = !b.checkers() && ply >= 2 && stack_.at(ply - 2).eval < eval;
 
@@ -676,6 +678,8 @@ int Search::quiescence(const Board &b,
         if (alpha >= beta)
             return beta;
     }
+
+    if (stack_.capped()) return eval;
 
     StateInfo si;
     MovePicker mp(b);
