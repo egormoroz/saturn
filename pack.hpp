@@ -167,6 +167,7 @@ PackedBoard pack_board(const Board &b);
 void merge_packed_games(const char **game_fnames, int n_files, const char *fout_games);
 
 bool validate_packed_games(const char *fname, uint64_t &hash_out);
+void recover_packed_games(const char *fin_path, const char *fout_path);
 
 
 #endif

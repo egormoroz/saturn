@@ -87,12 +87,20 @@ int main(int argc, char **argv) {
 
         return 0;
     } else if (!strcmp(argv[1], "packmerge")) {
-        if (argc < 5) {
-            printf("usage: packmerge <fout_bin> <n_files> <fbin1> <fbin2>...\n");
+        if (argc < 3) {
+            printf("usage: packmerge <fout_bin> <fbin1> <fbin2>...\n");
             return 1;
         }
 
-        merge_packed_games((const char**)&argv[4], atol(argv[3]), argv[2]);
+        merge_packed_games((const char**)&argv[4], argc - 2, argv[2]);
+        return 0;
+    } else if (!strcmp(argv[1], "packrecover")) {
+        char fout_path[256];
+        for (int i = 2; i < argc; ++i) {
+            sprintf(fout_path, "%s.rec", argv[i]);
+            recover_packed_games(argv[i], fout_path);
+        }
+
         return 0;
     } else if (!strcmp(argv[1], "cvtbook")) {
         if (argc != 4) {

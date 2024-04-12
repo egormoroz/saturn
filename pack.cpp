@@ -727,3 +727,56 @@ bool validate_packed_games(const char *fname, uint64_t &hash_out) {
     return true;
 }
 
+void recover_packed_games(const char *fin_path, const char *fout_path) {
+    ChunkHead head;
+    ChainReader cr2;
+
+    std::ifstream fin(fin_path, std::ios::binary);
+    std::ofstream fout(fout_path, std::ios::binary);
+
+    std::vector<uint8_t> buffer(PACK_CHUNK_SIZE + CHUNK_PADDING, 0);
+
+    while (fin) {
+        fin.read((char*)buffer.data(), PACK_CHUNK_SIZE);
+        if (!fin && fin.gcount() == 0) break;
+
+        head.from_bytes(buffer.data());
+        assert(head.body_size < PACK_CHUNK_SIZE);
+
+        uint32_t n_read = fin.gcount();
+        size_t buf_size = std::min(n_read, head.body_size);
+        buf_size = std::min(buffer.size(), buf_size + CHUNK_PADDING);
+        const uint8_t *ptr = buffer.data() + head.SIZE;
+
+        uint64_t hash = 0;
+        uint32_t k = 0;
+        bool skip_chunk = true;
+
+        while (true) {
+            PackResult pr;
+            if (!is_ok(pr = cr2.start_new_chain(ptr, buf_size)))
+                break;
+
+            hash ^= cr2.board.key();
+            while (is_ok(pr = cr2.next()))
+                hash ^= cr2.board.key();
+
+            if (pr != PackResult::END_OF_CHAIN)
+                break;
+
+            hash ^= cr2.board.do_move(cr2.move).key();
+
+            buf_size -= cr2.tellg();
+            ptr += cr2.tellg();
+
+            if (++k >= head.n_chains) {
+                skip_chunk = hash != head.hash;
+                break;
+            }
+        }
+
+        if (!skip_chunk)
+            fout.write((const char*)buffer.data(), n_read);
+    }
+}
+

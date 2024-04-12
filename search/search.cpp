@@ -75,12 +75,6 @@ namespace {
 
 uint8_t LMR[32][64];
 
-struct LMRAutoInit {
-    LMRAutoInit() {
-        update_reduction_tables();
-    }
-} _;
-
 bool can_return_ttscore(const TTEntry &tte, 
     int &alpha, int beta, int depth, int ply)
 {

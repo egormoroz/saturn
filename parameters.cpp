@@ -1,4 +1,5 @@
 #include "parameters.hpp"
+#include "search/search.hpp"
 
 
 namespace params {
@@ -50,6 +51,18 @@ PARAMETER(lmr_hist_div, 4903, 2048, 12288, 512)
 PARAMETER(delta_margin, 389, 100, 400, 50)
 
 PARAMETER(seefp_depth, 5, 2, 12, 1)
+
+}
+
+// All autoinit that uses the params must be in the same translation unit!
+
+namespace {
+
+struct LMRAutoInit {
+    LMRAutoInit() {
+        update_reduction_tables();
+    }
+} _;
 
 }
 
