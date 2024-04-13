@@ -64,8 +64,6 @@ extern Parameter& sing_min_depth;
 
 extern Parameter& lmr_hist_div;
 
-extern Parameter& delta_margin;
-
 extern Parameter& seefp_depth;
 
 
