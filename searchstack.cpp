@@ -17,12 +17,20 @@ void Stack::reset() {
     memset(entries_.data(), 0, sizeof(entries_));
 }
 
+void Stack::clear_killers() {
+    const int child_idx = height_ + 1;
+    if (child_idx < MAX_PLIES) {
+        Entry &e = entries_[child_idx];
+        e.killers[0] = e.killers[1] = MOVE_NONE;
+    }
+}
+
 void Stack::push(uint64_t key, Move m, int16_t eval, Move excluded) {
-    entries_[height_++] = { 
-        key, m, excluded,
-        { MOVE_NONE, MOVE_NONE }, 
-        eval 
-    };
+    Entry &e = entries_[height_++];
+    e.key = key;
+    e.move = m;
+    e.eval = eval;
+    e.excluded = excluded;
 }
 
 void Stack::pop() {

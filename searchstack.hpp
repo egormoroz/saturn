@@ -22,6 +22,7 @@ public:
     void set_start(int start);
     void reset();
 
+    void clear_killers();
     void push(uint64_t key, Move m = MOVE_NONE, int16_t eval = 0, Move excluded = MOVE_NONE);
     void pop();
 

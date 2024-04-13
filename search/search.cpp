@@ -437,6 +437,7 @@ int Search::search(const Board &b, int alpha,
     }
 
     if (stack_.capped()) return eval;
+    stack_.clear_killers();
 
     StateInfo si;
     bool improving = !b.checkers() && ply >= 2 && stack_.at(ply - 2).eval < eval;
