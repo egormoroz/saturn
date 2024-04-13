@@ -456,9 +456,11 @@ int Search::search(const Board &b, int alpha,
 
     // Razoring
     if (!b.checkers() && depth <= params::rz_max_depth 
-            && eval + params::rz_margin * depth <= alpha
-            && quiescence<false>(b, alpha, beta) <= alpha) 
-        return alpha;
+            && eval + params::rz_margin * depth <= alpha)
+    {
+        if (int qscore = quiescence<false>(b, alpha, beta); qscore <= alpha)
+            return qscore;
+    }
 
     //Null move pruning
     if (depth >= params::nmp_min_depth && !excluded
@@ -478,7 +480,7 @@ int Search::search(const Board &b, int alpha,
         stack_.pop();
 
         if (score >= beta)
-            return beta;
+            return score;
 
         avoid_null = true;
     }
@@ -670,7 +672,7 @@ int Search::quiescence(const Board &b,
         eval = evaluate(b);
         alpha = std::max(alpha, +eval);
         if (alpha >= beta)
-            return beta;
+            return alpha;
     }
 
     if (stack_.capped()) return eval;
@@ -700,7 +702,7 @@ int Search::quiescence(const Board &b,
         if (score > alpha)
             alpha = score;
         if (score >= beta) 
-            return beta;
+            break;
     }
 
     if (with_evasions && !moves_tried)
