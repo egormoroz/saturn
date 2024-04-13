@@ -102,10 +102,15 @@ Bound determine_bound(int alpha, int beta, int old_alpha) {
     return BOUND_ALPHA;
 }
 
-int16_t cap_value(const Board &b, Move m) {
+int16_t move_value(const Board &b, Move m) {
     if (type_of(m) == EN_PASSANT)
         return mg_value[PAWN];
-    return mg_value[type_of(b.piece_on(to_sq(m)))];
+
+    int16_t value = 0;
+    if (type_of(m) == PROMOTION)
+        value = mg_value[prom_type(m)] - mg_value[PAWN];
+
+    return value + mg_value[type_of(b.piece_on(to_sq(m)))];
 }
 
 } //namespace
@@ -683,8 +688,9 @@ int Search::quiescence(const Board &b,
     for (Move m = mp.next<only_tacticals>(); m != MOVE_NONE; 
             m = mp.next<only_tacticals>(), ++moves_tried)
     {
-        if (!with_evasions && type_of(m) != PROMOTION
-                && eval + cap_value(b, m) + params::delta_margin <= alpha) 
+        // If we aren't evading a check, and we assume that the capture/promotion is free
+        // but it still fails to raise alpha, we prune it
+        if (!with_evasions && eval + move_value(b, m) + params::delta_margin <= alpha)
             continue;
 
         bb = b.do_move(m, &si);

@@ -48,7 +48,7 @@ PARAMETER(sing_min_depth, 8, 6, 12, 1)
 
 PARAMETER(lmr_hist_div, 4903, 2048, 12288, 512)
 
-PARAMETER(delta_margin, 389, 100, 400, 50)
+PARAMETER(delta_margin, 120, 100, 400, 50)
 
 PARAMETER(seefp_depth, 5, 2, 12, 1)
 
