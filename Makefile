@@ -9,7 +9,7 @@ endif
 
 all:
 	mkdir -p build
-	cp ./default.nnue build/
+	cp ${EVALFILE} build/
 	cd build; EVALFILE=$(EVALFILE) && cmake ../ && cmake --build . --config Release --parallel; cp saturn ../${EXE}
 
 clean:
