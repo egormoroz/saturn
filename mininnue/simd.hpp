@@ -24,6 +24,7 @@ using SIMDVector = __m256i;
 #define vec_sub_epi16 _mm256_sub_epi16
 #define vec_madd_epi16 _mm256_madd_epi16
 #define vec_hadd_epi32 _mm256_hadd_epi32
+#define vec_mullo_epi16 _mm256_mullo_epi16
 
 #define vec_set1_epi16 _mm256_set1_epi16
 
@@ -60,6 +61,8 @@ using SIMDVector = __m128i;
 
 #define vec_madd_epi16 _mm_madd_epi16
 #define vec_hadd_epi32 _mm_hadd_epi32
+
+#define vec_mullo_epi16 _mm_mullo_epi16
 
 #define vec_set1_epi16 _mm_set1_epi16
 

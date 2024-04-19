@@ -20,8 +20,9 @@ namespace mini {
 INCBIN(uint8_t, _net, EVALFILE);
 
 
-constexpr int S_A = 256;
-constexpr int S_W = 4096;
+constexpr int S_A = 255;
+constexpr int S_W = 64;
+constexpr int S_O = 400;
 
 bool NNUE_LOADED = false;
 
@@ -179,11 +180,12 @@ int32_t evaluate(const Board &b) {
         refresh_accumulator(b, si->acc, BLACK);
 
     Color stm = b.side_to_move();
-    int32_t result = fc_out_bias;
+    int32_t psqt = (si->acc.psqt[stm] - si->acc.psqt[~stm]) / 2;
+    int64_t result = 0;
     result += fc_out[0].forward(si->acc.v[stm].data());
     result += fc_out[1].forward(si->acc.v[~stm].data());
 
-    return result / S_W + (si->acc.psqt[stm] - si->acc.psqt[~stm]) / 2;
+    return (result / S_A + fc_out_bias) * S_O / (S_W * S_A) + psqt;
 }
 
 bool load_parameters(const char *path) {

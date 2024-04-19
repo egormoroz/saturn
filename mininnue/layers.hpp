@@ -5,6 +5,8 @@
 #include "state.hpp"
 #include <istream>
 
+#include <algorithm>
+
 namespace mini {
 
 using FtSpan = Span<uint16_t>;
@@ -97,6 +99,8 @@ struct Output {
     }
 
     int32_t forward(const int16_t* x) const {
+        // return _forward_fallback(x);
+
         const SIMDVector min{};
         const SIMDVector max = vec_set1_epi16(S_A);
 
@@ -116,16 +120,29 @@ struct Output {
 
             for (int j = 0; j < unroll_factor; ++j) {
                 auto u = vec_min_epi16(max, vec_max_epi16(min, in_vec[i + j]));
-                sums[j] = vec_add_epi32(sums[j], vec_madd_epi16(u, weight_vec[i + j]));
+                u = vec_madd_epi16(u, vec_mullo_epi16(u, weight_vec[i + j]));
+                sums[j] = vec_add_epi32(sums[j], u);
             }
 
         }
+
+        
 
         for (int i = unroll_factor / 2; i > 0; i /= 2)
             for (int j = 0; j < i; ++j)
                 sums[j] = vec_hadd_epi32(sums[2 * j], sums[2 * j + 1]);
 
         return vec_hsum_epi32(sums[0]);
+    }
+
+    int32_t _forward_fallback(const int16_t* x) const {
+        int32_t sum = 0;
+        for (int i = 0; i < N_INPUT; ++i) {
+            int32_t u = std::clamp<int>(x[i], 0, 255);
+            sum += u*u * weight_[i];;
+        }
+
+        return sum;
     }
 
 private:
