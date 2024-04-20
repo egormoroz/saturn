@@ -567,6 +567,13 @@ move_loop:
             new_depth -= r;
         }
 
+        // Futility pruning
+        if (amp.stage() == Stage::NON_TACTICAL && new_depth <= 6 
+                && !is_pv && !b.checkers() 
+                && eval + 120 + 150 * new_depth <= alpha)
+            break;
+
+
         stack_.push(b.key(), m, eval);
 
         //Zero-window search
