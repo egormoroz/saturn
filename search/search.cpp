@@ -14,7 +14,7 @@
 template<bool is_root>
 struct AutoMovePicker {
     template<bool>
-    Move next();
+    Move next(bool skip_quiets = false);
     Stage stage() const;
     int num_excluded_moves() const;
     void complete_iter(int best_move_idx);
@@ -41,7 +41,7 @@ struct AutoMovePicker<true> {
     }
 
     template<bool b>
-    Move next() { return rmp_.next(); }
+    Move next(bool = false) { return rmp_.next(); }
 
     // dummy 
     Stage stage() const { return Stage::TT_MOVE; }
@@ -496,8 +496,9 @@ move_loop:
     int best_score = -VALUE_MATE, moves_tried = 0,
         old_alpha = alpha, score = 0, best_move_idx = 0;
     Move best_move = MOVE_NONE;
+    bool skip_quiets = false;
     for (Move m = amp.template next<false>(); m != MOVE_NONE; 
-            m = amp.template next<false>()) 
+            m = amp.template next<false>(skip_quiets)) 
     {
         if (m == excluded) continue;
 
@@ -541,11 +542,11 @@ move_loop:
         new_depth += is_root ? 0 : extension;
 
         int lmp_threshold = (3 + 2 * depth * depth) / (2 - improving);
-        if (!is_pv && !bb.checkers() && is_quiet && moves_tried > lmp_threshold) 
-            break;
+        if (!is_pv && !bb.checkers() && moves_tried > lmp_threshold) 
+            skip_quiets = true;
 
         // SEE pruning
-        if (amp.stage() >= Stage::BAD_TACTICAL && depth <= params::seefp_depth 
+        if (amp.stage() == Stage::BAD_TACTICAL && depth <= params::seefp_depth 
                 && !b.see_ge(m, see_margin[is_quiet]))
             continue;
 

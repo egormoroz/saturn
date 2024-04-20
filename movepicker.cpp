@@ -96,12 +96,18 @@ MovePicker::MovePicker(const Board &board)
     : board_(board), stage_(Stage::INIT_TACTICAL)
 {}
 
-template Move MovePicker::next<true>();
-template Move MovePicker::next<false>();
+template Move MovePicker::next<true>(bool skip_quiets);
+template Move MovePicker::next<false>(bool skip_quiets);
 
 template<bool qmoves>
-Move MovePicker::next() {
+Move MovePicker::next(bool skip_quiets) {
     Move m;
+    if (skip_quiets && stage_ == Stage::NON_TACTICAL) {
+        stage_ = Stage::BAD_TACTICAL;
+        cur_ = moves_;
+        end_ = end_bad_caps_;
+    }
+
     switch (stage_) {
     case Stage::TT_MOVE:
         stage_ = Stage::INIT_TACTICAL;
@@ -151,9 +157,7 @@ Move MovePicker::next() {
         [[fallthrough]];
 
     case Stage::FOLLOW_UP:
-        stage_ = Stage::BAD_TACTICAL;
-        cur_ = moves_;
-        end_ = end_bad_caps_;
+        stage_ = Stage::INIT_NONTACTICAL;
         if (followup_ != ttm_
             && followup_ != killers_[0]
             && followup_ != killers_[1]
@@ -162,27 +166,34 @@ Move MovePicker::next() {
             return followup_;
         [[fallthrough]];
 
-    case Stage::BAD_TACTICAL:
-        if ((m = select()) != MOVE_NONE)
-            return m;
-
-        stage_ = Stage::INIT_NONTACTICAL;
-        [[fallthrough]];
     case Stage::INIT_NONTACTICAL:
         stage_ = Stage::NON_TACTICAL;
-        cur_ = moves_;
+        cur_ = end_bad_caps_;
         end_ = generate<NON_TACTICAL>(board_, cur_);
         score_nontactical();
         insertion_sort(cur_, end_);
 
         [[fallthrough]];
     case Stage::NON_TACTICAL:
-        return select([this]() {
+        m = select([this]() {
             return *cur_ != killers_[0]
                 && *cur_ != killers_[1]
                 && *cur_ != counter_
                 && *cur_ != followup_;
         });
+        if (is_ok(m)) return m;
+
+        stage_ = Stage::BAD_TACTICAL;
+        cur_ = moves_;
+        end_ = end_bad_caps_;
+        [[fallthrough]];
+    case Stage::BAD_TACTICAL:
+        if ((m = select()) != MOVE_NONE)
+            return m;
+
+        stage_ = Stage::INIT_NONTACTICAL;
+        [[fallthrough]];
+
     };
 
     //unreachable

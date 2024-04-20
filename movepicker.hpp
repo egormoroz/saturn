@@ -16,10 +16,10 @@ enum class Stage {
     COUNTER_MOVE,
     FOLLOW_UP,
 
-    BAD_TACTICAL,
-
     INIT_NONTACTICAL,
     NON_TACTICAL,
+
+    BAD_TACTICAL,
 };
 
 class Board;
@@ -52,7 +52,7 @@ public:
     MovePicker(const Board &board);
 
     template<bool qmoves>
-    Move next();
+    Move next(bool skip_quiets = false);
 
     Stage stage() const;
 
